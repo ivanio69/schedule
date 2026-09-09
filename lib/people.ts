@@ -1,9 +1,6 @@
-export type Group = 1 | 2;
-
 export type Person = {
   id: string;
   name: string;
-  group: Group;
   active: boolean;
   createdAt: string;
 };
