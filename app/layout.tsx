@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import PWARegister from "@/components/PWARegister";
+import PWAInstallGuide from "@/components/PWAInstallGuide";
 import "./globals.css";
 
 const geist = Geist({
@@ -30,7 +31,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru" className={geist.variable} data-theme="dark">
-      <body><PWARegister />{children}</body>
+      <body>
+        <PWARegister />
+        {children}
+        <PWAInstallGuide />
+      </body>
     </html>
   );
 }
