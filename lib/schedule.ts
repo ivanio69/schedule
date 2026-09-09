@@ -37,10 +37,20 @@ export function getAvailableGroups(schedule: ScheduleData) {
   return [...new Set(schedule.days.flatMap((day) => day.table.flatMap((lesson) => lesson.group)))].sort((a, b) => a - b);
 }
 
+/** Subjects that actually have subgroup-specific lessons (group [1] or [2]). */
 export function getSubgroupSubjects(schedule: ScheduleData) {
-  const map = new Map<string, number[]>();
-  for (const day of schedule.days) for (const lesson of day.table) if (lesson.group.length > 1) map.set(lesson.class, lesson.group);
-  return [...map.entries()].map(([name, groups]) => ({ name, groups }));
+  const map = new Map<string, Set<number>>();
+  for (const day of schedule.days) {
+    for (const lesson of day.table) {
+      if (lesson.group.length !== 1 || ![1, 2].includes(lesson.group[0])) continue;
+      const groups = map.get(lesson.class) ?? new Set<number>();
+      groups.add(lesson.group[0]);
+      map.set(lesson.class, groups);
+    }
+  }
+  return [...map.entries()]
+    .map(([name, groups]) => ({ name, groups: [...groups].sort((a, b) => a - b) }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 }
 
 export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, preferences: Record<string, GroupPreference> = {}) {
