@@ -4,10 +4,6 @@ import { useEffect } from "react";
 import ScheduleApp from "@/components/ScheduleApp";
 import type { ScheduleData } from "@/lib/schedule";
 
-function dateKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
 function getSelectedDate(schedule: ScheduleData) {
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>(".day-tabs button"));
   const day = buttons.findIndex((button) => button.classList.contains("is-active"));
@@ -29,8 +25,9 @@ function updatePastState(schedule: ScheduleData) {
   panel.classList.toggle("is-past-day", pastDay);
   panel.querySelectorAll<HTMLElement>(".schedule-card, .rehearsal-card").forEach((card) => {
     const times = Array.from(card.querySelectorAll(".schedule-card__time span")).map((node) => node.textContent?.trim() ?? "");
-    const [end] = times.slice(1);
-    const endMinutes = end ? end.split(":").map(Number).reduce((h, m) => h * 60 + m) : Infinity;
+    const end = times[1];
+    const endParts = end?.split(":").map(Number);
+    const endMinutes = endParts?.length === 2 ? endParts[0] * 60 + endParts[1] : Infinity;
     card.classList.toggle("is-past", pastDay || (currentDay && endMinutes <= now.getHours() * 60 + now.getMinutes()));
   });
 }
@@ -39,10 +36,20 @@ export default function TodaySchedule() {
   useEffect(() => {
     let schedule: ScheduleData | null = null;
     let stopped = false;
-    const observer = new MutationObserver(() => {
+    let panel: HTMLElement | null = null;
+    let observer: MutationObserver | null = null;
+
+    const attachObserver = () => {
+      const nextPanel = document.querySelector<HTMLElement>(".schedule-panel");
+      if (!nextPanel || nextPanel === panel) return;
+      observer?.disconnect();
+      panel = nextPanel;
+      observer = new MutationObserver(() => {
+        if (!stopped || schedule) updatePastState(schedule!);
+      });
+      observer.observe(panel, { childList: true, subtree: true });
       if (schedule) updatePastState(schedule);
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    };
 
     const load = async () => {
       try {
@@ -51,21 +58,22 @@ export default function TodaySchedule() {
         const data = (await response.json()) as { schedule?: ScheduleData };
         if (!stopped && data.schedule) {
           schedule = data.schedule;
+          attachObserver();
           updatePastState(schedule);
-          const today = new Date().getDay();
-          if (today !== 0) {
-            const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>(".day-tabs button"));
-            const target = buttons[today - 1];
-            if (target && !target.classList.contains("is-active")) target.click();
-          }
         }
       } catch {}
     };
+
     void load();
-    const timer = window.setInterval(() => schedule && updatePastState(schedule), 30000);
+    const attachTimer = window.setInterval(attachObserver, 1000);
+    const timer = window.setInterval(() => {
+      if (schedule) updatePastState(schedule);
+    }, 30000);
+
     return () => {
       stopped = true;
-      observer.disconnect();
+      observer?.disconnect();
+      window.clearInterval(attachTimer);
       window.clearInterval(timer);
     };
   }, []);
