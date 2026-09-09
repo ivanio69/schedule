@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
+import AppNavigation from "@/components/AppNavigation";
 
 const geist = Geist({
   variable: "--font-geist",
@@ -15,7 +16,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru" className={geist.variable} data-theme="dark">
-      <body>{children}</body>
+      <body>
+        <AppNavigation />
+        {children}
+      </body>
     </html>
   );
 }
