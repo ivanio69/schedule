@@ -6,23 +6,23 @@ type Lesson = {
   class: string;
   professor: string;
   auditorium: string;
-  start: string;
-  end: string;
+  timeStart: string;
+  timeEnd: string;
   group: number[];
   weeks: number[];
   [key: string]: unknown;
 };
 
-type Day = { name: string; table: Lesson[]; [key: string]: unknown };
+type Day = { table: Lesson[]; [key: string]: unknown };
 type Schedule = { semesterStart: number[]; days: Day[]; [key: string]: unknown };
 
-const emptyLesson = (): Lesson => ({ class: "", professor: "", auditorium: "", start: "09:00", end: "10:30", group: [1, 2], weeks: [] });
+const emptyLesson = (): Lesson => ({ class: "", professor: "", auditorium: "", timeStart: "09:00", timeEnd: "10:30", group: [1, 2], weeks: [] });
 
 function normalize(value: unknown): Schedule | null {
   if (!value || typeof value !== "object") return null;
   const data = value as Partial<Schedule>;
   if (!Array.isArray(data.semesterStart) || !Array.isArray(data.days)) return null;
-  if (!data.days.every((d) => d && typeof d === "object" && typeof d.name === "string" && Array.isArray(d.table))) return null;
+  if (!data.days.every((d) => d && typeof d === "object" && Array.isArray(d.table))) return null;
   return data as Schedule;
 }
 
@@ -44,9 +44,15 @@ export default function AdminPage() {
     if (response.status === 401) { setLoggedIn(false); setLoading(false); return; }
     const data = await response.json();
     if (!response.ok) { setMessage(data.error ?? "Не удалось загрузить расписание"); setLoading(false); return; }
-    setSchedule(normalize(data.schedule));
+    const normalized = normalize(data.schedule);
+    if (!normalized) {
+      setMessage("GitHub вернул расписание в неожиданном формате.");
+      setLoading(false);
+      return;
+    }
+    setSchedule(normalized);
     setSha(data.sha);
-    setRaw(JSON.stringify(data.schedule, null, 2));
+    setRaw(JSON.stringify(normalized, null, 2));
     setLoggedIn(true);
     setLoading(false);
   };
@@ -150,8 +156,8 @@ export default function AdminPage() {
       {rawMode ? <section className="admin-card"><textarea className="admin-json" value={raw} onChange={(e) => setRaw(e.target.value)} spellCheck={false} /></section> : (
         <div className="admin-days">
           {schedule?.days.map((day, dayIndex) => (
-            <section className="admin-card" key={`${day.name}-${dayIndex}`}>
-              <div className="admin-section-header"><div><p className="admin-eyebrow">День {dayIndex + 1}</p><h2>{day.name}</h2></div><button className="admin-secondary" onClick={() => addLesson(dayIndex)}>+ Занятие</button></div>
+            <section className="admin-card" key={`${dayIndex}`}>
+              <div className="admin-section-header"><div><p className="admin-eyebrow">День {dayIndex + 1}</p><h2>День {dayIndex + 1}</h2></div><button className="admin-secondary" onClick={() => addLesson(dayIndex)}>+ Занятие</button></div>
               <div className="admin-lessons">
                 {day.table.map((lesson, lessonIndex) => (
                   <article className="admin-lesson" key={lessonIndex}>
@@ -160,8 +166,8 @@ export default function AdminPage() {
                       <label>Предмет<input className="admin-input" value={lesson.class} onChange={(e) => updateLesson(dayIndex, lessonIndex, { class: e.target.value })} /></label>
                       <label>Преподаватель<input className="admin-input" value={lesson.professor} onChange={(e) => updateLesson(dayIndex, lessonIndex, { professor: e.target.value })} /></label>
                       <label>Аудитория<input className="admin-input" value={lesson.auditorium} onChange={(e) => updateLesson(dayIndex, lessonIndex, { auditorium: e.target.value })} /></label>
-                      <label>Начало<input className="admin-input" type="time" value={lesson.start} onChange={(e) => updateLesson(dayIndex, lessonIndex, { start: e.target.value })} /></label>
-                      <label>Конец<input className="admin-input" type="time" value={lesson.end} onChange={(e) => updateLesson(dayIndex, lessonIndex, { end: e.target.value })} /></label>
+                      <label>Начало<input className="admin-input" type="time" value={lesson.timeStart} onChange={(e) => updateLesson(dayIndex, lessonIndex, { timeStart: e.target.value })} /></label>
+                      <label>Конец<input className="admin-input" type="time" value={lesson.timeEnd} onChange={(e) => updateLesson(dayIndex, lessonIndex, { timeEnd: e.target.value })} /></label>
                       <label>Недели<input className="admin-input" value={lesson.weeks.join(", ")} onChange={(e) => updateLesson(dayIndex, lessonIndex, { weeks: e.target.value.split(",").map((v) => Number(v.trim())).filter(Number.isInteger) })} placeholder="1, 2, 3" /></label>
                     </div>
                     <div className="admin-groups"><span>Подгруппа</span><button className={lesson.group.includes(1) ? "is-active" : ""} onClick={() => toggleGroup(dayIndex, lessonIndex, 1)}>1</button><button className={lesson.group.includes(2) ? "is-active" : ""} onClick={() => toggleGroup(dayIndex, lessonIndex, 2)}>2</button></div>
