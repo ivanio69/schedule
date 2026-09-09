@@ -15,18 +15,30 @@ function timeToMinutes(value: string) {
   return hours * 60 + minutes;
 }
 
+function getWeekState() {
+  const weekNumber = Number(
+    document.querySelector(".week-number strong")?.textContent ?? "0",
+  );
+  const currentWeek = document.querySelector(".week-number em")
+    ? weekNumber
+    : null;
+  return { weekNumber, currentWeek };
+}
+
 function updatePastState() {
   const tabs = Array.from(
     document.querySelectorAll<HTMLButtonElement>(".day-tabs button"),
   );
-  const currentWeek = Boolean(document.querySelector(".week-number em"));
+  const { weekNumber, currentWeek } = getWeekState();
   const activeIndex = tabs.findIndex((tab) => tab.classList.contains("is-active"));
   const todayIndex = getTodayIndex();
+  const previousWeek = currentWeek !== null && weekNumber < currentWeek;
 
   tabs.forEach((tab, index) => {
     tab.classList.toggle(
       PAST_CLASS,
-      currentWeek && todayIndex >= 0 && index < todayIndex,
+      previousWeek ||
+        (currentWeek !== null && todayIndex >= 0 && index < todayIndex),
     );
   });
 
@@ -45,22 +57,23 @@ function updatePastState() {
       return;
     }
 
-    const isPastDay = currentWeek && activeIndex < todayIndex;
-    const isPastLesson =
-      currentWeek && activeIndex === todayIndex && timeToMinutes(end) <= nowMinutes;
-    const isPreviousWeek = !currentWeek && document.querySelector(".week-number strong")
-      ? true
-      : false;
+    const pastDay =
+      currentWeek !== null && activeIndex < todayIndex;
+    const pastLesson =
+      currentWeek !== null &&
+      activeIndex === todayIndex &&
+      timeToMinutes(end) <= nowMinutes;
 
-    card.classList.toggle(PAST_CLASS, isPreviousWeek || isPastDay || isPastLesson);
+    card.classList.toggle(
+      PAST_CLASS,
+      previousWeek || pastDay || pastLesson,
+    );
   });
 }
 
 export default function TodayAwareScheduleApp() {
   useEffect(() => {
     let selectedToday = false;
-    let timer: number | undefined;
-
     const sync = () => {
       const tabs = Array.from(
         document.querySelectorAll<HTMLButtonElement>(".day-tabs button"),
@@ -79,11 +92,11 @@ export default function TodayAwareScheduleApp() {
     const observer = new MutationObserver(sync);
     observer.observe(document.body, { childList: true, subtree: true });
     sync();
-    timer = window.setInterval(updatePastState, 60_000);
+    const timer = window.setInterval(updatePastState, 60_000);
 
     return () => {
       observer.disconnect();
-      if (timer) window.clearInterval(timer);
+      window.clearInterval(timer);
     };
   }, []);
 
