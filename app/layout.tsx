@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import "./admin/admin-polish.css";
+import "./schedule-modal.css";
 import AppNavigation from "@/components/AppNavigation";
 
 const geist = Geist({
