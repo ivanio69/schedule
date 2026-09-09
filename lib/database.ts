@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import table from "@/app/table.json";
 import clientPromise from "@/lib/mongodb";
+import type { IndividualLesson, Person } from "@/lib/people";
 import type { Rehearsal, ScheduleData } from "@/lib/schedule";
 
 const DB_NAME = process.env.MONGODB_DB ?? "schedule";
@@ -26,8 +27,46 @@ export async function getSchedule(): Promise<ScheduleData> {
 export async function saveSchedule(schedule: ScheduleData) {
   const db = await getDatabase();
   const collection = db.collection<ScheduleDocument>("schedule");
-  const document: ScheduleDocument = { ...schedule, _id: "current" };
-  await collection.replaceOne({ _id: "current" }, document, { upsert: true });
+  await collection.replaceOne({ _id: "current" }, { ...schedule, _id: "current" }, { upsert: true });
+}
+
+export async function getPeople(activeOnly = false) {
+  const db = await getDatabase();
+  const query = activeOnly ? { active: true } : {};
+  return db.collection<Person>("people").find(query).sort({ group: 1, name: 1 }).toArray();
+}
+
+export async function savePerson(input: Omit<Person, "id" | "createdAt">, id?: string) {
+  const db = await getDatabase();
+  const collection = db.collection<Person>("people");
+  const person: Person = { ...input, id: id ?? randomUUID(), createdAt: new Date().toISOString() };
+  await collection.replaceOne({ id: person.id }, person, { upsert: true });
+  return person;
+}
+
+export async function deletePerson(id: string) {
+  const db = await getDatabase();
+  return (await db.collection<Person>("people").deleteOne({ id })).deletedCount === 1;
+}
+
+export async function getIndividualLessons(personId?: string) {
+  const db = await getDatabase();
+  return db.collection<IndividualLesson>("individual_lessons").find(personId ? { personId } : {}).sort({ date: 1, timeStart: 1 }).toArray();
+}
+
+export async function saveIndividualLesson(input: Omit<IndividualLesson, "id" | "createdAt" | "updatedAt">, id?: string) {
+  const db = await getDatabase();
+  const collection = db.collection<IndividualLesson>("individual_lessons");
+  const existing = id ? await collection.findOne({ id }) : null;
+  const now = new Date().toISOString();
+  const lesson: IndividualLesson = { ...input, id: id ?? randomUUID(), createdAt: existing?.createdAt ?? now, updatedAt: now };
+  await collection.replaceOne({ id: lesson.id }, lesson, { upsert: true });
+  return lesson;
+}
+
+export async function deleteIndividualLesson(id: string) {
+  const db = await getDatabase();
+  return (await db.collection<IndividualLesson>("individual_lessons").deleteOne({ id })).deletedCount === 1;
 }
 
 export async function getRehearsals(date: string) {
