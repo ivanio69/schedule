@@ -29,17 +29,20 @@ export function getSubgroupSubjects(schedule: ScheduleData) {
 
   for (const day of schedule.days) {
     for (const lesson of day.table) {
-      if (lesson.group.length < 2) {
-        const groups = subjects.get(lesson.class) ?? new Set<number>();
-        for (const group of lesson.group) groups.add(group);
-        subjects.set(lesson.class, groups);
-      }
+      // Lessons belonging to one subgroup get an individual setting.
+      // Shared lessons ([1, 2]) are always visible and need no setting.
+      if (lesson.group.length !== 1) continue;
+
+      const groups = subjects.get(lesson.class) ?? new Set<number>();
+      groups.add(lesson.group[0]);
+      subjects.set(lesson.class, groups);
     }
   }
 
-  return [...subjects.entries()]
-    .filter(([, groups]) => groups.size > 1)
-    .map(([name, groups]) => ({ name, groups: [...groups].sort((a, b) => a - b) }));
+  return [...subjects.entries()].map(([name, groups]) => ({
+    name,
+    groups: [...groups].sort((a, b) => a - b),
+  }));
 }
 
 export function getCurrentWeek(schedule: ScheduleData, now = new Date()) {
