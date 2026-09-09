@@ -7,7 +7,22 @@ type Day = { table: Lesson[]; [key: string]: unknown };
 type Schedule = { semesterStart: number[]; days: Day[]; [key: string]: unknown };
 
 const DAY_NAMES = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"] as const;
-const emptyLesson = (): Lesson => ({ class: "", professor: "", auditorium: "09:00", timeStart: "09:00", timeEnd: "10:30", group: [1, 2], weeks: [] });
+const DAY_SHORT = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"] as const;
+const TIME_PRESETS = [
+  ["08:30", "10:00"], ["10:10", "11:40"], ["12:00", "13:30"],
+  ["13:40", "15:10"], ["15:20", "16:50"], ["17:00", "18:30"],
+] as const;
+const WEEKS = Array.from({ length: 20 }, (_, i) => i + 1);
+
+const emptyLesson = (): Lesson => ({
+  class: "",
+  professor: "",
+  auditorium: "",
+  timeStart: "09:00",
+  timeEnd: "10:30",
+  group: [1, 2],
+  weeks: [],
+});
 
 function normalize(value: unknown): Schedule | null {
   if (!value || typeof value !== "object") return null;
@@ -41,6 +56,8 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [rawMode, setRawMode] = useState(false);
   const [raw, setRaw] = useState("");
+  const [activeDay, setActiveDay] = useState(0);
+  const [expandedLesson, setExpandedLesson] = useState<number | null>(null);
 
   const load = async () => {
     setLoading(true); setMessage("");
@@ -72,22 +89,46 @@ export default function AdminPage() {
     });
   };
 
-  const addLesson = (dayIndex: number) => setSchedule((current) => {
-    if (!current) return current;
-    const days = [...current.days]; days[dayIndex] = { ...days[dayIndex], table: [...days[dayIndex].table, emptyLesson()] };
-    return { ...current, days };
-  });
+  const addLesson = (dayIndex: number) => {
+    setSchedule((current) => {
+      if (!current) return current;
+      const lesson = emptyLesson();
+      const days = [...current.days]; days[dayIndex] = { ...days[dayIndex], table: [...days[dayIndex].table, lesson] };
+      setActiveDay(dayIndex); setExpandedLesson(days[dayIndex].table.length - 1);
+      return { ...current, days };
+    });
+  };
 
-  const removeLesson = (dayIndex: number, lessonIndex: number) => setSchedule((current) => {
-    if (!current) return current;
-    const days = [...current.days]; days[dayIndex] = { ...days[dayIndex], table: days[dayIndex].table.filter((_, i) => i !== lessonIndex) };
-    return { ...current, days };
-  });
+  const duplicateLesson = (dayIndex: number, lessonIndex: number) => {
+    setSchedule((current) => {
+      if (!current) return current;
+      const source = current.days[dayIndex].table[lessonIndex];
+      const copy = { ...source, group: [...source.group], weeks: [...source.weeks] };
+      const days = [...current.days]; const table = [...days[dayIndex].table, copy];
+      days[dayIndex] = { ...days[dayIndex], table }; setExpandedLesson(table.length - 1);
+      return { ...current, days };
+    });
+  };
+
+  const removeLesson = (dayIndex: number, lessonIndex: number) => {
+    setSchedule((current) => {
+      if (!current) return current;
+      const days = [...current.days]; days[dayIndex] = { ...days[dayIndex], table: days[dayIndex].table.filter((_, i) => i !== lessonIndex) };
+      return { ...current, days };
+    });
+    setExpandedLesson(null);
+  };
 
   const toggleGroup = (dayIndex: number, lessonIndex: number, group: number) => {
     const lesson = schedule?.days[dayIndex].table[lessonIndex]; if (!lesson) return;
     const next = lesson.group.includes(group) ? lesson.group.filter((g) => g !== group) : [...lesson.group, group].sort();
     updateLesson(dayIndex, lessonIndex, { group: next });
+  };
+
+  const toggleWeek = (dayIndex: number, lessonIndex: number, week: number) => {
+    const lesson = schedule?.days[dayIndex].table[lessonIndex]; if (!lesson) return;
+    const next = lesson.weeks.includes(week) ? lesson.weeks.filter((w) => w !== week) : [...lesson.weeks, week].sort((a, b) => a - b);
+    updateLesson(dayIndex, lessonIndex, { weeks: next });
   };
 
   const updateSemesterStart = (value: string) => {
@@ -111,18 +152,66 @@ export default function AdminPage() {
   };
 
   const lessonCount = useMemo(() => schedule?.days.reduce((sum, day) => sum + day.table.length, 0) ?? 0, [schedule]);
+  const activeLessons = schedule?.days[activeDay]?.table ?? [];
+  const activeDayCount = activeLessons.length;
 
-  if (loading) return <main className="admin-shell"><p className="admin-muted">Загрузка…</p></main>;
-  if (!loggedIn) return <main className="admin-shell admin-auth"><div className="admin-card admin-auth-card"><p className="admin-eyebrow">Schedule Admin</p><h1>Панель управления</h1><p className="admin-muted">Доступ к редактированию расписания.</p><input className="admin-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void login()} placeholder="Пароль" autoFocus /><button className="admin-primary" onClick={() => void login()}>Войти</button>{message && <p className="admin-error">{message}</p>}</div></main>;
+  if (loading) return <main className="admin-shell admin-loading"><div className="admin-spinner" /><p className="admin-muted">Загрузка расписания…</p></main>;
+  if (!loggedIn) return <main className="admin-shell admin-auth"><div className="admin-card admin-auth-card"><div className="admin-logo">214Р</div><p className="admin-eyebrow">Schedule Admin</p><h1>Панель управления</h1><p className="admin-muted">Редактирование расписания группы.</p><input className="admin-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void login()} placeholder="Пароль" autoFocus /><button className="admin-primary admin-wide" onClick={() => void login()}>Войти</button>{message && <p className="admin-error">{message}</p>}</div></main>;
 
   return <main className="admin-shell">
-    <header className="admin-header"><div><p className="admin-eyebrow">Schedule Admin · MongoDB</p><h1>Расписание</h1><p className="admin-muted">{lessonCount} занятий</p></div><div className="admin-actions"><button className="admin-secondary" onClick={() => void load()}>Обновить</button><button className="admin-primary" disabled={saving} onClick={() => void save()}>{saving ? "Сохраняю…" : "Сохранить"}</button></div></header>
-    <section className="admin-card">
-      <div className="admin-section-header"><div><p className="admin-eyebrow">Параметры расписания</p><h2>Начало семестра</h2><p className="admin-muted">Эта дата используется для расчёта номеров недель.</p></div></div>
-      <label>Дата начала семестра<input className="admin-input" type="date" value={schedule ? semesterStartToDate(schedule.semesterStart) : ""} onChange={(e) => updateSemesterStart(e.target.value)} /></label>
+    <header className="admin-header admin-header-new">
+      <div><p className="admin-eyebrow">Schedule Admin · MongoDB</p><h1>Редактор расписания</h1><p className="admin-muted">{lessonCount} занятий · редактируй день и сохраняй одним нажатием</p></div>
+      <div className="admin-actions"><button className="admin-secondary" onClick={() => void load()}>↻ Обновить</button><button className="admin-primary" disabled={saving} onClick={() => void save()}>{saving ? "Сохраняю…" : "Сохранить"}</button></div>
+    </header>
+
+    <section className="admin-overview">
+      <div className="admin-stat"><span>Занятий</span><strong>{lessonCount}</strong></div>
+      <div className="admin-stat"><span>Дней</span><strong>{schedule?.days.filter((day) => day.table.length > 0).length ?? 0}<small>/6</small></strong></div>
+      <div className="admin-stat admin-stat-date"><span>Семестр с</span><strong>{schedule ? semesterStartToDate(schedule.semesterStart).split("-").reverse().join(".") : "—"}</strong></div>
     </section>
-    <div className="admin-modebar"><button className={!rawMode ? "is-active" : ""} onClick={() => { setRawMode(false); setRaw(JSON.stringify(schedule, null, 2)); }}>Редактор</button><button className={rawMode ? "is-active" : ""} onClick={() => { setRaw(JSON.stringify(schedule, null, 2)); setRawMode(true); }}>JSON</button></div>
-    {rawMode ? <section className="admin-card"><textarea className="admin-json" value={raw} onChange={(e) => setRaw(e.target.value)} spellCheck={false} /></section> : <div className="admin-days">{schedule?.days.map((day, dayIndex) => <section className="admin-card" key={dayIndex}><div className="admin-section-header"><div><p className="admin-eyebrow">День недели</p><h2>{DAY_NAMES[dayIndex] ?? `День ${dayIndex + 1}`}</h2></div><button className="admin-secondary" onClick={() => addLesson(dayIndex)}>+ Занятие</button></div><div className="admin-lessons">{day.table.map((lesson, lessonIndex) => <article className="admin-lesson" key={lessonIndex}><div className="admin-lesson-top"><strong>{lessonIndex + 1}. {lesson.class || "Новое занятие"}</strong><button className="admin-danger" onClick={() => removeLesson(dayIndex, lessonIndex)}>Удалить</button></div><div className="admin-grid"><label>Предмет<input className="admin-input" value={lesson.class} onChange={(e) => updateLesson(dayIndex, lessonIndex, { class: e.target.value })} /></label><label>Преподаватель<input className="admin-input" value={lesson.professor} onChange={(e) => updateLesson(dayIndex, lessonIndex, { professor: e.target.value })} /></label><label>Аудитория<input className="admin-input" value={lesson.auditorium} onChange={(e) => updateLesson(dayIndex, lessonIndex, { auditorium: e.target.value })} /></label><label>Начало<input className="admin-input" type="time" value={lesson.timeStart} onChange={(e) => updateLesson(dayIndex, lessonIndex, { timeStart: e.target.value })} /></label><label>Конец<input className="admin-input" type="time" value={lesson.timeEnd} onChange={(e) => updateLesson(dayIndex, lessonIndex, { timeEnd: e.target.value })} /></label><label>Недели<input className="admin-input" value={lesson.weeks.join(", ")} onChange={(e) => updateLesson(dayIndex, lessonIndex, { weeks: e.target.value.split(",").map((v) => Number(v.trim())).filter(Number.isInteger) })} placeholder="1, 2, 3" /></label></div><div className="admin-groups"><span>Подгруппа</span><button className={lesson.group.includes(1) ? "is-active" : ""} onClick={() => toggleGroup(dayIndex, lessonIndex, 1)}>1</button><button className={lesson.group.includes(2) ? "is-active" : ""} onClick={() => toggleGroup(dayIndex, lessonIndex, 2)}>2</button></div></article>)}{!day.table.length && <p className="admin-muted admin-empty">Занятий нет.</p>}</div></section>)}</div>}
+
+    <section className="admin-card admin-settings-strip">
+      <div><p className="admin-eyebrow">Параметры</p><strong>Начало семестра</strong><span>Используется для расчёта номеров недель</span></div>
+      <input className="admin-input admin-date-input" type="date" value={schedule ? semesterStartToDate(schedule.semesterStart) : ""} onChange={(e) => updateSemesterStart(e.target.value)} />
+    </section>
+
+    <div className="admin-modebar"><button className={!rawMode ? "is-active" : ""} onClick={() => { setRawMode(false); setRaw(JSON.stringify(schedule, null, 2)); }}>Визуальный редактор</button><button className={rawMode ? "is-active" : ""} onClick={() => { setRaw(JSON.stringify(schedule, null, 2)); setRawMode(true); }}>JSON</button></div>
+
+    {rawMode ? <section className="admin-card"><textarea className="admin-json" value={raw} onChange={(e) => setRaw(e.target.value)} spellCheck={false} /></section> : <>
+      <nav className="admin-day-picker" aria-label="Дни недели">
+        {DAY_NAMES.map((day, index) => <button key={day} className={activeDay === index ? "is-active" : ""} onClick={() => { setActiveDay(index); setExpandedLesson(null); }}><span>{DAY_SHORT[index]}</span><strong>{day}</strong><small>{schedule?.days[index]?.table.length ?? 0}</small></button>)}
+      </nav>
+
+      <section className="admin-card admin-day-editor">
+        <div className="admin-day-heading"><div><p className="admin-eyebrow">{DAY_SHORT[activeDay]} · {activeDayCount} {activeDayCount === 1 ? "занятие" : activeDayCount < 5 ? "занятия" : "занятий"}</p><h2>{DAY_NAMES[activeDay]}</h2></div><button className="admin-primary" onClick={() => addLesson(activeDay)}>＋ Добавить пару</button></div>
+        <div className="admin-quick-tip"><span>⚡</span><span><strong>Быстрый ввод:</strong> выбери время, недели и подгруппу — остальные поля заполняются обычным текстом.</span></div>
+        <div className="admin-lessons-new">
+          {activeLessons.map((lesson, lessonIndex) => <article className={`admin-lesson-new ${expandedLesson === lessonIndex ? "is-expanded" : ""}`} key={lessonIndex}>
+            <button className="admin-lesson-summary" onClick={() => setExpandedLesson(expandedLesson === lessonIndex ? null : lessonIndex)}>
+              <span className="admin-lesson-number">{String(lessonIndex + 1).padStart(2, "0")}</span>
+              <span className="admin-lesson-time"><strong>{lesson.timeStart}</strong><small>{lesson.timeEnd}</small></span>
+              <span className="admin-lesson-info"><strong>{lesson.class || "Новая пара"}</strong><small>{lesson.professor || "Преподаватель не указан"}{lesson.auditorium ? ` · ${lesson.auditorium}` : ""}</small></span>
+              <span className="admin-lesson-tags">{lesson.weeks.length ? `${lesson.weeks.length} нед.` : "все недели"} · {lesson.group.length === 2 ? "обе" : lesson.group.length ? `гр. ${lesson.group.join(", ")}` : "без группы"}</span>
+              <span className="admin-chevron">{expandedLesson === lessonIndex ? "⌃" : "⌄"}</span>
+            </button>
+            {expandedLesson === lessonIndex && <div className="admin-lesson-editor">
+              <div className="admin-form-grid admin-form-grid-main">
+                <label>Предмет<input className="admin-input" autoFocus value={lesson.class} onChange={(e) => updateLesson(activeDay, lessonIndex, { class: e.target.value })} placeholder="Название предмета" /></label>
+                <label>Преподаватель<input className="admin-input" value={lesson.professor} onChange={(e) => updateLesson(activeDay, lessonIndex, { professor: e.target.value })} placeholder="ФИО преподавателя" /></label>
+                <label>Аудитория<input className="admin-input" value={lesson.auditorium} onChange={(e) => updateLesson(activeDay, lessonIndex, { auditorium: e.target.value })} placeholder="Например, 304" /></label>
+              </div>
+              <div className="admin-editor-row">
+                <div><span className="admin-field-title">Время</span><div className="admin-time-fields"><input className="admin-input" type="time" value={lesson.timeStart} onChange={(e) => updateLesson(activeDay, lessonIndex, { timeStart: e.target.value })} /><span>—</span><input className="admin-input" type="time" value={lesson.timeEnd} onChange={(e) => updateLesson(activeDay, lessonIndex, { timeEnd: e.target.value })} /></div><div className="admin-presets">{TIME_PRESETS.map(([start, end]) => <button key={start} className={lesson.timeStart === start && lesson.timeEnd === end ? "is-active" : ""} onClick={() => updateLesson(activeDay, lessonIndex, { timeStart: start, timeEnd: end })}>{start}</button>)}</div></div>
+                <div><span className="admin-field-title">Подгруппа</span><div className="admin-chip-row"><button className={lesson.group.includes(1) ? "is-active" : ""} onClick={() => toggleGroup(activeDay, lessonIndex, 1)}>1 группа</button><button className={lesson.group.includes(2) ? "is-active" : ""} onClick={() => toggleGroup(activeDay, lessonIndex, 2)}>2 группа</button></div></div>
+              </div>
+              <div><span className="admin-field-title">Недели <em>{lesson.weeks.length ? `выбрано ${lesson.weeks.length}` : "все недели"}</em></span><div className="admin-week-grid"><button className={!lesson.weeks.length ? "is-active" : ""} onClick={() => updateLesson(activeDay, lessonIndex, { weeks: [] })}>Все</button>{WEEKS.map((week) => <button key={week} className={lesson.weeks.includes(week) ? "is-active" : ""} onClick={() => toggleWeek(activeDay, lessonIndex, week)}>{week}</button>)}</div></div>
+              <div className="admin-lesson-actions"><button className="admin-secondary" onClick={() => duplicateLesson(activeDay, lessonIndex)}>⧉ Дублировать</button><button className="admin-danger" onClick={() => removeLesson(activeDay, lessonIndex)}>Удалить пару</button></div>
+            </div>}
+          </article>)}
+          {!activeLessons.length && <div className="admin-empty-new"><div>＋</div><strong>В этот день пока нет пар</strong><span>Добавь первую пару — откроется удобная форма быстрого ввода.</span><button className="admin-primary" onClick={() => addLesson(activeDay)}>Добавить пару</button></div>}
+        </div>
+      </section>
+    </>}
     {message && <p className={message === "Сохранено в MongoDB" ? "admin-success" : "admin-error"}>{message}</p>}
   </main>;
 }
