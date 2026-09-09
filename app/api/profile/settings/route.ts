@@ -34,9 +34,10 @@ export async function PUT(request: Request) {
     if (!validId(body.personId)) return NextResponse.json({ error: "Некорректный профиль" }, { status: 400 });
     const people = await getPeople(true);
     if (!people.some((person) => person.id === body.personId)) return NextResponse.json({ error: "Профиль не найден" }, { status: 404 });
+    const existing = await getProfileSettings(body.personId);
     const settings = await saveProfileSettings(body.personId, {
-      preferences: cleanPreferences(body.preferences),
-      notes: cleanNotes(body.notes),
+      preferences: body.preferences === undefined ? existing.preferences : cleanPreferences(body.preferences),
+      notes: body.notes === undefined ? existing.notes : cleanNotes(body.notes),
     });
     return NextResponse.json(settings, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
