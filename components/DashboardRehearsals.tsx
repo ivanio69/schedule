@@ -14,6 +14,10 @@ export default function DashboardRehearsals() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (!localStorage.getItem("schedule_person_id")) {
+      setReady(true);
+      return;
+    }
     let stopped = false;
     const load = async () => {
       try {
@@ -23,8 +27,7 @@ export default function DashboardRehearsals() {
         if (stopped) return;
         const today = new Date();
         const from = dateKey(today);
-        const untilDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
-        const until = dateKey(untilDate);
+        const until = dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7));
         setItems((data.rehearsals ?? []).filter(item => item.date >= from && item.date < until).sort((a, b) => `${a.date}${a.timeStart}`.localeCompare(`${b.date}${b.timeStart}`)));
       } finally {
         if (!stopped) setReady(true);
@@ -38,23 +41,12 @@ export default function DashboardRehearsals() {
 
   return (
     <section className="dashboard-rehearsals">
-      <div className="dashboard-rehearsals__head">
-        <h2>Ближайшие репетиции</h2>
-        <span>{items.length}</span>
-      </div>
+      <div className="dashboard-rehearsals__head"><h2>Ближайшие репетиции</h2><span>{items.length}</span></div>
       <div className="dashboard-rehearsals__list">
         {items.map(item => (
           <article key={item.id} className="dashboard-rehearsal">
-            <div className="dashboard-rehearsal__date">
-              <strong>{item.timeStart}</strong>
-              <small>{formatDate(item.date)}</small>
-            </div>
-            <div className="dashboard-rehearsal__main">
-              <span>РЕПЕТИЦИЯ</span>
-              <h3>{item.subject}</h3>
-              <p>ответственный: {item.responsible}</p>
-              <small>автор: {item.creatorName ?? "не указан"} · {item.participants.length} участн.</small>
-            </div>
+            <div className="dashboard-rehearsal__date"><strong>{item.timeStart}</strong><small>{formatDate(item.date)}</small></div>
+            <div className="dashboard-rehearsal__main"><span>РЕПЕТИЦИЯ</span><h3>{item.subject}</h3><p>ответственный: {item.responsible}</p><small>автор: {item.creatorName ?? "не указан"} · {item.participants.length} участн.</small></div>
           </article>
         ))}
       </div>
