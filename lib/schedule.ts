@@ -14,6 +14,7 @@ export type Lesson = {
 export type Rehearsal = {
   id: string;
   creatorId: string;
+  creatorName?: string;
   subject: string;
   date: string;
   timeStart: string;
@@ -37,46 +38,34 @@ export function getAvailableGroups(schedule: ScheduleData) {
 }
 
 export function getSubgroupSubjects(schedule: ScheduleData) {
-  const subjects = new Map<string, Set<number>>();
-  for (const day of schedule.days) {
-    for (const lesson of day.table) {
-      if (lesson.group.length !== 1) continue;
-      const groups = subjects.get(lesson.class) ?? new Set<number>();
-      groups.add(lesson.group[0]);
-      subjects.set(lesson.class, groups);
-    }
-  }
-  return [...subjects.entries()].map(([name, groups]) => ({ name, groups: [...groups].sort((a, b) => a - b) }));
+  const map = new Map<string, number[]>();
+  for (const day of schedule.days) for (const lesson of day.table) if (lesson.group.length > 1) map.set(lesson.class, lesson.group);
+  return [...map.entries()].map(([name, groups]) => ({ name, groups }));
+}
+
+export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, preferences: Record<string, GroupPreference> = {}) {
+  const day = schedule.days[dayIndex];
+  if (!day) return [];
+  return day.table.filter((lesson) => {
+    if (!lesson.weeks.includes(week)) return false;
+    if (lesson.group.length <= 1) return true;
+    const preference = preferences[lesson.class] ?? "both";
+    return preference === "both" || lesson.group.includes(Number(preference));
+  }).sort((a, b) => a.timeStart.localeCompare(b.timeStart));
 }
 
 export function getCurrentWeek(schedule: ScheduleData, now = new Date()) {
   const [year, month, day] = schedule.semesterStart;
   const semesterStart = new Date(year, month, day);
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const elapsedDays = Math.floor((today.getTime() - semesterStart.getTime()) / 86_400_000);
-  return Math.min(Math.max(Math.floor(elapsedDays / 7) + 1, 1), getTotalWeeks(schedule));
-}
-
-function timeToMinutes(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, preferences: Record<string, GroupPreference>) {
-  return (schedule.days[dayIndex]?.table ?? [])
-    .filter((lesson) => {
-      if (!lesson.weeks.includes(week)) return false;
-      if (lesson.group.length > 1) return true;
-      const preference = preferences[lesson.class] ?? "both";
-      return preference === "both" || preference === String(lesson.group[0]);
-    })
-    .sort((a, b) => timeToMinutes(a.timeStart) - timeToMinutes(b.timeStart));
+  const current = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = Math.floor((current.getTime() - semesterStart.getTime()) / 86400000);
+  return Math.max(1, Math.min(getTotalWeeks(schedule), Math.floor(diff / 7) + 1));
 }
 
 export function formatWeekRange(schedule: ScheduleData, week: number) {
   const [year, month, day] = schedule.semesterStart;
   const start = new Date(year, month, day + (week - 1) * 7);
-  const end = new Date(year, month, day + (week - 1) * 7 + 6);
-  const formatter = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short" });
-  return `${formatter.format(start)} — ${formatter.format(end)}`;
+  const end = new Date(year, month, day + (week - 1) * 7 + 5);
+  const format = (date: Date) => new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(date);
+  return `${format(start)} — ${format(end)}`;
 }
