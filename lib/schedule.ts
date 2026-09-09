@@ -1,4 +1,5 @@
 export type Group = number;
+export type GroupPreference = "1" | "2" | "both";
 
 export type Lesson = {
   class: string;
@@ -23,6 +24,24 @@ export function getAvailableGroups(schedule: ScheduleData) {
   return [...new Set(schedule.days.flatMap((day) => day.table.flatMap((lesson) => lesson.group)))].sort((a, b) => a - b);
 }
 
+export function getSubgroupSubjects(schedule: ScheduleData) {
+  const subjects = new Map<string, Set<number>>();
+
+  for (const day of schedule.days) {
+    for (const lesson of day.table) {
+      if (lesson.group.length < 2) {
+        const groups = subjects.get(lesson.class) ?? new Set<number>();
+        for (const group of lesson.group) groups.add(group);
+        subjects.set(lesson.class, groups);
+      }
+    }
+  }
+
+  return [...subjects.entries()]
+    .filter(([, groups]) => groups.size > 1)
+    .map(([name, groups]) => ({ name, groups: [...groups].sort((a, b) => a - b) }));
+}
+
 export function getCurrentWeek(schedule: ScheduleData, now = new Date()) {
   const [year, month, day] = schedule.semesterStart;
   const semesterStart = new Date(year, month, day);
@@ -43,14 +62,16 @@ export function getLessonsForWeek(
   schedule: ScheduleData,
   dayIndex: number,
   week: number,
-  groups: number[],
+  preferences: Record<string, GroupPreference>,
 ) {
   return (schedule.days[dayIndex]?.table ?? [])
-    .filter(
-      (lesson) =>
-        lesson.weeks.includes(week) &&
-        (lesson.group.length > 1 || lesson.group.some((lessonGroup) => groups.includes(lessonGroup))),
-    )
+    .filter((lesson) => {
+      if (!lesson.weeks.includes(week)) return false;
+      if (lesson.group.length > 1) return true;
+
+      const preference = preferences[lesson.class] ?? "both";
+      return preference === "both" || preference === String(lesson.group[0]);
+    })
     .sort((a, b) => timeToMinutes(a.timeStart) - timeToMinutes(b.timeStart));
 }
 
