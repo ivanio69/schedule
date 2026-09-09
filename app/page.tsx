@@ -1,5 +1,5 @@
-import ScheduleApp from "@/components/ScheduleApp";
+import TodayAwareScheduleApp from "@/components/TodayAwareScheduleApp";
 
 export default function Home() {
-  return <ScheduleApp />;
+  return <TodayAwareScheduleApp />;
 }
