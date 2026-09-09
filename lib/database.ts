@@ -33,7 +33,7 @@ export async function saveSchedule(schedule: ScheduleData) {
 export async function getPeople(activeOnly = false) {
   const db = await getDatabase();
   const query = activeOnly ? { active: true } : {};
-  return db.collection<Person>("people").find(query).sort({ group: 1, name: 1 }).toArray();
+  return db.collection<Person>("people").find(query).sort({ name: 1 }).toArray();
 }
 
 export async function savePerson(input: Omit<Person, "id" | "createdAt">, id?: string) {
