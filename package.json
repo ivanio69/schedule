@@ -7,11 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed": "node scripts/seed-mongodb.mjs",
+    "migrate": "node scripts/migrate-table-to-mongodb.mjs"
   },
   "dependencies": {
     "@heroui/react": "^3.2.2",
     "@heroui/styles": "^3.2.2",
+    "mongodb": "^6.18.0",
     "motion": "^12.42.2",
     "next": "16.2.10",
     "react": "19.2.4",

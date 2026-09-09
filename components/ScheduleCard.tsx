@@ -1,10 +1,21 @@
 import type { Lesson } from "@/lib/schedule";
 
-export function ScheduleCard({ lesson }: { lesson: Lesson }) {
+export function ScheduleCard({ lesson, onClick }: { lesson: Lesson; onClick?: () => void }) {
   const shared = lesson.group.length === 2;
 
   return (
-    <article className="schedule-card">
+    <article
+      className="schedule-card"
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (onClick && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+    >
       <div className="schedule-card__time" aria-label={`Время: ${lesson.timeStart} — ${lesson.timeEnd}`}>
         <span>{lesson.timeStart}</span>
         <span>{lesson.timeEnd}</span>
