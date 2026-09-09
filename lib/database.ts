@@ -6,6 +6,12 @@ import type { Rehearsal, ScheduleData } from "@/lib/schedule";
 
 const DB_NAME = process.env.MONGODB_DB ?? "schedule";
 type ScheduleDocument = ScheduleData & { _id: string };
+export type ProfileSettings = {
+  personId: string;
+  preferences: Record<string, "1" | "2" | "both">;
+  notes: Record<string, string>;
+  updatedAt: string;
+};
 
 export async function getDatabase() {
   const mongo = await clientPromise;
@@ -85,4 +91,17 @@ export async function deleteRehearsal(id: string, creatorId: string) {
   const db = await getDatabase();
   const result = await db.collection<Rehearsal>("rehearsals").deleteOne({ id, creatorId });
   return result.deletedCount === 1;
+}
+
+export async function getProfileSettings(personId: string): Promise<ProfileSettings> {
+  const db = await getDatabase();
+  const stored = await db.collection<ProfileSettings>("profile_settings").findOne({ personId });
+  return stored ?? { personId, preferences: {}, notes: {}, updatedAt: new Date(0).toISOString() };
+}
+
+export async function saveProfileSettings(personId: string, input: Pick<ProfileSettings, "preferences" | "notes">) {
+  const db = await getDatabase();
+  const settings: ProfileSettings = { personId, preferences: input.preferences, notes: input.notes, updatedAt: new Date().toISOString() };
+  await db.collection<ProfileSettings>("profile_settings").replaceOne({ personId }, settings, { upsert: true });
+  return settings;
 }
