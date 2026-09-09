@@ -7,7 +7,7 @@ type Day = { table: Lesson[]; [key: string]: unknown };
 type Schedule = { semesterStart: number[]; days: Day[]; [key: string]: unknown };
 
 const DAY_NAMES = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"] as const;
-const emptyLesson = (): Lesson => ({ class: "", professor: "", auditorium: "", timeStart: "09:00", timeEnd: "10:30", group: [1, 2], weeks: [] });
+const emptyLesson = (): Lesson => ({ class: "", professor: "", auditorium: "09:00", timeStart: "09:00", timeEnd: "10:30", group: [1, 2], weeks: [] });
 
 function normalize(value: unknown): Schedule | null {
   if (!value || typeof value !== "object") return null;
@@ -23,13 +23,13 @@ function dateToSemesterStart(value: string): number[] | null {
   if (!year || !month || !day) return null;
   const date = new Date(year, month - 1, day);
   if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
-  return [year, month, day];
+  return [year, month - 1, day];
 }
 
 function semesterStartToDate(value: number[]) {
   if (value.length !== 3) return "";
   const [year, month, day] = value;
-  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return `${String(year).padStart(4, "0")}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 export default function AdminPage() {
