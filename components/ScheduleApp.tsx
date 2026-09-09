@@ -24,10 +24,9 @@ function readSavedGroups(availableGroups: number[]) {
     const saved = JSON.parse(window.localStorage.getItem(GROUPS_STORAGE_KEY) ?? "null");
     if (!Array.isArray(saved)) return availableGroups;
 
-    const validGroups = saved.filter(
+    return saved.filter(
       (group): group is number => typeof group === "number" && availableGroups.includes(group),
     );
-    return validGroups.length > 0 ? validGroups : availableGroups;
   } catch {
     return availableGroups;
   }
@@ -82,13 +81,11 @@ export default function ScheduleApp() {
   });
 
   const toggleGroup = (group: number) => {
-    setGroups((current) => {
-      if (current.includes(group)) {
-        if (current.length === 1) return current;
-        return current.filter((value) => value !== group);
-      }
-      return [...current, group].sort((a, b) => a - b);
-    });
+    setGroups((current) =>
+      current.includes(group)
+        ? current.filter((value) => value !== group)
+        : [...current, group].sort((a, b) => a - b),
+    );
   };
 
   return (
