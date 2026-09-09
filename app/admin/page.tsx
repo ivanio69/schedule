@@ -24,13 +24,17 @@ const emptyLesson = (): Lesson => ({
   weeks: [],
 });
 
+function sortTable(table: Lesson[]) {
+  return [...table].sort((a, b) => a.timeStart.localeCompare(b.timeStart));
+}
+
 function normalize(value: unknown): Schedule | null {
   if (!value || typeof value !== "object") return null;
   const data = value as Partial<Schedule>;
   if (!Array.isArray(data.semesterStart) || data.semesterStart.length !== 3 || !data.semesterStart.every((v) => Number.isInteger(v))) return null;
   if (!Array.isArray(data.days)) return null;
   if (!data.days.every((d) => d && typeof d === "object" && Array.isArray(d.table))) return null;
-  return data as Schedule;
+  return { ...data, days: data.days.map((day) => ({ ...day, table: sortTable(day.table) })) } as Schedule;
 }
 
 function dateToSemesterStart(value: string): number[] | null {
@@ -93,8 +97,8 @@ export default function AdminPage() {
     setSchedule((current) => {
       if (!current) return current;
       const lesson = emptyLesson();
-      const days = [...current.days]; days[dayIndex] = { ...days[dayIndex], table: [...days[dayIndex].table, lesson] };
-      setActiveDay(dayIndex); setExpandedLesson(days[dayIndex].table.length - 1);
+      const days = [...current.days]; days[dayIndex] = { ...days[dayIndex], table: sortTable([...days[dayIndex].table, lesson]) };
+      setActiveDay(dayIndex); setExpandedLesson(days[dayIndex].table.findIndex((item) => item === lesson));
       return { ...current, days };
     });
   };
@@ -104,8 +108,8 @@ export default function AdminPage() {
       if (!current) return current;
       const source = current.days[dayIndex].table[lessonIndex];
       const copy = { ...source, group: [...source.group], weeks: [...source.weeks] };
-      const days = [...current.days]; const table = [...days[dayIndex].table, copy];
-      days[dayIndex] = { ...days[dayIndex], table }; setExpandedLesson(table.length - 1);
+      const days = [...current.days]; const table = sortTable([...days[dayIndex].table, copy]);
+      days[dayIndex] = { ...days[dayIndex], table }; setExpandedLesson(table.findIndex((item) => item === copy));
       return { ...current, days };
     });
   };
@@ -143,6 +147,9 @@ export default function AdminPage() {
     if (rawMode) {
       try { const parsed = JSON.parse(raw); const normalized = normalize(parsed); if (!normalized) throw new Error(); payload = normalized; setSchedule(normalized); }
       catch { setMessage("JSON невалиден: проверьте структуру и синтаксис."); return; }
+    } else {
+      payload = { ...schedule, days: schedule.days.map((day) => ({ ...day, table: sortTable(day.table) })) };
+      setSchedule(payload);
     }
     setSaving(true); setMessage("");
     const response = await fetch("/api/admin/schedule", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ schedule: payload }) });
