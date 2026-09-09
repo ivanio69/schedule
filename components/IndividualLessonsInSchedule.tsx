@@ -6,7 +6,6 @@ import type { IndividualLesson } from "@/lib/people";
 import type { ScheduleData } from "@/lib/schedule";
 
 const PERSON_KEY = "schedule_person_id";
-const DAY_COUNT = 6;
 
 function dateKey(schedule: ScheduleData, week: number, day: number) {
   const [year, month, startDay] = schedule.semesterStart;
@@ -43,7 +42,6 @@ export default function IndividualLessonsInSchedule() {
 
   useEffect(() => {
     if (!schedule || !personId) return;
-    let stopped = false;
     const syncSelection = () => {
       const selection = getSelection(schedule);
       if (!selection) return;
@@ -55,7 +53,7 @@ export default function IndividualLessonsInSchedule() {
     const observer = new MutationObserver(syncSelection);
     const root = document.querySelector(".schedule-shell") ?? document.body;
     observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
-    return () => { stopped = true; observer.disconnect(); };
+    return () => observer.disconnect();
   }, [schedule, personId]);
 
   useEffect(() => {
@@ -88,6 +86,7 @@ export default function IndividualLessonsInSchedule() {
       <style jsx global>{`
         .individual-schedule-entry{display:grid;grid-template-columns:76px minmax(0,1fr);gap:15px;align-items:center;margin-top:8px;padding:15px 16px;border:1px solid rgba(120,180,255,.35);border-radius:16px;background:linear-gradient(135deg,rgba(120,180,255,.08),rgba(255,255,255,.025));}
         .individual-schedule-entry__time{display:grid;gap:3px}.individual-schedule-entry__time strong{font-size:16px}.individual-schedule-entry__time small,.individual-schedule-entry__main p{color:#777780;font-size:10px}.individual-schedule-entry__main>span{color:#8ebfff;font-size:9px;font-weight:800;letter-spacing:.1em}.individual-schedule-entry__main h3{margin:4px 0;font-size:15px}.individual-schedule-entry__main p{margin:0}.individual-schedule-entry__note{display:block;margin-top:6px;color:#b5b5bd;font-size:10px}
+        .individual-schedule-entry.is-past{opacity:.42;filter:saturate(.55)}
         @media(max-width:650px){.individual-schedule-entry{grid-template-columns:58px minmax(0,1fr);gap:9px;padding:13px}}
       `}</style>
     </>,
