@@ -23,6 +23,7 @@ export function RehearsalCard({ rehearsal, own, onDelete, onClick }: { rehearsal
           {own && onDelete && <button type="button" className="rehearsal-delete" onClick={(event) => { event.stopPropagation(); onDelete(); }}>Удалить</button>}
         </div>
         <div className="schedule-card__meta">
+          <span>автор: {rehearsal.creatorName ?? "не указан"}</span><span aria-hidden="true">·</span>
           <span>ответственный: {rehearsal.responsible}</span><span aria-hidden="true">·</span>
           <span>{rehearsal.participants.length} участн.</span>
         </div>
