@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import ScheduleApp from "@/components/ScheduleApp";
+import IndividualLessonsInSchedule from "@/components/IndividualLessonsInSchedule";
 import type { ScheduleData } from "@/lib/schedule";
 
 function getSelectedDate(schedule: ScheduleData) {
@@ -23,9 +24,9 @@ function updatePastState(schedule: ScheduleData) {
   const pastDay = selectedDay < today;
   const currentDay = selectedDay.getTime() === today.getTime();
   panel.classList.toggle("is-past-day", pastDay);
-  panel.querySelectorAll<HTMLElement>(".schedule-card, .rehearsal-card").forEach((card) => {
-    const end = card.querySelectorAll(".schedule-card__time span")[1]?.textContent?.trim() ?? "";
-    const [hours, minutes] = end.split(":").map(Number);
+  panel.querySelectorAll<HTMLElement>(".schedule-card, .rehearsal-card, .individual-schedule-entry").forEach((card) => {
+    const endText = card.querySelectorAll(".schedule-card__time span")[1]?.textContent?.trim() ?? card.querySelector<HTMLElement>(".individual-schedule-entry__time small")?.textContent?.trim() ?? "";
+    const [hours, minutes] = endText.split(":").map(Number);
     const endMinutes = Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : Infinity;
     card.classList.toggle("is-past", pastDay || (currentDay && endMinutes <= now.getHours() * 60 + now.getMinutes()));
   });
@@ -48,8 +49,6 @@ export default function TodaySchedule() {
         if (stopped || !data.schedule) return;
         schedule = data.schedule;
 
-        // Wait for ScheduleApp to render, then select today once. No observer is
-        // attached to the whole document, so changing a day cannot create a loop.
         window.setTimeout(() => {
           if (stopped) return;
           const today = new Date().getDay();
@@ -75,12 +74,16 @@ export default function TodaySchedule() {
       <style jsx global>{`
         .schedule-panel.is-past-day .schedule-card,
         .schedule-panel.is-past-day .rehearsal-card,
+        .schedule-panel.is-past-day .individual-schedule-entry,
         .schedule-card.is-past,
-        .rehearsal-card.is-past { opacity: .42; filter: saturate(.55); }
+        .rehearsal-card.is-past,
+        .individual-schedule-entry.is-past { opacity: .42; filter: saturate(.55); }
         .schedule-card.is-past:hover,
-        .rehearsal-card.is-past:hover { opacity: .58; }
+        .rehearsal-card.is-past:hover,
+        .individual-schedule-entry.is-past:hover { opacity: .58; }
       `}</style>
       <ScheduleApp />
+      <IndividualLessonsInSchedule />
     </>
   );
 }
