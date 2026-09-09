@@ -21,14 +21,21 @@ type View = "schedule" | "settings";
 type Preferences = Record<string, GroupPreference>;
 
 function readPreferences(subjects: { name: string }[]): Preferences {
-  const defaults = Object.fromEntries(subjects.map(({ name }) => [name, "both"]));
+  const defaults: Preferences = Object.fromEntries(
+    subjects.map(({ name }) => [name, "both" as GroupPreference]),
+  );
+
   try {
     const saved = JSON.parse(window.localStorage.getItem(SETTINGS_STORAGE_KEY) ?? "null");
     if (!saved || typeof saved !== "object") return defaults;
-    return Object.fromEntries(subjects.map(({ name }) => [
-      name,
-      saved[name] === "1" || saved[name] === "2" || saved[name] === "both" ? saved[name] : "both",
-    ]));
+    return Object.fromEntries(
+      subjects.map(({ name }) => [
+        name,
+        saved[name] === "1" || saved[name] === "2" || saved[name] === "both"
+          ? saved[name] as GroupPreference
+          : "both",
+      ]),
+    );
   } catch {
     return defaults;
   }
