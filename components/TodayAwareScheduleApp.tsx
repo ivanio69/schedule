@@ -19,9 +19,7 @@ function getWeekState() {
   const weekNumber = Number(
     document.querySelector(".week-number strong")?.textContent ?? "0",
   );
-  const currentWeek = document.querySelector(".week-number em")
-    ? weekNumber
-    : null;
+  const currentWeek = Number(document.body.dataset.currentWeek ?? "0") || null;
   return { weekNumber, currentWeek };
 }
 
@@ -38,7 +36,7 @@ function updatePastState() {
     tab.classList.toggle(
       PAST_CLASS,
       previousWeek ||
-        (currentWeek !== null && todayIndex >= 0 && index < todayIndex),
+        (currentWeek !== null && weekNumber === currentWeek && todayIndex >= 0 && index < todayIndex),
     );
   });
 
@@ -58,16 +56,14 @@ function updatePastState() {
     }
 
     const pastDay =
-      currentWeek !== null && activeIndex < todayIndex;
+      currentWeek !== null && weekNumber === currentWeek && activeIndex < todayIndex;
     const pastLesson =
       currentWeek !== null &&
+      weekNumber === currentWeek &&
       activeIndex === todayIndex &&
       timeToMinutes(end) <= nowMinutes;
 
-    card.classList.toggle(
-      PAST_CLASS,
-      previousWeek || pastDay || pastLesson,
-    );
+    card.classList.toggle(PAST_CLASS, previousWeek || pastDay || pastLesson);
   });
 }
 
@@ -78,10 +74,16 @@ export default function TodayAwareScheduleApp() {
       const tabs = Array.from(
         document.querySelectorAll<HTMLButtonElement>(".day-tabs button"),
       );
-      const currentWeek = Boolean(document.querySelector(".week-number em"));
-      const todayIndex = getTodayIndex();
+      const currentWeekElement = document.querySelector(".week-number em");
+      const currentWeekNumber = Number(
+        currentWeekElement?.previousElementSibling?.textContent ?? "0",
+      );
+      if (currentWeekElement && currentWeekNumber) {
+        document.body.dataset.currentWeek = String(currentWeekNumber);
+      }
 
-      if (!selectedToday && currentWeek && todayIndex >= 0 && tabs[todayIndex]) {
+      const todayIndex = getTodayIndex();
+      if (!selectedToday && currentWeekElement && todayIndex >= 0 && tabs[todayIndex]) {
         selectedToday = true;
         tabs[todayIndex].click();
       }
@@ -97,6 +99,7 @@ export default function TodayAwareScheduleApp() {
     return () => {
       observer.disconnect();
       window.clearInterval(timer);
+      delete document.body.dataset.currentWeek;
     };
   }, []);
 
