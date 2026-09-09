@@ -14,7 +14,7 @@ export type Lesson = {
 export type Day = { table: Lesson[] };
 export type ScheduleData = { semesterStart: number[]; days: Day[] };
 
-export const DAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб"] as const;
+export const DAY_NAMES = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"] as const;
 
 export function getTotalWeeks(schedule: ScheduleData) {
   return Math.max(1, ...schedule.days.flatMap((day) => day.table.flatMap((lesson) => lesson.weeks)));
@@ -29,17 +29,18 @@ export function getSubgroupSubjects(schedule: ScheduleData) {
 
   for (const day of schedule.days) {
     for (const lesson of day.table) {
-      if (lesson.group.length < 2) {
-        const groups = subjects.get(lesson.class) ?? new Set<number>();
-        for (const group of lesson.group) groups.add(group);
-        subjects.set(lesson.class, groups);
-      }
+      if (lesson.group.length !== 1) continue;
+
+      const groups = subjects.get(lesson.class) ?? new Set<number>();
+      groups.add(lesson.group[0]);
+      subjects.set(lesson.class, groups);
     }
   }
 
-  return [...subjects.entries()]
-    .filter(([, groups]) => groups.size > 1)
-    .map(([name, groups]) => ({ name, groups: [...groups].sort((a, b) => a - b) }));
+  return [...subjects.entries()].map(([name, groups]) => ({
+    name,
+    groups: [...groups].sort((a, b) => a - b),
+  }));
 }
 
 export function getCurrentWeek(schedule: ScheduleData, now = new Date()) {
