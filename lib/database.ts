@@ -4,6 +4,7 @@ import clientPromise from "@/lib/mongodb";
 import type { Rehearsal, ScheduleData } from "@/lib/schedule";
 
 const DB_NAME = process.env.MONGODB_DB ?? "schedule";
+type ScheduleDocument = ScheduleData & { _id: string };
 
 export async function getDatabase() {
   const mongo = await clientPromise;
@@ -12,19 +13,21 @@ export async function getDatabase() {
 
 export async function getSchedule(): Promise<ScheduleData> {
   const db = await getDatabase();
-  const collection = db.collection<ScheduleData & { _id: string }>("schedule");
+  const collection = db.collection<ScheduleDocument>("schedule");
   const stored = await collection.findOne({ _id: "current" });
   if (stored) {
     const { _id: _ignored, ...schedule } = stored;
     return schedule;
   }
-  await collection.insertOne({ ...table, _id: "current" });
+  await collection.insertOne({ ...table, _id: "current" } as ScheduleDocument);
   return table;
 }
 
 export async function saveSchedule(schedule: ScheduleData) {
   const db = await getDatabase();
-  await db.collection<ScheduleData & { _id: string }>("schedule").replaceOne({ _id: "current" }, { ...schedule, _id: "current" }, { upsert: true });
+  const collection = db.collection<ScheduleDocument>("schedule");
+  const document: ScheduleDocument = { ...schedule, _id: "current" };
+  await collection.replaceOne({ _id: "current" }, document, { upsert: true });
 }
 
 export async function getRehearsals(date: string) {
