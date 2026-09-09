@@ -13,6 +13,10 @@ export type ProfileSettings = {
   updatedAt: string;
 };
 
+function localDateKey() {
+  return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
 export async function getDatabase() {
   const mongo = await clientPromise;
   return mongo.db(DB_NAME);
@@ -57,6 +61,8 @@ export async function deletePerson(id: string) {
 
 export async function getIndividualLessons(personId?: string) {
   const db = await getDatabase();
+  const today = localDateKey();
+  await db.collection<IndividualLesson>("individual_lessons").deleteMany({ date: { $lt: today } });
   return db.collection<IndividualLesson>("individual_lessons").find(personId ? { personId } : {}).sort({ date: 1, timeStart: 1 }).toArray();
 }
 
