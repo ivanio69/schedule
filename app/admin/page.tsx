@@ -16,6 +16,7 @@ type Lesson = {
 type Day = { table: Lesson[]; [key: string]: unknown };
 type Schedule = { semesterStart: number[]; days: Day[]; [key: string]: unknown };
 
+const DAY_NAMES = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"] as const;
 const emptyLesson = (): Lesson => ({ class: "", professor: "", auditorium: "", timeStart: "09:00", timeEnd: "10:30", group: [1, 2], weeks: [] });
 
 function normalize(value: unknown): Schedule | null {
@@ -45,11 +46,7 @@ export default function AdminPage() {
     const data = await response.json();
     if (!response.ok) { setMessage(data.error ?? "Не удалось загрузить расписание"); setLoading(false); return; }
     const normalized = normalize(data.schedule);
-    if (!normalized) {
-      setMessage("GitHub вернул расписание в неожиданном формате.");
-      setLoading(false);
-      return;
-    }
+    if (!normalized) { setMessage("GitHub вернул расписание в неожиданном формате."); setLoading(false); return; }
     setSchedule(normalized);
     setSha(data.sha);
     setRaw(JSON.stringify(normalized, null, 2));
@@ -147,7 +144,7 @@ export default function AdminPage() {
   return (
     <main className="admin-shell">
       <header className="admin-header">
-        <div><p className="admin-eyebrow">Schedule Admin</p><h1>Расписание</h1><p className="admin-muted">{lessonCount} занятий · изменения сразу коммитятся в GitHub</p></div>
+        <div><p className="admin-eyebrow">Schedule Admin</p><h1>Расписание</h1><p className="admin-muted">{lessonCount} занятий</p></div>
         <div className="admin-actions"><button className="admin-secondary" onClick={() => void load()}>Обновить</button><button className="admin-primary" disabled={saving} onClick={() => void save()}>{saving ? "Сохраняю…" : "Сохранить"}</button></div>
       </header>
 
@@ -156,12 +153,12 @@ export default function AdminPage() {
       {rawMode ? <section className="admin-card"><textarea className="admin-json" value={raw} onChange={(e) => setRaw(e.target.value)} spellCheck={false} /></section> : (
         <div className="admin-days">
           {schedule?.days.map((day, dayIndex) => (
-            <section className="admin-card" key={`${dayIndex}`}>
-              <div className="admin-section-header"><div><p className="admin-eyebrow">День {dayIndex + 1}</p><h2>День {dayIndex + 1}</h2></div><button className="admin-secondary" onClick={() => addLesson(dayIndex)}>+ Занятие</button></div>
+            <section className="admin-card" key={dayIndex}>
+              <div className="admin-section-header"><div><p className="admin-eyebrow">День недели</p><h2>{DAY_NAMES[dayIndex] ?? `День ${dayIndex + 1}`}</h2></div><button className="admin-secondary" onClick={() => addLesson(dayIndex)}>+ Занятие</button></div>
               <div className="admin-lessons">
                 {day.table.map((lesson, lessonIndex) => (
                   <article className="admin-lesson" key={lessonIndex}>
-                    <div className="admin-lesson-top"><strong>Занятие {lessonIndex + 1}</strong><button className="admin-danger" onClick={() => removeLesson(dayIndex, lessonIndex)}>Удалить</button></div>
+                    <div className="admin-lesson-top"><strong>{lessonIndex + 1}. {lesson.class || "Новое занятие"}</strong><button className="admin-danger" onClick={() => removeLesson(dayIndex, lessonIndex)}>Удалить</button></div>
                     <div className="admin-grid">
                       <label>Предмет<input className="admin-input" value={lesson.class} onChange={(e) => updateLesson(dayIndex, lessonIndex, { class: e.target.value })} /></label>
                       <label>Преподаватель<input className="admin-input" value={lesson.professor} onChange={(e) => updateLesson(dayIndex, lessonIndex, { professor: e.target.value })} /></label>
