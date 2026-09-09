@@ -14,12 +14,12 @@ export type Lesson = {
 export type Rehearsal = {
   id: string;
   creatorId: string;
-  title: string;
-  auditorium: string;
+  subject: string;
+  date: string;
   timeStart: string;
   timeEnd: string;
-  week: number;
-  day: number;
+  responsible: string;
+  participants: string[];
   createdAt: string;
 };
 
