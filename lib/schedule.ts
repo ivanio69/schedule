@@ -1,4 +1,4 @@
-export type Group = 1 | 2;
+export type Group = number;
 
 export type Lesson = {
   class: string;
@@ -19,6 +19,10 @@ export function getTotalWeeks(schedule: ScheduleData) {
   return Math.max(1, ...schedule.days.flatMap((day) => day.table.flatMap((lesson) => lesson.weeks)));
 }
 
+export function getAvailableGroups(schedule: ScheduleData) {
+  return [...new Set(schedule.days.flatMap((day) => day.table.flatMap((lesson) => lesson.group)))].sort((a, b) => a - b);
+}
+
 export function getCurrentWeek(schedule: ScheduleData, now = new Date()) {
   const [year, month, day] = schedule.semesterStart;
   const semesterStart = new Date(year, month, day);
@@ -35,9 +39,18 @@ function timeToMinutes(time: string) {
   return hours * 60 + minutes;
 }
 
-export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, group: Group) {
+export function getLessonsForWeek(
+  schedule: ScheduleData,
+  dayIndex: number,
+  week: number,
+  groups: number[],
+) {
   return (schedule.days[dayIndex]?.table ?? [])
-    .filter((lesson) => lesson.weeks.includes(week) && (lesson.group.length === 2 || lesson.group.includes(group)))
+    .filter(
+      (lesson) =>
+        lesson.weeks.includes(week) &&
+        (lesson.group.length > 1 || lesson.group.some((lessonGroup) => groups.includes(lessonGroup))),
+    )
     .sort((a, b) => timeToMinutes(a.timeStart) - timeToMinutes(b.timeStart));
 }
 
