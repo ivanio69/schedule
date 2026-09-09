@@ -1,5 +1,5 @@
-import ScheduleApp from "@/components/ScheduleApp";
+import Dashboard from "@/components/Dashboard";
 
 export default function Home() {
-  return <ScheduleApp />;
+  return <Dashboard />;
 }
