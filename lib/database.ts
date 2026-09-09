@@ -13,10 +13,6 @@ export type ProfileSettings = {
   updatedAt: string;
 };
 
-function localDateKey() {
-  return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-}
-
 export async function getDatabase() {
   const mongo = await clientPromise;
   return mongo.db(DB_NAME);
@@ -61,8 +57,6 @@ export async function deletePerson(id: string) {
 
 export async function getIndividualLessons(personId?: string) {
   const db = await getDatabase();
-  const today = localDateKey();
-  await db.collection<IndividualLesson>("individual_lessons").deleteMany({ date: { $lt: today } });
   return db.collection<IndividualLesson>("individual_lessons").find(personId ? { personId } : {}).sort({ date: 1, timeStart: 1 }).toArray();
 }
 
@@ -83,10 +77,13 @@ export async function deleteIndividualLesson(id: string) {
 
 export async function getRehearsals(date: string) {
   const db = await getDatabase();
-  return db.collection<Rehearsal>("rehearsals").find({ date }).sort({ timeStart: 1, createdAt: 1 }).toArray();
+  const rehearsals = await db.collection<Rehearsal>("rehearsals").find({ date }).sort({ timeStart: 1, createdAt: 1 }).toArray();
+  const people = await getPeople();
+  const names = new Map(people.map((person) => [person.id, person.name]));
+  return rehearsals.map((rehearsal) => ({ ...rehearsal, creatorName: rehearsal.creatorName ?? names.get(rehearsal.creatorId) }));
 }
 
-export async function createRehearsal(input: Omit<Rehearsal, "id" | "createdAt">) {
+export async function createRehearsal(input: Omit<Rehearsal, "id" | "createdAt" | "creatorName">) {
   const rehearsal: Rehearsal = { ...input, id: randomUUID(), createdAt: new Date().toISOString() };
   const db = await getDatabase();
   await db.collection<Rehearsal>("rehearsals").insertOne(rehearsal);
@@ -97,6 +94,16 @@ export async function deleteRehearsal(id: string, creatorId: string) {
   const db = await getDatabase();
   const result = await db.collection<Rehearsal>("rehearsals").deleteOne({ id, creatorId });
   return result.deletedCount === 1;
+}
+
+export async function updateRehearsal(id: string, creatorId: string, input: Omit<Rehearsal, "id" | "createdAt" | "creatorId" | "creatorName">) {
+  const db = await getDatabase();
+  const result = await db.collection<Rehearsal>("rehearsals").findOneAndUpdate(
+    { id, creatorId },
+    { $set: input },
+    { returnDocument: "after" },
+  );
+  return result;
 }
 
 export async function getProfileSettings(personId: string): Promise<ProfileSettings> {
