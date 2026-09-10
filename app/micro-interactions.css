@@ -2,13 +2,35 @@
 @keyframes ui-rise-in { from { opacity:0; transform:translateY(10px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
 @keyframes ui-pop-in { from { opacity:0; transform:scale(.96); } to { opacity:1; transform:scale(1); } }
 @keyframes ui-modal-in { from { opacity:0; transform:translateY(14px) scale(.975); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes ui-slide-left { from { opacity:0; transform:translateX(12px); } to { opacity:1; transform:translateX(0); } }
+@keyframes ui-slide-right { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
+@keyframes ui-soft-in { from { opacity:0; filter:blur(3px); } to { opacity:1; filter:blur(0); } }
 @keyframes ui-shimmer { from { background-position:200% 0; } to { background-position:-200% 0; } }
+@keyframes ui-focus-pulse { 0% { box-shadow:0 0 0 0 rgba(255,255,255,0); } 45% { box-shadow:0 0 0 4px rgba(255,255,255,.07); } 100% { box-shadow:0 0 0 0 rgba(255,255,255,0); } }
+@keyframes ui-check-pop { 0% { transform:scale(.82); opacity:.5; } 65% { transform:scale(1.08); } 100% { transform:scale(1); opacity:1; } }
 
-button, a, input, textarea, select { transition: border-color .2s ease, background-color .2s ease, color .2s ease, opacity .2s ease, transform .2s ease, box-shadow .2s ease; }
+html { scroll-behavior:smooth; }
 
-.schedule-card, .rehearsal-card, .admin-card, .dashboard-rehearsal, .settings-section, .individual-slot-card {
-  animation: ui-rise-in .38s cubic-bezier(.22,1,.36,1) both;
+button, a, input, textarea, select { transition:border-color .2s ease, background-color .2s ease, color .2s ease, opacity .2s ease, transform .2s cubic-bezier(.22,1,.36,1), box-shadow .2s ease, filter .2s ease; }
+
+/* Page-level entrance: every route gets the same soft arrival. */
+.app-page-transition > * { animation:ui-soft-in .38s ease both; }
+
+/* Common structural elements. */
+.app-navigation { animation:ui-slide-right .4s cubic-bezier(.22,1,.36,1) both; }
+.app-navigation a { position:relative; }
+.app-navigation a::after { content:""; position:absolute; left:12%; right:12%; bottom:3px; height:2px; border-radius:99px; background:currentColor; opacity:0; transform:scaleX(.25); transition:opacity .2s ease, transform .25s cubic-bezier(.22,1,.36,1); }
+.app-navigation a:hover::after, .app-navigation a.is-active::after { opacity:.55; transform:scaleX(1); }
+
+header, main > section, main > div, .page-header, .dashboard-header, .schedule-header, .settings-header, .admin-header, .admin-toolbar, .admin-modebar {
+  animation:ui-rise-in .38s cubic-bezier(.22,1,.36,1) both;
 }
+
+.schedule-card, .rehearsal-card, .admin-card, .dashboard-rehearsal, .settings-section, .individual-slot-card, .booked-individual-slot-card, .empty-state {
+  animation:ui-rise-in .38s cubic-bezier(.22,1,.36,1) both;
+  will-change:transform, opacity;
+}
+
 .lesson-list > :nth-child(1) { animation-delay:.02s; }
 .lesson-list > :nth-child(2) { animation-delay:.055s; }
 .lesson-list > :nth-child(3) { animation-delay:.09s; }
@@ -16,10 +38,29 @@ button, a, input, textarea, select { transition: border-color .2s ease, backgrou
 .lesson-list > :nth-child(5) { animation-delay:.16s; }
 .lesson-list > :nth-child(n+6) { animation-delay:.19s; }
 
+/* Cards feel tactile but restrained. */
+.schedule-card:hover, .rehearsal-card:hover, .dashboard-rehearsal:hover, .admin-card:hover, .individual-slot-card:hover, .booked-individual-slot-card:hover {
+  transform:translateY(-2px);
+  box-shadow:0 10px 28px rgba(0,0,0,.14);
+}
+.schedule-card:active, .rehearsal-card:active, .individual-slot-card:active, .booked-individual-slot-card:active { transform:translateY(0) scale(.995); }
+
+/* Buttons and controls. */
+button:not(:disabled):hover { filter:brightness(1.06); }
+button:not(:disabled):active { transform:scale(.975); }
+.icon-button:active, .admin-primary:active, .admin-secondary:active, .bottom-nav button:active, .day-tabs button:active { transform:scale(.96); }
+button.is-active, .day-tabs button.is-active, .preference-switch button.is-active { animation:ui-check-pop .25s cubic-bezier(.22,1,.36,1) both; }
+
+/* Inputs get a subtle focus pulse instead of a static jump. */
+input:focus, textarea:focus, select:focus { animation:ui-focus-pulse .32s ease both; }
+input:hover, textarea:hover, select:hover { filter:brightness(1.025); }
+
+/* Rehearsal creation flow. */
 .add-rehearsal-button { position:relative; overflow:hidden; transform-origin:center; }
 .add-rehearsal-button:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(184,167,255,.08); }
 .add-rehearsal-button:active { transform:translateY(0) scale(.985); }
-
+.add-rehearsal-button::after { content:""; position:absolute; inset:0; background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,.09) 50%,transparent 80%); transform:translateX(-120%); transition:transform .55s ease; pointer-events:none; }
+.add-rehearsal-button:hover::after { transform:translateX(120%); }
 .rehearsal-form { animation:ui-modal-in .32s cubic-bezier(.22,1,.36,1) both; transform-origin:top center; }
 .rehearsal-form input, .rehearsal-form textarea, .rehearsal-form select { animation:ui-rise-in .28s ease both; }
 .rehearsal-form label:nth-child(2) input { animation-delay:.025s; }
@@ -29,21 +70,46 @@ button, a, input, textarea, select { transition: border-color .2s ease, backgrou
 .rehearsal-form__actions button { animation:ui-pop-in .25s ease both; }
 .rehearsal-form__actions button:last-child { animation-delay:.05s; }
 
-.schedule-card:hover, .rehearsal-card:hover, .dashboard-rehearsal:hover, .admin-card:hover { box-shadow:0 10px 28px rgba(0,0,0,.14); }
-.schedule-card:active, .rehearsal-card:active { transform:translateY(0) scale(.995); }
-.icon-button:active, .admin-primary:active, .admin-secondary:active, .bottom-nav button:active, .day-tabs button:active { transform:scale(.96); }
-
-.group-badge, .rehearsal-label, .booked-individual-slot-badge { animation:ui-pop-in .3s cubic-bezier(.22,1,.36,1) both; }
-
-.admin-modebar, .preference-switch { animation:ui-pop-in .3s ease both; }
+/* Admin lists, forms and slot rows. */
 .admin-row { animation:ui-rise-in .3s cubic-bezier(.22,1,.36,1) both; }
 .admin-row:nth-child(2) { animation-delay:.03s; }
 .admin-row:nth-child(3) { animation-delay:.06s; }
 .admin-row:nth-child(4) { animation-delay:.09s; }
 .admin-row:nth-child(n+5) { animation-delay:.12s; }
+.admin-form, .admin-dialog, .admin-modal, dialog { animation:ui-modal-in .3s cubic-bezier(.22,1,.36,1) both; }
+.admin-form > *, .admin-dialog > *, .admin-modal > * { animation:ui-rise-in .28s ease both; }
 
-.empty-state { animation:ui-rise-in .35s cubic-bezier(.22,1,.36,1) both; }
+/* Labels, badges, tabs and small status elements. */
+.group-badge, .rehearsal-label, .booked-individual-slot-badge, .card-kind-badge, .badge, .tag, .status-badge {
+  animation:ui-pop-in .3s cubic-bezier(.22,1,.36,1) both;
+}
+.preference-switch, .admin-modebar, .day-tabs { animation:ui-pop-in .3s ease both; }
+
+/* Lists, menus and dropdown-like surfaces. */
+[role="menu"], [role="listbox"], .menu, .dropdown, .popover, .select-menu {
+  animation:ui-modal-in .2s cubic-bezier(.22,1,.36,1) both;
+  transform-origin:top center;
+}
+[role="menu"] > *, [role="listbox"] > *, .menu > *, .dropdown > *, .popover > * { animation:ui-slide-left .2s ease both; }
+
+/* Dialogs and modal overlays. */
+.modal-backdrop, .dialog-backdrop, [data-overlay-container] { animation:ui-soft-in .2s ease both; }
+.modal, .dialog, [role="dialog"] { animation:ui-modal-in .3s cubic-bezier(.22,1,.36,1) both; }
+
+/* Tables and timetable rows. */
+table tbody tr { animation:ui-rise-in .28s cubic-bezier(.22,1,.36,1) both; }
+table tbody tr:hover { background:rgba(255,255,255,.025); transform:translateX(2px); }
+
+/* Loading/skeleton surfaces. */
+.skeleton, [aria-busy="true"] { background-size:200% 100%; animation:ui-shimmer 1.5s ease-in-out infinite; }
+
+/* Empty/error/success states. */
 .empty-state__icon { animation:ui-pop-in .4s .08s cubic-bezier(.22,1,.36,1) both; }
+.toast, .notification, .error-message, .success-message { animation:ui-slide-left .3s cubic-bezier(.22,1,.36,1) both; }
+
+/* Links have a little lift without affecting layout. */
+a:hover { filter:brightness(1.08); }
+a:active { transform:scale(.985); }
 
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { box-shadow:0 0 0 3px rgba(255,255,255,.08); }
 
