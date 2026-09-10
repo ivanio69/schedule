@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useSwipeable } from "react-swipeable";
 import { DAY_NAMES, formatWeekRange, getCurrentWeek, getLessonsForWeek, getSubgroupSubjects, getTotalWeeks, type GroupPreference, type Lesson, type Rehearsal, type ScheduleData } from "@/lib/schedule";
@@ -51,6 +51,7 @@ export default function ScheduleApp() {
   const [rehearsalEnd, setRehearsalEnd] = useState("20:00");
   const [rehearsalSaving, setRehearsalSaving] = useState(false);
   const [rehearsalError, setRehearsalError] = useState("");
+  const didInitializeWeek = useRef(false);
 
   const totalWeeks = useMemo(() => schedule ? getTotalWeeks(schedule) : 1, [schedule]);
   const currentWeek = useMemo(() => schedule ? getCurrentWeek(schedule) : 1, [schedule]);
@@ -67,7 +68,10 @@ export default function ScheduleApp() {
         const data = await response.json() as { schedule: ScheduleData; rehearsals: Rehearsal[] };
         setSchedule(data.schedule);
         setRehearsals(data.rehearsals ?? []);
-        if (week === 1) setWeek(getCurrentWeek(data.schedule));
+        if (!didInitializeWeek.current) {
+          didInitializeWeek.current = true;
+          setWeek(getCurrentWeek(data.schedule));
+        }
         setPreferences(readPreferences(getSubgroupSubjects(data.schedule)));
       } catch { setRehearsals([]); } finally { setLoading(false); }
     })();
@@ -93,9 +97,14 @@ export default function ScheduleApp() {
 
   const moveDay = (direction: 1 | -1) => {
     if (direction === 1) {
-      if (day < DAY_NAMES.length - 1) setDay(v => v + 1); else { setDay(0); setWeek(v => Math.min(v + 1, totalWeeks)); }
-    } else if (day > 0) setDay(v => v - 1);
-    else { setDay(DAY_NAMES.length - 1); setWeek(v => Math.max(v - 1, 1)); }
+      if (day < DAY_NAMES.length - 1) setDay(v => v + 1);
+      else { setDay(0); setWeek(v => Math.min(v + 1, totalWeeks)); }
+    } else if (day > 0) {
+      setDay(v => v - 1);
+    } else {
+      setDay(DAY_NAMES.length - 1);
+      setWeek(v => Math.max(v - 1, 1));
+    }
   };
   const handlers = useSwipeable({ onSwipedLeft: () => moveDay(1), onSwipedRight: () => moveDay(-1), preventScrollOnSwipe: false, trackMouse: false });
   const setPreference = (subject: string, preference: GroupPreference) => setPreferences(current => ({ ...current, [subject]: preference }));
@@ -132,7 +141,7 @@ export default function ScheduleApp() {
       <section className="schedule-panel" {...handlers} aria-live="polite">
         <div className="week-toolbar"><button type="button" className="icon-button" onClick={()=>setWeek(v=>Math.max(1,v-1))} disabled={week===1} aria-label="Предыдущая неделя">←</button><button type="button" className="week-number" onClick={()=>setWeek(currentWeek)} aria-label="Перейти к текущей неделе"><span>Неделя</span><strong>{week}</strong>{week===currentWeek&&<em>сейчас</em>}</button><button type="button" className="icon-button" onClick={()=>setWeek(v=>Math.min(totalWeeks,v+1))} disabled={week===totalWeeks} aria-label="Следующая неделя">→</button></div>
         {rehearsalOpen ? <section className="rehearsal-form"><div><p className="rehearsal-label">Новая репетиция</p><h2>{selectedDate}</h2></div><div className="rehearsal-grid"><label>Предмет<input className="admin-input" value={rehearsalSubject} onChange={e=>setRehearsalSubject(e.target.value)} placeholder="Например, сценическое движение" autoFocus /></label><label>Ответственный<input className="admin-input" value={rehearsalResponsible} onChange={e=>setRehearsalResponsible(e.target.value)} placeholder="ФИО" /></label><label>Начало<input className="admin-input" type="time" value={rehearsalStart} onChange={e=>setRehearsalStart(e.target.value)} /></label><label>Конец<input className="admin-input" type="time" value={rehearsalEnd} onChange={e=>setRehearsalEnd(e.target.value)} /></label><label className="rehearsal-participants">Участники<input className="admin-input" value={rehearsalParticipants} onChange={e=>setRehearsalParticipants(e.target.value)} /><small>Укажите через запятую</small></label></div>{rehearsalError&&<p className="admin-error">{rehearsalError}</p>}<div className="rehearsal-form__actions"><button type="button" className="admin-secondary" onClick={()=>setRehearsalOpen(false)}>Отмена</button><button type="button" className="admin-primary" disabled={rehearsalSaving} onClick={()=>void createRehearsal()}>{rehearsalSaving?"Создаю…":"Создать репетицию"}</button></div></section> : <button type="button" className="add-rehearsal-button" onClick={()=>{setRehearsalError("");setRehearsalOpen(true)}}>＋ Добавить репетицию</button>}
-        <AnimatePresence mode="wait" initial={false}><motion.div key={`${week}-${day}-${JSON.stringify(preferences)}`} className="lesson-list" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.18}}>{entries.map(entry=>entry.type==="lesson"?<ScheduleCard key={`lesson-${entry.item.timeStart}-${entry.item.class}-${entry.item.auditorium}-${entry.item.group.join(",")}`} lesson={entry.item} onClick={()=>setDetails({type:"lesson",item:entry.item})}/>:<RehearsalCard key={entry.item.id} rehearsal={entry.item} own={entry.item.creatorId===creatorId} onDelete={entry.item.creatorId===creatorId?()=>void removeRehearsal(entry.item.id):undefined} onClick={()=>setDetails({type:"rehearsal",item:entry.item})}/>)}{entries.length===0&&<div className="empty-state"><span className="empty-state__icon">—</span><h2>Ничего нет</h2><p>В этот день ничего не запланировано.</p></div>}</motion.div></AnimatePresence>
+        <AnimatePresence mode="wait" initial={false}><motion.div key={`${week}-${day}-${JSON.stringify(preferences)}`} className="lesson-list" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.18}}>{entries.map(entry=>entry.type==="lesson"?<ScheduleCard key={`lesson-${entry.item.timeStart}-${entry.item.class}-${entry.item.auditorium}-${entry.item.group.join(",")}`} lesson={entry.item} onClick={()=>setDetails({type:"lesson",item:entry.item})}/>:<RehearsalCard key={entry.item.id} rehearsal={entry.item} own={entry.item.creatorId===creatorId} onDelete={entry.item.creatorId===creatorId?()=>void removeRehearsal(entry.item.id):undefined} onClick={()=>setDetails({type:"rehearsal",item:entry.item})}/>) }{entries.length===0&&<div className="empty-state"><span className="empty-state__icon">—</span><h2>Ничего нет</h2><p>В этот день ничего не запланировано.</p></div>}</motion.div></AnimatePresence>
       </section><footer className="schedule-footer"><span>{DAY_NAMES[day]}</span><span>Нажмите на занятие для подробностей</span></footer>
     </> : <section className="settings-panel" aria-label="Настройки расписания"><div className="settings-section"><div><p className="settings-section__eyebrow">Подгруппы</p><h2>Настройки предметов</h2><p>Для каждого предмета с подгруппами выберите, какую группу показывать.</p></div><div className="settings-list">{subgroupSubjects.map(({name,groups})=>{const value=preferences[name]??"both";return <div className="setting-row setting-row--subject" key={name}><span><strong>{name}</strong><small>Подгруппы: {groups.join(" и ")}</small></span><div className="preference-switch" role="group" aria-label={`Подгруппа для предмета ${name}`}>{(["1","2","both"] as GroupPreference[]).map(option=><button type="button" key={option} className={value===option?"is-active":""} aria-pressed={value===option} onClick={()=>setPreference(name,option)}>{option==="both"?"Обе":option}</button>)}</div></div>})}</div></div></section>}
     <nav className="bottom-nav" aria-label="Разделы"><button type="button" className={view==="schedule"?"is-active":""} onClick={()=>setView("schedule")}>Расписание</button><button type="button" className={view==="settings"?"is-active":""} onClick={()=>setView("settings")}>Настройки</button></nav>
