@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { IndividualSlot } from "@/lib/individual-slots";
 
-type Slot = IndividualSlot & { studentNames?: string[]; studentName?: string | null };
+type Slot = IndividualSlot & { studentNames?: string[] };
 const dateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 export default function BookedIndividualSlotsInDashboard() {
@@ -28,7 +28,7 @@ export default function BookedIndividualSlotsInDashboard() {
     to.setDate(to.getDate() + 1);
     fetch(`/api/individual-slots?from=${dateKey(today)}&to=${dateKey(to)}`, { cache: "no-store" })
       .then((r) => r.ok ? r.json() : null)
-      .then((d) => setSlots((d?.slots ?? []).filter((s: Slot) => s.studentIds?.includes(personId) || s.studentId === personId)))
+      .then((d) => setSlots((d?.slots ?? []).filter((s: Slot) => s.studentIds?.includes(personId))))
       .catch(() => setSlots([]));
   }, [personId]);
 
@@ -40,7 +40,7 @@ export default function BookedIndividualSlotsInDashboard() {
       {items.map((slot) => <article key={slot.id} className="dashboard-event-v2 individual">
         <div className="dashboard-event-time"><strong>{slot.timeStart}</strong><small>{slot.timeEnd}</small></div>
         <div className="dashboard-event-content"><span>ИНДИВИДУАЛЬНО</span><h3>{slot.subject}</h3><p>{slot.professor} · {slot.auditorium || "Аудитория не указана"}</p>{slot.note && <small className="dashboard-note-preview">● {slot.note}</small>}</div>
-        <mark>{slot.studentIds?.length ?? 1}/{slot.capacity}</mark>
+        <mark>{slot.studentIds?.length ?? 0}/{slot.capacity}</mark>
       </article>)}
     </section>, target
   );
