@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import ScheduleApp from "@/components/ScheduleApp";
-import IndividualLessonsInSchedule from "@/components/IndividualLessonsInSchedule";
+import BookedIndividualSlotsInSchedule from "@/components/BookedIndividualSlotsInSchedule";
 import type { ScheduleData } from "@/lib/schedule";
 
 function getSelectedDate(schedule: ScheduleData) {
@@ -11,7 +11,10 @@ function getSelectedDate(schedule: ScheduleData) {
   const week = Number(document.querySelector(".week-number strong")?.textContent ?? "0");
   if (day < 0 || !week) return null;
   const [year, month, startDay] = schedule.semesterStart;
-  return new Date(year, month, startDay + (week - 1) * 7 + day);
+  const date = new Date(year, month, startDay);
+  const mondayOffset = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - mondayOffset + (week - 1) * 7 + day);
+  return date;
 }
 
 function updatePastState(schedule: ScheduleData) {
@@ -36,19 +39,14 @@ export default function TodaySchedule() {
   useEffect(() => {
     let schedule: ScheduleData | null = null;
     let stopped = false;
-
-    const sync = () => {
-      if (schedule) updatePastState(schedule);
-    };
-
+    const sync = () => { if (schedule) updatePastState(schedule); };
     const load = async () => {
       try {
         const response = await fetch("/api/schedule", { cache: "no-store" });
         if (!response.ok) return;
-        const data = (await response.json()) as { schedule?: ScheduleData };
+        const data = await response.json() as { schedule?: ScheduleData };
         if (stopped || !data.schedule) return;
         schedule = data.schedule;
-
         window.setTimeout(() => {
           if (stopped) return;
           const today = new Date().getDay();
@@ -60,13 +58,9 @@ export default function TodaySchedule() {
         }, 80);
       } catch {}
     };
-
     void load();
     const timer = window.setInterval(sync, 1000);
-    return () => {
-      stopped = true;
-      window.clearInterval(timer);
-    };
+    return () => { stopped = true; window.clearInterval(timer); };
   }, []);
 
   return (
@@ -81,9 +75,13 @@ export default function TodaySchedule() {
         .schedule-card.is-past:hover,
         .rehearsal-card.is-past:hover,
         .individual-schedule-entry.is-past:hover { opacity: .58; }
+        .booked-individuals-in-table{display:contents}
+        .booked-individual-slot-card{cursor:pointer;border-color:rgba(120,180,255,.35)!important}
+        .booked-individual-slot-card .schedule-card__title-row{display:flex;align-items:center;gap:8px}
+        .booked-individual-slot-card .booked-individual-slot-badge{font-size:8px;font-weight:800;letter-spacing:.08em;color:#94949d;border:1px solid #303036;border-radius:6px;padding:3px 5px}
       `}</style>
       <ScheduleApp />
-      <IndividualLessonsInSchedule />
+      <BookedIndividualSlotsInSchedule />
     </>
   );
 }
