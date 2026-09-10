@@ -8,6 +8,7 @@ import "./dashboard-login.css";
 import "./page-transitions.css";
 import "./loading-state.css";
 import "./admin/individual-slots/slots.css";
+import "./individual-slots.css";
 import AppNavigation from "@/components/AppNavigation";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin", "cyrillic"] });
