@@ -1,0 +1,47 @@
+.schedule-loading-state {
+  display: grid;
+  gap: 12px;
+  min-height: 250px;
+  padding: 14px 0;
+}
+
+.schedule-loading-skeleton {
+  overflow: hidden;
+  min-height: 116px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(90deg, rgba(255,255,255,.035) 25%, rgba(255,255,255,.085) 50%, rgba(255,255,255,.035) 75%);
+  background-size: 200% 100%;
+  animation: schedule-skeleton 1.35s ease-in-out infinite;
+}
+
+.schedule-loading-spinner {
+  width: 22px;
+  height: 22px;
+  margin: 0 auto 2px;
+  border: 2px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: schedule-spinner .75s linear infinite;
+}
+
+.schedule-loading-label {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+@keyframes schedule-skeleton {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@keyframes schedule-spinner {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedule-loading-skeleton,
+  .schedule-loading-spinner { animation: none; }
+}
