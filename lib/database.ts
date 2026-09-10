@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import table from "@/app/table.json";
 import clientPromise from "@/lib/mongodb";
 import type { IndividualLesson, Person } from "@/lib/people";
+import type { SeminarTopic } from "@/lib/seminars";
 import type { Rehearsal, ScheduleData } from "@/lib/schedule";
 
 const DB_NAME = process.env.MONGODB_DB ?? "schedule";
@@ -120,4 +121,64 @@ export async function saveProfileSettings(personId: string, input: Pick<ProfileS
   const settings: ProfileSettings = { personId, preferences: input.preferences, notes: input.notes, updatedAt: new Date().toISOString() };
   await db.collection<ProfileSettings>("profile_settings").replaceOne({ personId }, settings, { upsert: true });
   return settings;
+}
+
+export async function getSeminarTopics(subject?: string) {
+  const db = await getDatabase();
+  const topics = await db.collection<SeminarTopic>("seminar_topics").find(subject ? { subject } : {}).sort({ subject: 1, title: 1 }).toArray();
+  const people = await getPeople();
+  const names = new Map(people.map((person) => [person.id, person.name]));
+  return topics.map((topic) => {
+    const studentIds = topic.studentIds ?? [];
+    return { ...topic, capacity: topic.capacity ?? 1, studentIds, studentNames: studentIds.map((id) => names.get(id) ?? "Неизвестный студент") };
+  });
+}
+
+export async function createSeminarTopic(input: { subject: string; title: string; capacity: number }) {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  const topic: SeminarTopic = { id: randomUUID(), subject: input.subject.trim(), title: input.title.trim(), capacity: Math.max(1, input.capacity), studentIds: [], createdAt: now, updatedAt: now };
+  await db.collection<SeminarTopic>("seminar_topics").insertOne(topic);
+  return topic;
+}
+
+export async function updateSeminarTopic(id: string, input: { subject: string; title: string; capacity: number }) {
+  const db = await getDatabase();
+  const existing = await db.collection<SeminarTopic>("seminar_topics").findOne({ id });
+  if (!existing) return null;
+  const topic: SeminarTopic = { ...existing, subject: input.subject.trim(), title: input.title.trim(), capacity: Math.max(1, input.capacity), studentIds: existing.studentIds ?? [], updatedAt: new Date().toISOString() };
+  await db.collection<SeminarTopic>("seminar_topics").replaceOne({ id }, topic);
+  return topic;
+}
+
+export async function deleteSeminarTopic(id: string) {
+  const db = await getDatabase();
+  return (await db.collection<SeminarTopic>("seminar_topics").deleteOne({ id })).deletedCount === 1;
+}
+
+export async function claimSeminarTopic(id: string, studentId: string) {
+  const db = await getDatabase();
+  const person = await db.collection<Person>("people").findOne({ id: studentId, active: true });
+  if (!person) return { ok: false as const, reason: "student" as const };
+  const topic = await db.collection<SeminarTopic>("seminar_topics").findOne({ id });
+  if (!topic) return { ok: false as const, reason: "missing" as const };
+  const ids = topic.studentIds ?? [];
+  if (ids.includes(studentId)) return { ok: false as const, reason: "already" as const };
+  if (ids.length >= (topic.capacity ?? 1)) return { ok: false as const, reason: "taken" as const };
+  const result = await db.collection<SeminarTopic>("seminar_topics").findOneAndUpdate(
+    { id, $expr: { $lt: [{ $size: { $ifNull: ["$studentIds", []] } }, topic.capacity ?? 1] } },
+    { $push: { studentIds: studentId }, $set: { updatedAt: new Date().toISOString() } },
+    { returnDocument: "after" },
+  );
+  if (!result) return { ok: false as const, reason: "taken" as const };
+  return { ok: true as const, topic: result };
+}
+
+export async function releaseSeminarTopic(id: string, studentId: string) {
+  const db = await getDatabase();
+  return db.collection<SeminarTopic>("seminar_topics").findOneAndUpdate(
+    { id, studentIds: studentId },
+    { $pull: { studentIds: studentId }, $set: { updatedAt: new Date().toISOString() } },
+    { returnDocument: "after" },
+  );
 }
