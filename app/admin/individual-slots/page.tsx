@@ -1,47 +1,20 @@
 "use client";
-
 import { useEffect, useMemo, useState } from "react";
 import type { IndividualSlot } from "@/lib/individual-slots";
 
-const blank = (): IndividualSlot => ({ id: "", subject: "", professor: "", auditorium: "", date: new Date().toISOString().slice(0, 10), timeStart: "09:00", timeEnd: "10:30", note: "", studentId: null, createdAt: "", updatedAt: "" });
-
-export default function IndividualSlotsAdmin() {
-  const [slots, setSlots] = useState<IndividualSlot[]>([]);
-  const [form, setForm] = useState<IndividualSlot | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [filter, setFilter] = useState<"all" | "free" | "taken">("all");
-
-  const load = async () => {
-    setLoading(true);
-    const response = await fetch("/api/admin/individual-slots", { cache: "no-store" });
-    if (response.status === 401) { window.location.href = "/admin"; return; }
-    const data = await response.json();
-    setSlots(data.slots ?? []);
-    setLoading(false);
-  };
-  useEffect(() => { void load(); }, []);
-
-  const save = async () => {
-    if (!form?.subject.trim() || !form.professor.trim() || !form.date || form.timeStart >= form.timeEnd) { setMessage("Заполни предмет, преподавателя, дату и корректное время"); return; }
-    setSaving(true);
-    const response = await fetch("/api/admin/individual-slots", { method: form.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-    const data = await response.json();
-    setSaving(false);
-    if (!response.ok) { setMessage(data.error ?? "Ошибка сохранения"); return; }
-    setForm(null); setMessage(form.id ? "Слот обновлён" : "Слот создан"); await load();
-  };
-
-  const remove = async (id: string) => { if (!confirm("Удалить слот?")) return; await fetch(`/api/admin/individual-slots?id=${encodeURIComponent(id)}`, { method: "DELETE" }); await load(); };
-  const visible = useMemo(() => slots.filter(s => filter === "all" || (filter === "free" ? !s.studentId : Boolean(s.studentId))), [slots, filter]);
-
-  if (loading) return <main className="slots-admin"><div className="slots-spinner" /><p>Загрузка слотов…</p></main>;
-  return <main className="slots-admin">
-    <header className="slots-head"><div><a href="/admin">← Админка</a><p>ИНДИВИДУАЛЬНЫЕ</p><h1>Слоты</h1><span>Создай время — студенты сами запишутся.</span></div><button onClick={() => setForm(blank())}>＋ Новый слот</button></header>
-    <section className="slots-toolbar"><div><strong>{slots.length}</strong><span>всего</span></div><div><strong>{slots.filter(s => !s.studentId).length}</strong><span>свободно</span></div><div><strong>{slots.filter(s => s.studentId).length}</strong><span>занято</span></div><nav>{(["all", "free", "taken"] as const).map(x => <button key={x} className={filter === x ? "active" : ""} onClick={() => setFilter(x)}>{x === "all" ? "Все" : x === "free" ? "Свободные" : "Занятые"}</button>)}</nav></section>
-    {message && <p className="slots-message">{message}</p>}
-    <section className="slots-list">{visible.length ? visible.map(slot => <article className="slot-card" key={slot.id}><div className="slot-date"><strong>{new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "short" }).format(new Date(`${slot.date}T12:00:00`))}</strong><span>{slot.timeStart}–{slot.timeEnd}</span></div><div className="slot-info"><strong>{slot.subject}</strong><span>{slot.professor}{slot.auditorium ? ` · ${slot.auditorium}` : ""}</span>{slot.note && <small>{slot.note}</small>}</div><div className={`slot-status ${slot.studentId ? "taken" : "free"}`}>{slot.studentId ? "ЗАНЯТО" : "СВОБОДНО"}</div><div className="slot-actions"><button onClick={() => setForm(slot)}>Изменить</button><button onClick={() => void remove(slot.id)}>Удалить</button></div></article>) : <div className="slots-empty">Слотов пока нет. Создай первый.</div>}</section>
-    {form && <div className="slots-overlay" onMouseDown={() => setForm(null)}><section className="slots-modal" onMouseDown={e => e.stopPropagation()}><header><div><p>СЛОТ</p><h2>{form.id ? "Изменить слот" : "Новый слот"}</h2></div><button onClick={() => setForm(null)}>×</button></header><div className="slots-form"><label>Предмет<input value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="Индивидуальное занятие" /></label><label>Преподаватель<input value={form.professor} onChange={e => setForm({ ...form, professor: e.target.value })} placeholder="ФИО преподавателя" /></label><label>Аудитория<input value={form.auditorium} onChange={e => setForm({ ...form, auditorium: e.target.value })} placeholder="Например, 305" /></label><label>Дата<input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></label><div className="slot-times"><label>Начало<input type="time" value={form.timeStart} onChange={e => setForm({ ...form, timeStart: e.target.value })} /></label><label>Конец<input type="time" value={form.timeEnd} onChange={e => setForm({ ...form, timeEnd: e.target.value })} /></label></div><label>Комментарий<textarea value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Что нужно знать студенту" /></label></div>{form.studentId && <p className="slot-warning">Слот уже забронирован. Изменение времени может конфликтовать с расписанием студента.</p>}<footer><button onClick={() => setForm(null)}>Отмена</button><button className="primary" disabled={saving} onClick={() => void save()}>{saving ? "Сохраняю…" : "Сохранить"}</button></footer></section></div>}
-  </main>;
+type SlotForm={subject:string;professor:string;auditorium:string;date:string;timeStart:string;timeEnd:string;note:string;capacity:number;count:number;intervalMinutes:number};
+const blank=():SlotForm=>({subject:"",professor:"",auditorium:"",date:new Date().toISOString().slice(0,10),timeStart:"09:00",timeEnd:"10:30",note:"",capacity:1,count:1,intervalMinutes:90});
+const toForm=(s:IndividualSlot):SlotForm=>({...s,count:1,intervalMinutes:Math.max(1,(+s.timeEnd.slice(0,2)*60+ +s.timeEnd.slice(3))-(+s.timeStart.slice(0,2)*60+ +s.timeStart.slice(3)))});
+export default function IndividualSlotsAdmin(){
+ const [slots,setSlots]=useState<IndividualSlot[]>([]),[subjects,setSubjects]=useState<string[]>([]),[form,setForm]=useState<SlotForm|null>(null),[editId,setEditId]=useState(""),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[message,setMessage]=useState(""),[filter,setFilter]=useState("all");
+ const load=async()=>{setLoading(true);const r=await fetch("/api/admin/individual-slots",{cache:"no-store"});if(r.status===401){window.location.href="/admin";return}const d=await r.json();setSlots(d.slots??[]);setSubjects(d.subjects??[]);setLoading(false)};
+ useEffect(()=>{void load()},[]);
+ const save=async()=>{if(!form||!form.subject||!form.professor||!form.date||form.timeStart>=form.timeEnd||form.capacity<1||form.count<1||form.intervalMinutes<1){setMessage("Проверь поля, время, вместимость и интервал");return}setSaving(true);const url=editId?"/api/admin/individual-slots":"/api/admin/individual-slots/batch";const body=editId?{...form,id:editId}:{...form};const r=await fetch(url,{method:editId?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const d=await r.json();setSaving(false);if(!r.ok){setMessage(d.error??"Ошибка сохранения");return}setForm(null);setEditId("");setMessage(editId?"Слот обновлён":`Создано слотов: ${d.slots?.length??1}`);await load()};
+ const remove=async(id:string)=>{if(!confirm("Удалить слот?"))return;await fetch(`/api/admin/individual-slots?id=${encodeURIComponent(id)}`,{method:"DELETE"});await load()};
+ const visible=useMemo(()=>slots.filter(s=>filter==="all"||(filter==="free"?(s.studentIds?.length??(s.studentId?1:0))<(s.capacity??1):(s.studentIds?.length??(s.studentId?1:0))>0)),[slots,filter]);
+ if(loading)return <main className="slots-admin"><div className="slots-spinner"/><p>Загрузка слотов…</p></main>;
+ return <main className="slots-admin"><header className="slots-head"><div><a href="/admin">← Админка</a><p>ИНДИВИДУАЛЬНЫЕ</p><h1>Слоты</h1><span>Создавай одиночные занятия или сразу серию.</span></div><button onClick={()=>{setEditId("");setForm(blank())}}>＋ Добавить занятия</button></header>
+ <section className="slots-toolbar"><div><strong>{slots.length}</strong><span>слотов</span></div><div><strong>{slots.filter(s=>(s.studentIds?.length??(s.studentId?1:0))<(s.capacity??1)).length}</strong><span>свободно</span></div><div><strong>{slots.reduce((n,s)=>n+(s.studentIds?.length??(s.studentId?1:0)),0)}</strong><span>записей</span></div><nav>{[["all","Все"],["free","Свободные"],["taken","Занятые"]].map(([x,l])=><button key={x} className={filter===x?"active":""} onClick={()=>setFilter(x)}>{l}</button>)}</nav></section>
+ {message&&<p className="slots-message">{message}</p>}<section className="slots-list">{visible.length?visible.map(s=>{const used=s.studentIds?.length??(s.studentId?1:0),cap=s.capacity??1;return <article className="slot-card" key={s.id}><div className="slot-date"><strong>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"short"}).format(new Date(`${s.date}T12:00:00`))}</strong><span>{s.timeStart}–{s.timeEnd}</span></div><div className="slot-info"><strong>{s.subject}</strong><span>{s.professor}{s.auditorium?` · ${s.auditorium}`:""}</span>{s.note&&<small>{s.note}</small>}</div><div className={`slot-status ${used>=cap?"taken":"free"}`}>{used}/{cap}</div><div className="slot-actions"><button onClick={()=>{setEditId(s.id);setForm(toForm(s))}}>Изменить</button><button onClick={()=>void remove(s.id)}>Удалить</button></div></article>}) : <div className="slots-empty">Слотов пока нет.</div>}</section>
+ {form&&<div className="slots-overlay" onMouseDown={()=>setForm(null)}><section className="slots-modal" onMouseDown={e=>e.stopPropagation()}><header><div><p>{editId?"СЛОТ":"СЕРИЯ СЛОТОВ"}</p><h2>{editId?"Изменить слот":"Добавить занятия"}</h2></div><button onClick={()=>setForm(null)}>×</button></header><div className="slots-form"><label>Предмет<select value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})}><option value="">Выбери предмет</option>{subjects.map(s=><option key={s} value={s}>{s}</option>)}</select></label><label>Преподаватель<input value={form.professor} onChange={e=>setForm({...form,professor:e.target.value})}/></label><label>Аудитория<input value={form.auditorium} onChange={e=>setForm({...form,auditorium:e.target.value})}/></label><label>Дата<input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></label><div className="slot-times"><label>Начало<input type="time" value={form.timeStart} onChange={e=>setForm({...form,timeStart:e.target.value})}/></label><label>Конец<input type="time" value={form.timeEnd} onChange={e=>setForm({...form,timeEnd:e.target.value})}/></label></div><div className="slot-times"><label>Количество мест<input type="number" min="1" max="100" value={form.capacity} onChange={e=>setForm({...form,capacity:Number(e.target.value)})}/></label>{!editId&&<label>Количество занятий<input type="number" min="1" max="100" value={form.count} onChange={e=>setForm({...form,count:Number(e.target.value)})}/></label>}</div>{!editId&&<label>Интервал между началами (мин)<input type="number" min="1" max="1440" value={form.intervalMinutes} onChange={e=>setForm({...form,intervalMinutes:Number(e.target.value)})}/></label>}<label>Комментарий<textarea value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></label></div><footer><button onClick={()=>setForm(null)}>Отмена</button><button className="primary" disabled={saving} onClick={()=>void save()}>{saving?"Сохраняю…":"Сохранить"}</button></footer></section></div>}</main>;
 }
