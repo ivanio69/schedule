@@ -33,7 +33,7 @@ export async function getSchedule(): Promise<ScheduleData> {
 export async function saveSchedule(schedule: ScheduleData) {
   const db = await getDatabase();
   const collection = db.collection<ScheduleDocument>("schedule");
-  await collection.replaceOne({ _id: "current" }, { ...schedule, _id: "current" }, { upsert: true });
+  await collection.replaceOne({ _id: "current" }, schedule, { upsert: true });
 }
 
 export async function getPeople(activeOnly = false) {
