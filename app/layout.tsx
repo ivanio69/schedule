@@ -7,6 +7,11 @@ import "./schedule-modal.css";
 import "./dashboard-login.css";
 import "./page-transitions.css";
 import "./loading-state.css";
+import "./micro-interactions.css";
+import "./admin/individual-slots/slots.css";
+import "./individual-slots.css";
+import "./seminars/seminars.css";
+import "./admin/seminars/seminars.css";
 import AppNavigation from "@/components/AppNavigation";
 
 const geist = Geist({
