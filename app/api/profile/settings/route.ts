@@ -3,7 +3,7 @@ import { getPeople, getProfileSettings, saveProfileSettings } from "@/lib/databa
 
 export const dynamic = "force-dynamic";
 
-function validId(value: unknown) {
+function validId(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && value.length < 128;
 }
 
