@@ -67,18 +67,32 @@ export default function ScheduleApp() {
       try {
         const response = await fetch(`/api/schedule?date=${selectedDate}`, { cache: "no-store" });
         if (!response.ok) throw new Error();
-        const data = await response.json() as { schedule: ScheduleData; rehearsals: Rehearsal[]; individualLessons: ScheduleIndividualLesson[] };
+        const data = await response.json() as { schedule: ScheduleData; rehearsals: Rehearsal[] };
         setSchedule(data.schedule);
         setRehearsals(data.rehearsals ?? []);
-        setIndividualLessons(data.individualLessons ?? []);
         if (!didInitializeWeek.current) {
           didInitializeWeek.current = true;
           setWeek(getCurrentWeek(data.schedule));
         }
         setPreferences(readPreferences(getSubgroupSubjects(data.schedule)));
-      } catch { setRehearsals([]); setIndividualLessons([]); } finally { setLoading(false); }
+      } catch { setRehearsals([]); } finally { setLoading(false); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
+
+  // Individual lessons are loaded separately so they are not dependent on the main schedule response.
+  useEffect(() => {
+    if (!selectedDate) return;
+    let cancelled = false;
+    void fetch(`/api/individual-lessons?date=${encodeURIComponent(selectedDate)}`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!cancelled) setIndividualLessons((data?.individualLessons ?? []) as ScheduleIndividualLesson[]);
+      })
+      .catch(() => {
+        if (!cancelled) setIndividualLessons([]);
+      });
+    return () => { cancelled = true; };
   }, [selectedDate]);
 
   useEffect(() => { if (Object.keys(preferences).length) window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(preferences)); }, [preferences]);
@@ -102,12 +116,8 @@ export default function ScheduleApp() {
     if (direction === 1) {
       if (day < DAY_NAMES.length - 1) setDay(v => v + 1);
       else { setDay(0); setWeek(v => Math.min(v + 1, totalWeeks)); }
-    } else if (day > 0) {
-      setDay(v => v - 1);
-    } else {
-      setDay(DAY_NAMES.length - 1);
-      setWeek(v => Math.max(v - 1, 1));
-    }
+    } else if (day > 0) setDay(v => v - 1);
+    else { setDay(DAY_NAMES.length - 1); setWeek(v => Math.max(v - 1, 1)); }
   };
   const handlers = useSwipeable({ onSwipedLeft: () => moveDay(1), onSwipedRight: () => moveDay(-1), preventScrollOnSwipe: false, trackMouse: false });
   const setPreference = (subject: string, preference: GroupPreference) => setPreferences(current => ({ ...current, [subject]: preference }));
