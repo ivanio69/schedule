@@ -9,7 +9,7 @@ export default function AppNavigation(){
  return <>
   {pathname==="/"&&<button type="button" className="dashboard-logout" onClick={logout}>Выйти</button>}
   <nav className="app-navigation" aria-label="Основные разделы">
-   <Link className={pathname==="/"?"is-active":""} href="/">Дашборд</Link>
+   <Link className={pathname==="/"?"is-active":""} href="/">Сегодня</Link>
    <Link className={pathname==="/schedule"?"is-active":""} href="/schedule">Полное расписание</Link>
    <Link className={pathname==="/settings"?"is-active":""} href="/settings">Настройки</Link>
    <style jsx global>{`

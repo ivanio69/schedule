@@ -1,0 +1,130 @@
+.schedule-loading-state {
+  display: grid;
+  gap: 12px;
+  min-height: 250px;
+  padding: 14px 0;
+}
+
+.schedule-loading-skeleton {
+  overflow: hidden;
+  min-height: 116px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(90deg, rgba(255,255,255,.035) 25%, rgba(255,255,255,.085) 50%, rgba(255,255,255,.035) 75%);
+  background-size: 200% 100%;
+  animation: schedule-skeleton 1.35s ease-in-out infinite;
+}
+
+.schedule-loading-spinner {
+  width: 22px;
+  height: 22px;
+  margin: 0 auto 2px;
+  border: 2px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: schedule-spinner .75s linear infinite;
+}
+
+.schedule-loading-label {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+/* DashboardV2 keeps its loading branch as .dashboard-empty. */
+.dashboard-v2 > .dashboard-empty {
+  position: relative;
+  min-height: 400px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  color: transparent;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.035) 25%, rgba(255,255,255,.085) 50%, rgba(255,255,255,.035) 75%) 0 0 / 200% 116px no-repeat,
+    linear-gradient(90deg, rgba(255,255,255,.035) 25%, rgba(255,255,255,.085) 50%, rgba(255,255,255,.035) 75%) 0 126px / 200% 116px no-repeat,
+    linear-gradient(90deg, rgba(255,255,255,.035) 25%, rgba(255,255,255,.085) 50%, rgba(255,255,255,.035) 75%) 0 252px / 200% 116px no-repeat;
+  animation: schedule-dashboard-skeleton 1.35s ease-in-out infinite;
+}
+
+.dashboard-v2 > .dashboard-empty::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 300px;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
+  border: 2px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  background: transparent;
+  animation: schedule-spinner .75s linear infinite;
+}
+
+.schedule-shell > .empty-state {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  overflow: hidden;
+  min-height: 390px;
+  padding: 28px 0;
+  border: 0;
+  background: transparent;
+}
+
+.schedule-shell > .empty-state::before,
+.schedule-shell > .empty-state::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 104px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(90deg, rgba(255,255,255,.035) 25%, rgba(255,255,255,.085) 50%, rgba(255,255,255,.035) 75%);
+  background-size: 200% 100%;
+  animation: schedule-skeleton 1.35s ease-in-out infinite;
+}
+
+.schedule-shell > .empty-state::before { top: 0; }
+.schedule-shell > .empty-state::after { top: 116px; }
+.schedule-shell > .empty-state .empty-state__icon {
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  margin: 252px auto 0;
+  border: 2px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  color: transparent;
+  background: transparent;
+  animation: schedule-spinner .75s linear infinite;
+}
+.schedule-shell > .empty-state h2 { z-index: 1; margin: -4px 0 0; font-size: 14px; }
+.schedule-shell > .empty-state p { z-index: 1; margin: 0; font-size: 11px; }
+
+@keyframes schedule-skeleton {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@keyframes schedule-dashboard-skeleton {
+  from { background-position: 100% 0, 100% 126px, 100% 252px; }
+  to { background-position: -100% 0, -100% 126px, -100% 252px; }
+}
+
+@keyframes schedule-spinner {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedule-loading-skeleton,
+  .schedule-loading-spinner,
+  .dashboard-v2 > .dashboard-empty,
+  .dashboard-v2 > .dashboard-empty::after,
+  .schedule-shell > .empty-state::before,
+  .schedule-shell > .empty-state::after,
+  .schedule-shell > .empty-state .empty-state__icon { animation: none; }
+}
