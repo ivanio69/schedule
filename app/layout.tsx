@@ -6,6 +6,7 @@ import "./admin/admin-lists.css";
 import "./schedule-modal.css";
 import "./dashboard-login.css";
 import "./page-transitions.css";
+import "./loading-state.css";
 import AppNavigation from "@/components/AppNavigation";
 
 const geist = Geist({
