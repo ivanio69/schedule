@@ -59,6 +59,9 @@ export async function POST(request: NextRequest) {
   }
 
   const firstStart = minutes(start);
+  const lastStart = firstStart + (count - 1) * interval;
+  const lastEnd = lastStart + duration;
+
   if (firstStart + duration > 1440) {
     return NextResponse.json({ error: "Занятие выходит за пределы суток" }, { status: 400 });
   }
@@ -67,22 +70,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Интервал между началами не может быть меньше длительности занятия" }, { status: 400 });
   }
 
+  if (lastStart >= 1440 || lastEnd > 1440) {
+    return NextResponse.json({ error: `Серия не помещается в один день: занятие №${count} выходит за 24:00` }, { status: 400 });
+  }
+
+  // Validate the complete series before writing anything, so a bad final slot
+  // cannot leave a partially created series in the database.
   const slots = [];
   for (let i = 0; i < count; i++) {
     const startMinutes = firstStart + i * interval;
-    const endMinutes = startMinutes + duration;
-
-    if (startMinutes >= 1440 || endMinutes > 1440) {
-      return NextResponse.json({ error: `Серия не помещается в один день: занятие №${i + 1} выходит за 24:00` }, { status: 400 });
-    }
-
     slots.push(await createIndividualSlot({
       subject,
       professor,
       auditorium,
       date,
       timeStart: time(startMinutes),
-      timeEnd: time(endMinutes),
+      timeEnd: time(startMinutes + duration),
       note,
       capacity,
     }));
