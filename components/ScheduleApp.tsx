@@ -27,7 +27,9 @@ function getCreatorId() { return window.localStorage.getItem(PERSON_KEY) ?? ""; 
 
 function getDateForSelection(schedule: ScheduleData, week: number, day: number) {
   const [year, month, startDay] = schedule.semesterStart;
-  const date = new Date(year, month, startDay + (week - 1) * 7 + day);
+  const date = new Date(year, month, startDay);
+  const mondayOffset = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - mondayOffset + (week - 1) * 7 + day);
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
