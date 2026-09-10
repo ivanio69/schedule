@@ -51,12 +51,18 @@ export default function BookedIndividualSlotsInSchedule() {
       .catch(() => setSlots([]));
   }, [date, personId]);
 
-  const content = useMemo(() => slots.sort((a, b) => a.timeStart.localeCompare(b.timeStart)), [slots]);
+  const content = useMemo(() => [...slots].sort((a, b) => a.timeStart.localeCompare(b.timeStart)), [slots]);
   if (!target || !personId || !content.length) return null;
   return createPortal(
-    <section className="booked-individual-schedule" aria-label="Мои индивидуальные занятия">
-      <div className="booked-individual-schedule__head"><div><span>МОИ ЗАПИСИ</span><h3>Индивидуальные</h3></div><b>{content.length}</b></div>
-      {content.map((slot) => <article key={slot.id}><div className="booked-individual-schedule__time"><strong>{slot.timeStart}</strong><small>{slot.timeEnd}</small></div><div><span>{slot.subject}</span><strong>{slot.professor}</strong><small>{slot.auditorium || "Аудитория не указана"}</small>{slot.note && <em>{slot.note}</em>}</div><mark>{slot.studentIds?.length ?? 1}/{slot.capacity}</mark></article>)}
-    </section>, target
+    <div className="booked-individuals-in-table" aria-label="Мои индивидуальные занятия">
+      {content.map((slot) => <article key={slot.id} className="schedule-card booked-individual-slot-card">
+        <div className="schedule-card__time"><strong>{slot.timeStart}</strong><span>{slot.timeEnd}</span></div>
+        <div className="schedule-card__body">
+          <div className="schedule-card__title-row"><h3>{slot.subject}</h3><span className="booked-individual-slot-badge">ИНДИВ.</span></div>
+          <p>{slot.professor}{slot.auditorium ? ` · ${slot.auditorium}` : ""}</p>
+          {slot.note && <small>{slot.note}</small>}
+        </div>
+      </article>)}
+    </div>, target
   );
 }
