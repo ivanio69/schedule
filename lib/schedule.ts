@@ -64,18 +64,26 @@ export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week
   }).sort((a, b) => a.timeStart.localeCompare(b.timeStart));
 }
 
-export function getCurrentWeek(schedule: ScheduleData, now = new Date()) {
+function getSemesterMonday(schedule: ScheduleData) {
   const [year, month, day] = schedule.semesterStart;
-  const semesterStart = new Date(year, month, day);
+  const start = new Date(year, month, day);
+  const mondayOffset = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - mondayOffset);
+  return start;
+}
+
+export function getCurrentWeek(schedule: ScheduleData, now = new Date()) {
+  const semesterStart = getSemesterMonday(schedule);
   const current = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const diff = Math.floor((current.getTime() - semesterStart.getTime()) / 86400000);
   return Math.max(1, Math.min(getTotalWeeks(schedule), Math.floor(diff / 7) + 1));
 }
 
 export function formatWeekRange(schedule: ScheduleData, week: number) {
-  const [year, month, day] = schedule.semesterStart;
-  const start = new Date(year, month, day + (week - 1) * 7);
-  const end = new Date(year, month, day + (week - 1) * 7 + 5);
+  const start = getSemesterMonday(schedule);
+  start.setDate(start.getDate() + (week - 1) * 7);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 5);
   const format = (date: Date) => new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(date);
   return `${format(start)} — ${format(end)}`;
 }
