@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import type { SeminarTopic } from "@/lib/seminars";
-import "./seminars.css";
 
 type Topic = SeminarTopic & { studentNames?: string[] };
 
@@ -48,7 +47,7 @@ export default function SeminarsPage() {
     {message && <p className="seminar-message">{message}</p>}
     {loading ? <div className="seminar-loading"><div className="seminar-spinner"/></div> : <>
       {myTopics.length > 0 && <section className="seminar-my"><p>МОИ ЗАПИСИ</p>{myTopics.map((topic) => <article key={topic.id}><div><strong>{topic.title}</strong><span>{topic.subject} · {topic.studentIds.length}/{topic.capacity}</span></div><button onClick={() => void toggle(topic)} disabled={busy === topic.id}>Отменить</button></article>)}</section>}
-      {subject ? <section className="seminar-topics"><div className="seminar-section-title"><p>{subject}</p><span>{topics.length} {topics.length === 1 ? "тема" : "тем"}</span></div>{topics.length ? topics.map((topic) => { const used = topic.studentIds.length; const mine = topic.studentIds.includes(personId); const full = used >= topic.capacity; return <article className={`seminar-topic ${mine ? "mine" : ""}`} key={topic.id}><div className="seminar-topic-main"><span className="seminar-topic-index">{String(topics.indexOf(topic)+1).padStart(2,"0")}</span><div><h2>{topic.title}</h2><span>{used} из {topic.capacity} мест занято</span></div></div><button className={mine ? "cancel" : ""} disabled={busy === topic.id || (!mine && full)} onClick={() => void toggle(topic)}>{busy === topic.id ? "…" : mine ? "Отменить" : full ? "Мест нет" : "Записаться"}</button></article>; }) : <div className="seminar-empty">Для этого предмета пока нет тем.</div>}</section> : <div className="seminar-placeholder">Выбери предмет, чтобы увидеть темы семинаров.</div>}
+      {subject ? <section className="seminar-topics"><div className="seminar-section-title"><p>{subject}</p><span>{topics.length} {topics.length === 1 ? "тема" : "тем"}</span></div>{topics.length ? topics.map((topic, index) => { const used = topic.studentIds.length; const mine = topic.studentIds.includes(personId); const full = used >= topic.capacity; return <article className={`seminar-topic ${mine ? "mine" : ""}`} key={topic.id}><div className="seminar-topic-main"><span className="seminar-topic-index">{String(index + 1).padStart(2,"0")}</span><div><h2>{topic.title}</h2><span>{used} из {topic.capacity} мест занято</span></div></div><button className={mine ? "cancel" : ""} disabled={busy === topic.id || (!mine && full)} onClick={() => void toggle(topic)}>{busy === topic.id ? "…" : mine ? "Отменить" : full ? "Мест нет" : "Записаться"}</button></article>; }) : <div className="seminar-empty">Для этого предмета пока нет тем.</div>}</section> : <div className="seminar-placeholder">Выбери предмет, чтобы увидеть темы семинаров.</div>}
     </>}
   </main>;
 }
