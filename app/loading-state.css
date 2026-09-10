@@ -1,16 +1,115 @@
-.schedule-loading-state{display:grid;gap:12px;min-height:250px;padding:14px 0}.schedule-loading-skeleton{overflow:hidden;min-height:116px;border:1px solid var(--border);border-radius:18px;background:linear-gradient(90deg,rgba(255,255,255,.035) 25%,rgba(255,255,255,.085) 50%,rgba(255,255,255,.035) 75%);background-size:200% 100%;animation:schedule-skeleton 1.35s ease-in-out infinite}.schedule-loading-spinner{width:22px;height:22px;margin:0 auto 2px;border:2px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:schedule-spinner .75s linear infinite}.schedule-loading-label{margin:0 0 4px;color:var(--muted);font-size:11px;text-align:center}
+.schedule-loading-state {
+  display: grid;
+  gap: 12px;
+  min-height: 250px;
+  padding: 14px 0;
+}
 
-/* Dashboard: quiet, accurate placeholder instead of giant generic cards. */
-.dashboard-v2>.dashboard-empty{position:relative;width:min(calc(100% - 28px),980px);height:560px;margin:0 auto;padding:34px 0 64px;border:0;overflow:hidden;color:transparent;background:transparent}
-.dashboard-v2>.dashboard-empty:before{content:"";position:absolute;left:0;right:0;top:34px;height:84px;border-radius:16px;background:linear-gradient(90deg,#151519 20%,#202026 45%,#151519 70%);background-size:220% 100%;animation:dashboard-shimmer 1.5s ease-in-out infinite}
-.dashboard-v2>.dashboard-empty:after{content:"";position:absolute;left:0;right:0;top:142px;height:176px;border:1px solid #29292f;border-radius:24px;background:linear-gradient(90deg,#111114 20%,#18181d 45%,#111114 70%);background-size:220% 100%;box-shadow:0 18px 55px rgba(0,0,0,.18);animation:dashboard-shimmer 1.5s ease-in-out infinite}
-.dashboard-v2>.dashboard-empty{box-sizing:border-box}
-/* small stat placeholders are drawn as soft inset shadows so the loader stays structurally compact */
-.dashboard-v2>.dashboard-empty{box-shadow:0 0 0 0 transparent}
-.dashboard-v2>.dashboard-empty:after{box-shadow:0 18px 55px rgba(0,0,0,.18),0 270px 0 -46px #111114,calc(33.333% + 8px) 270px 0 -46px #111114,calc(66.666% + 16px) 270px 0 -46px #111114}
+.schedule-loading-skeleton {
+  overflow: hidden;
+  min-height: 116px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(90deg, rgba(255,255,255,.035) 25%, rgba(255,255,255,.085) 50%, rgba(255,255,255,.035) 75%);
+  background-size: 200% 100%;
+  animation: schedule-skeleton 1.35s ease-in-out infinite;
+}
 
-.schedule-shell>.empty-state{position:relative;display:grid;gap:10px;overflow:hidden;min-height:390px;padding:28px 0;border:0;background:transparent}.schedule-shell>.empty-state:before,.schedule-shell>.empty-state:after{content:"";position:absolute;left:0;right:0;height:104px;border:1px solid var(--border);border-radius:18px;background:linear-gradient(90deg,rgba(255,255,255,.035) 25%,rgba(255,255,255,.085) 50%,rgba(255,255,255,.035) 75%);background-size:200% 100%;animation:schedule-skeleton 1.35s ease-in-out infinite}.schedule-shell>.empty-state:before{top:0}.schedule-shell>.empty-state:after{top:116px}.schedule-shell>.empty-state .empty-state__icon{z-index:1;width:22px;height:22px;margin:252px auto 0;border:2px solid var(--border);border-top-color:var(--text);border-radius:50%;color:transparent;background:transparent;animation:schedule-spinner .75s linear infinite}.schedule-shell>.empty-state h2{z-index:1;margin:-4px 0 0;font-size:14px}.schedule-shell>.empty-state p{z-index:1;margin:0;font-size:11px}
+.schedule-loading-spinner {
+  width: 22px;
+  height: 22px;
+  margin: 0 auto 2px;
+  border: 2px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: schedule-spinner .75s linear infinite;
+}
 
-@keyframes schedule-skeleton{from{background-position:100% 0}to{background-position:-100% 0}}@keyframes schedule-spinner{to{transform:rotate(360deg)}}@keyframes dashboard-shimmer{0%,100%{background-position:120% 0}50%{background-position:-20% 0}}
-@media(max-width:650px){.dashboard-v2>.dashboard-empty{width:calc(100% - 20px);height:520px;padding-top:22px}.dashboard-v2>.dashboard-empty:before{top:22px;height:72px;border-radius:15px}.dashboard-v2>.dashboard-empty:after{top:116px;height:158px;border-radius:19px;box-shadow:0 18px 45px rgba(0,0,0,.18),0 245px 0 -42px #111114,calc(50% + 5px) 245px 0 -42px #111114}.schedule-shell>.empty-state{min-height:390px}}
-@media(prefers-reduced-motion:reduce){.schedule-loading-skeleton,.schedule-loading-spinner,.dashboard-v2>.dashboard-empty:before,.dashboard-v2>.dashboard-empty:after,.schedule-shell>.empty-state:before,.schedule-shell>.empty-state:after,.schedule-shell>.empty-state .empty-state__icon{animation:none}}
+.schedule-loading-label {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+/* DashboardV2 uses .dashboard-empty for its loading branch. Keep it minimal. */
+.dashboard-v2 > .dashboard-empty {
+  display: grid;
+  place-items: center;
+  min-height: 360px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: transparent;
+  background: transparent;
+}
+
+.dashboard-v2 > .dashboard-empty::after {
+  content: "";
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: schedule-spinner .75s linear infinite;
+}
+
+.schedule-shell > .empty-state {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  overflow: hidden;
+  min-height: 390px;
+  padding: 28px 0;
+  border: 0;
+  background: transparent;
+}
+
+.schedule-shell > .empty-state::before,
+.schedule-shell > .empty-state::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 104px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(90deg, rgba(255,255,255,.035) 25%, rgba(255,255,255,.085) 50%, rgba(255,255,255,.035) 75%);
+  background-size: 200% 100%;
+  animation: schedule-skeleton 1.35s ease-in-out infinite;
+}
+
+.schedule-shell > .empty-state::before { top: 0; }
+.schedule-shell > .empty-state::after { top: 116px; }
+.schedule-shell > .empty-state .empty-state__icon {
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  margin: 252px auto 0;
+  border: 2px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  color: transparent;
+  background: transparent;
+  animation: schedule-spinner .75s linear infinite;
+}
+.schedule-shell > .empty-state h2 { z-index: 1; margin: -4px 0 0; font-size: 14px; }
+.schedule-shell > .empty-state p { z-index: 1; margin: 0; font-size: 11px; }
+
+@keyframes schedule-skeleton {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@keyframes schedule-spinner {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedule-loading-skeleton,
+  .schedule-loading-spinner,
+  .dashboard-v2 > .dashboard-empty::after,
+  .schedule-shell > .empty-state::before,
+  .schedule-shell > .empty-state::after,
+  .schedule-shell > .empty-state .empty-state__icon { animation: none; }
+}
