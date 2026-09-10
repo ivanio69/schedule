@@ -1,47 +1,7 @@
 "use client";
-
 import { useEffect, useMemo, useState } from "react";
 import type { IndividualSlot } from "@/lib/individual-slots";
-
-const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-const addDays = (date: Date, days: number) => { const copy = new Date(date); copy.setDate(copy.getDate() + days); return copy; };
-
-export default function IndividualSlots() {
-  const [slots, setSlots] = useState<(IndividualSlot & { studentName?: string | null })[]>([]);
-  const [personId, setPersonId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
-
-  const load = async (id?: string) => {
-    const today = new Date();
-    const response = await fetch(`/api/individual-slots?from=${dateKey(today)}&to=${dateKey(addDays(today, 21))}`, { cache: "no-store" });
-    if (response.ok) setSlots((await response.json()).slots ?? []);
-    if (id) setPersonId(id);
-    setLoading(false);
-  };
-  useEffect(() => { const id = localStorage.getItem("schedule_person_id"); if (id) void load(id); else setLoading(false); }, []);
-
-  const mine = useMemo(() => slots.filter(slot => slot.studentId === personId), [slots, personId]);
-  const available = useMemo(() => slots.filter(slot => !slot.studentId), [slots]);
-  if (loading || !personId || !slots.length) return null;
-
-  const book = async (slot: IndividualSlot) => {
-    setBusy(slot.id); setMessage("");
-    const response = await fetch("/api/individual-slots", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "claim", slotId: slot.id, studentId: personId }) });
-    const data = await response.json();
-    setBusy(null);
-    if (!response.ok) { setMessage(data.error ?? "Не удалось записаться"); await load(personId); return; }
-    setMessage("Ты записан на индивидуальное занятие"); await load(personId);
-  };
-  const release = async (slot: IndividualSlot) => {
-    if (!confirm("Отменить запись на это занятие?")) return;
-    setBusy(slot.id); setMessage("");
-    const response = await fetch("/api/individual-slots", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "release", slotId: slot.id, studentId: personId }) });
-    const data = await response.json(); setBusy(null);
-    if (!response.ok) { setMessage(data.error ?? "Не удалось отменить запись"); return; }
-    setMessage("Запись отменена"); await load(personId);
-  };
-  const formatDate = (value: string) => new Intl.DateTimeFormat("ru-RU", { weekday: "short", day: "numeric", month: "short" }).format(new Date(`${value}T12:00:00`));
-  return <section className="student-slots"><header><div><p>ИНДИВИДУАЛЬНЫЕ</p><h2>Свободные слоты</h2><span>Выбери удобное время и запишись сам.</span></div><strong>{available.length}</strong></header>{message && <div className="student-slots-message">{message}</div>}{mine.length > 0 && <div className="student-slots-mine"><h3>Мои записи</h3>{mine.map(slot => <article key={slot.id}><div><small>{formatDate(slot.date)} · {slot.timeStart}–{slot.timeEnd}</small><strong>{slot.subject}</strong><span>{slot.professor}{slot.auditorium ? ` · ${slot.auditorium}` : ""}</span></div><button disabled={busy === slot.id} onClick={() => void release(slot)}>{busy === slot.id ? "…" : "Отменить"}</button></article>)}</div>}<div className="student-slots-list">{available.map(slot => <article key={slot.id}><div className="student-slot-date"><strong>{formatDate(slot.date)}</strong><span>{slot.timeStart}–{slot.timeEnd}</span></div><div className="student-slot-info"><strong>{slot.subject}</strong><span>{slot.professor}{slot.auditorium ? ` · ${slot.auditorium}` : ""}</span>{slot.note && <small>{slot.note}</small>}</div><button disabled={busy === slot.id} onClick={() => void book(slot)}>{busy === slot.id ? "Записываю…" : "Записаться"}</button></article>)}</div></section>;
-}
+const dateKey=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const addDays=(d:Date,n:number)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+type Slot=IndividualSlot&{studentName?:string|null};
+export default function IndividualSlots(){const[slots,setSlots]=useState<Slot[]>([]),[personId,setPersonId]=useState<string|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState<string|null>(null),[message,setMessage]=useState("");const load=async(id?:string)=>{const t=new Date(),r=await fetch(`/api/individual-slots?from=${dateKey(t)}&to=${dateKey(addDays(t,21))}`,{cache:"no-store"});if(r.ok)setSlots((await r.json()).slots??[]);if(id)setPersonId(id);setLoading(false)};useEffect(()=>{const id=localStorage.getItem("schedule_person_id");if(id)void load(id);else setLoading(false)},[]);const mine=useMemo(()=>slots.filter(s=>s.studentIds?.includes(personId??"")||s.studentId===personId),[slots,personId]);const available=useMemo(()=>slots.filter(s=>(s.studentIds?.length??(s.studentId?1:0))<(s.capacity??1)),[slots]);const groups=useMemo(()=>{const map=new Map<string,Slot[]>();for(const s of available){const a=map.get(s.subject)??[];a.push(s);map.set(s.subject,a)}return [...map.entries()]},[available]);if(loading||!personId)return null;const book=async(s:Slot)=>{setBusy(s.id);setMessage("");const r=await fetch("/api/individual-slots",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"claim",slotId:s.id,studentId:personId})});const d=await r.json();setBusy(null);if(!r.ok){setMessage(d.error??"Не удалось записаться");await load(personId);return}setMessage("Запись оформлена");await load(personId)};const release=async(s:Slot)=>{if(!confirm("Отменить запись на это занятие?"))return;setBusy(s.id);const r=await fetch("/api/individual-slots",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"release",slotId:s.id,studentId:personId})});setBusy(null);if(!r.ok){setMessage((await r.json()).error??"Не удалось отменить запись");return}setMessage("Запись отменена");await load(personId)};const fmt=(v:string)=>new Intl.DateTimeFormat("ru-RU",{weekday:"short",day:"numeric",month:"short"}).format(new Date(`${v}T12:00:00`));return <section className="student-slots"><header><div><p>ИНДИВИДУАЛЬНЫЕ</p><h2>Запись на занятия</h2><span>Выбери предмет и свободное время.</span></div><strong>{available.length}</strong></header>{message&&<div className="student-slots-message">{message}</div>}{mine.length>0&&<div className="student-slots-mine"><h3>Мои записи</h3>{mine.map(s=><article key={s.id}><div><small>{fmt(s.date)} · {s.timeStart}–{s.timeEnd}</small><strong>{s.subject}</strong><span>{s.professor}{s.auditorium?` · ${s.auditorium}`:""}</span></div><button disabled={busy===s.id} onClick={()=>void release(s)}>{busy===s.id?"…":"Отменить"}</button></article>)}</div>}<div className="student-slot-subjects">{groups.map(([subject,items])=><section key={subject}><h3>{subject}</h3><div className="student-slots-list">{items.map(s=>{const used=s.studentIds?.length??(s.studentId?1:0);return <article key={s.id}><div className="student-slot-date"><strong>{fmt(s.date)}</strong><span>{s.timeStart}–{s.timeEnd}</span></div><div className="student-slot-info"><span>{s.professor}{s.auditorium?` · ${s.auditorium}`:""}</span>{s.note&&<small>{s.note}</small>}</div><div className="student-slot-capacity">{used}/{s.capacity}</div><button disabled={busy===s.id} onClick={()=>void book(s)}>{busy===s.id?"Записываюсь…":"Записаться"}</button></article>})}</div></section>)}</div></section>}
