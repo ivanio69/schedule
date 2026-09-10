@@ -7,7 +7,8 @@ export type IndividualSlot = {
   timeStart: string;
   timeEnd: string;
   note: string;
-  studentId: string | null;
+  capacity: number;
+  studentIds: string[];
   createdAt: string;
   updatedAt: string;
 };
