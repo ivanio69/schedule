@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import type { IndividualSlot } from "@/lib/individual-slots";
 import type { ScheduleData } from "@/lib/schedule";
 
-type Slot = IndividualSlot & { studentNames?: string[]; studentName?: string | null };
+type Slot = IndividualSlot & { studentNames?: string[] };
 const dateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const selectedDate = (schedule: ScheduleData) => {
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>(".day-tabs button"));
@@ -47,7 +47,7 @@ export default function BookedIndividualSlotsInSchedule() {
     if (!date || !personId) return;
     fetch(`/api/individual-slots?from=${date}&to=${date}`, { cache: "no-store" })
       .then((r) => r.ok ? r.json() : null)
-      .then((d) => setSlots((d?.slots ?? []).filter((s: Slot) => s.studentIds?.includes(personId) || s.studentId === personId)))
+      .then((d) => setSlots((d?.slots ?? []).filter((s: Slot) => s.studentIds?.includes(personId))))
       .catch(() => setSlots([]));
   }, [date, personId]);
 
