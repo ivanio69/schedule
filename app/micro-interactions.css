@@ -1,0 +1,52 @@
+/* Motion layer: small, consistent interactions across the whole app. */
+@keyframes ui-rise-in { from { opacity:0; transform:translateY(10px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes ui-pop-in { from { opacity:0; transform:scale(.96); } to { opacity:1; transform:scale(1); } }
+@keyframes ui-modal-in { from { opacity:0; transform:translateY(14px) scale(.975); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes ui-shimmer { from { background-position:200% 0; } to { background-position:-200% 0; } }
+
+button, a, input, textarea, select { transition: border-color .2s ease, background-color .2s ease, color .2s ease, opacity .2s ease, transform .2s ease, box-shadow .2s ease; }
+
+.schedule-card, .rehearsal-card, .admin-card, .dashboard-rehearsal, .settings-section, .individual-slot-card {
+  animation: ui-rise-in .38s cubic-bezier(.22,1,.36,1) both;
+}
+.lesson-list > :nth-child(1) { animation-delay:.02s; }
+.lesson-list > :nth-child(2) { animation-delay:.055s; }
+.lesson-list > :nth-child(3) { animation-delay:.09s; }
+.lesson-list > :nth-child(4) { animation-delay:.125s; }
+.lesson-list > :nth-child(5) { animation-delay:.16s; }
+.lesson-list > :nth-child(n+6) { animation-delay:.19s; }
+
+.add-rehearsal-button { position:relative; overflow:hidden; transform-origin:center; }
+.add-rehearsal-button:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(184,167,255,.08); }
+.add-rehearsal-button:active { transform:translateY(0) scale(.985); }
+
+.rehearsal-form { animation:ui-modal-in .32s cubic-bezier(.22,1,.36,1) both; transform-origin:top center; }
+.rehearsal-form input, .rehearsal-form textarea, .rehearsal-form select { animation:ui-rise-in .28s ease both; }
+.rehearsal-form label:nth-child(2) input { animation-delay:.025s; }
+.rehearsal-form label:nth-child(3) input { animation-delay:.05s; }
+.rehearsal-form label:nth-child(4) input { animation-delay:.075s; }
+.rehearsal-form label:nth-child(5) input { animation-delay:.1s; }
+.rehearsal-form__actions button { animation:ui-pop-in .25s ease both; }
+.rehearsal-form__actions button:last-child { animation-delay:.05s; }
+
+.schedule-card:hover, .rehearsal-card:hover, .dashboard-rehearsal:hover, .admin-card:hover { box-shadow:0 10px 28px rgba(0,0,0,.14); }
+.schedule-card:active, .rehearsal-card:active { transform:translateY(0) scale(.995); }
+.icon-button:active, .admin-primary:active, .admin-secondary:active, .bottom-nav button:active, .day-tabs button:active { transform:scale(.96); }
+
+.group-badge, .rehearsal-label, .booked-individual-slot-badge { animation:ui-pop-in .3s cubic-bezier(.22,1,.36,1) both; }
+
+.admin-modebar, .preference-switch { animation:ui-pop-in .3s ease both; }
+.admin-row { animation:ui-rise-in .3s cubic-bezier(.22,1,.36,1) both; }
+.admin-row:nth-child(2) { animation-delay:.03s; }
+.admin-row:nth-child(3) { animation-delay:.06s; }
+.admin-row:nth-child(4) { animation-delay:.09s; }
+.admin-row:nth-child(n+5) { animation-delay:.12s; }
+
+.empty-state { animation:ui-rise-in .35s cubic-bezier(.22,1,.36,1) both; }
+.empty-state__icon { animation:ui-pop-in .4s .08s cubic-bezier(.22,1,.36,1) both; }
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { box-shadow:0 0 0 3px rgba(255,255,255,.08); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration:.001ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.001ms !important; }
+}
