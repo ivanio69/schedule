@@ -4,6 +4,7 @@ import "./globals.css";
 import "./admin/admin-polish.css";
 import "./admin/admin-lists.css";
 import "./schedule-modal.css";
+import "./dashboard-login.css";
 import AppNavigation from "@/components/AppNavigation";
 
 const geist = Geist({
