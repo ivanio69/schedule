@@ -55,9 +55,12 @@ export async function deletePerson(id: string) {
   return (await db.collection<Person>("people").deleteOne({ id })).deletedCount === 1;
 }
 
-export async function getIndividualLessons(personId?: string) {
+export async function getIndividualLessons(personId?: string, date?: string) {
   const db = await getDatabase();
-  return db.collection<IndividualLesson>("individual_lessons").find(personId ? { personId } : {}).sort({ date: 1, timeStart: 1 }).toArray();
+  const query: { personId?: string; date?: string } = {};
+  if (personId) query.personId = personId;
+  if (date) query.date = date;
+  return db.collection<IndividualLesson>("individual_lessons").find(query).sort({ date: 1, timeStart: 1 }).toArray();
 }
 
 export async function saveIndividualLesson(input: Omit<IndividualLesson, "id" | "createdAt" | "updatedAt">, id?: string) {
