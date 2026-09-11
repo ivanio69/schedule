@@ -26,44 +26,8 @@ export function ScholarshipBadge({ date }: { date?: Date | string }) {
   if (!visible) return null;
 
   return (
-    <div
-      className="scholarship-badge"
-      role="status"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        width: "min(calc(100% - 20px), 980px)",
-        margin: "18px auto 0",
-        padding: "13px 18px",
-        border: "2px solid #d8ff45",
-        borderRadius: 16,
-        color: "#09090b",
-        background: "#d8ff45",
-        boxShadow: "0 0 0 1px rgba(216,255,69,.35), 0 0 32px rgba(216,255,69,.35)",
-        fontSize: 13,
-        fontWeight: 850,
-        letterSpacing: ".01em",
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          display: "grid",
-          placeItems: "center",
-          width: 28,
-          height: 28,
-          flex: "0 0 28px",
-          borderRadius: 9,
-          color: "#d8ff45",
-          background: "#09090b",
-          fontSize: 16,
-          fontWeight: 900,
-        }}
-      >
-        ₽
-      </span>
+    <div className="scholarship-badge" role="status">
+      <span aria-hidden="true">₽</span>
       <strong>Сегодня стипендия</strong>
     </div>
   );
