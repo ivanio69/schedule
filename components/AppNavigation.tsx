@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,7 +12,16 @@ const items = [
 
 export default function AppNavigation(){
  const pathname=usePathname();
- if(pathname.startsWith("/admin")) return null;
+ const [authenticated,setAuthenticated]=useState(false);
+ const [mounted,setMounted]=useState(false);
+ useEffect(()=>{
+  setMounted(true);
+  setAuthenticated(Boolean(localStorage.getItem("schedule_person_id")));
+  const sync=()=>setAuthenticated(Boolean(localStorage.getItem("schedule_person_id")));
+  window.addEventListener("storage",sync);
+  return()=>window.removeEventListener("storage",sync);
+ },[]);
+ if(pathname.startsWith("/admin") || !mounted || !authenticated) return null;
  const logout=()=>{localStorage.removeItem("schedule_person_id");window.location.href="/";};
  return <>
   {pathname==="/"&&<button type="button" className="dashboard-logout" onClick={logout}>Выйти</button>}
