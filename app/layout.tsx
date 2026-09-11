@@ -12,6 +12,7 @@ import "./admin/individual-slots/slots.css";
 import "./individual-slots.css";
 import "./day-tabs-polish.css";
 import "./page-headings.css";
+import "./scholarship-badge.css";
 import AppNavigation from "@/components/AppNavigation";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin", "cyrillic"] });
