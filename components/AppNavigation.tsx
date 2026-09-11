@@ -17,13 +17,14 @@ export default function AppNavigation(){
  const [compact,setCompact]=useState(false);
  useEffect(()=>{
   setMounted(true);
-  setAuthenticated(Boolean(localStorage.getItem("schedule_person_id")));
   const sync=()=>setAuthenticated(Boolean(localStorage.getItem("schedule_person_id")));
+  sync();
   window.addEventListener("storage",sync);
+  window.addEventListener("schedule-auth-change",sync);
   let lastY=window.scrollY;
   const onScroll=()=>{const y=window.scrollY;setCompact(y>80&&y>lastY);lastY=y};
   window.addEventListener("scroll",onScroll,{passive:true});
-  return()=>{window.removeEventListener("storage",sync);window.removeEventListener("scroll",onScroll)};
+  return()=>{window.removeEventListener("storage",sync);window.removeEventListener("schedule-auth-change",sync);window.removeEventListener("scroll",onScroll)};
  },[]);
  useEffect(()=>{document.body.classList.toggle("has-app-navigation",mounted&&authenticated);return()=>document.body.classList.remove("has-app-navigation")},[mounted,authenticated]);
  if(pathname.startsWith("/admin") || !mounted || !authenticated) return null;
@@ -39,21 +40,26 @@ export default function AppNavigation(){
     @keyframes nav-icon-in{from{opacity:0;transform:scale(.72) rotate(-8deg)}to{opacity:1;transform:scale(1) rotate(0)}}
     @media (prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root),.app-navigation{animation:none!important}}
     body.has-app-navigation{padding-bottom:calc(104px + env(safe-area-inset-bottom))}
-    .app-navigation{position:fixed;left:50%;bottom:18px;z-index:1000;display:flex;align-items:center;justify-content:center;gap:5px;width:min(430px,calc(100% - 28px));padding:6px;border:1px solid rgba(255,255,255,.1);border-radius:22px;background:rgba(20,20,24,.76);backdrop-filter:blur(24px) saturate(1.3);box-shadow:0 18px 55px rgba(0,0,0,.38),inset 0 1px rgba(255,255,255,.07);transform:translateX(-50%);animation:nav-pop .35s cubic-bezier(.22,1,.36,1) both;transition:padding .25s ease,border-radius .25s ease,box-shadow .25s ease}
-    .app-navigation.is-compact{padding:4px;border-radius:18px;box-shadow:0 12px 38px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.06)}
-    .app-navigation a{position:relative;display:grid;place-items:center;width:76px;height:54px;border-radius:16px;color:#777780;text-decoration:none;transition:color .2s ease,background .2s ease,transform .22s cubic-bezier(.22,1,.36,1),width .25s ease,height .25s ease,border-radius .25s ease}
+    .app-navigation{position:fixed;left:50%;bottom:18px;z-index:1000;display:flex;align-items:center;justify-content:center;gap:5px;width:min(430px,calc(100% - 28px));padding:6px;border:1px solid rgba(255,255,255,.12);border-radius:22px;background:rgba(17,17,20,.82);backdrop-filter:blur(18px) saturate(1.15);box-shadow:0 18px 55px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.06);transform:translateX(-50%);animation:nav-pop .28s cubic-bezier(.22,1,.36,1) both}
+    .app-navigation a{position:relative;display:flex;flex:1;align-items:center;justify-content:center;gap:5px;width:76px;height:54px;border-radius:16px;color:#777780;text-decoration:none;font-size:9px;font-weight:750;transition:color .18s ease,background .18s ease,transform .18s ease}
+    .app-navigation a svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s cubic-bezier(.22,1,.36,1)}
+    .app-navigation a span{max-width:0;overflow:hidden;white-space:nowrap;opacity:0;transition:max-width .2s ease,opacity .2s ease}
+    .app-navigation a:hover{color:#f5f5f5;transform:translateY(-2px)}
+    .app-navigation a:hover svg{transform:translateY(-1px) scale(1.04)}
+    .app-navigation a.is-active{color:#111114;background:#f2f2f2;box-shadow:0 5px 18px rgba(0,0,0,.18)}
+    .app-navigation a.is-active:after{content:"";position:absolute;bottom:5px;width:3px;height:3px;border-radius:50%;background:#111114}
+    .app-navigation.is-compact{padding:4px;border-radius:18px;box-shadow:0 12px 38px rgba(0,0,0,.28)}
     .app-navigation.is-compact a{width:62px;height:46px;border-radius:14px}
-    .app-navigation a svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:transform .22s cubic-bezier(.22,1,.36,1)}
-    .app-navigation.is-compact a svg{width:19px;height:19px}
-    .app-navigation a span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-    .app-navigation a::after{content:"";position:absolute;bottom:5px;width:4px;height:4px;border-radius:50%;background:currentColor;opacity:0;transform:scale(0);transition:opacity .2s ease,transform .2s ease}
-    .app-navigation a:hover{color:#f5f5f5;background:rgba(255,255,255,.07);transform:translateY(-2px)}
-    .app-navigation a:hover svg{transform:scale(1.08)}
-    .app-navigation a.is-active{color:#111114;background:#f2f2f2;box-shadow:0 5px 18px rgba(255,255,255,.12)}
-    .app-navigation a.is-active::after{opacity:.4;transform:scale(1)}
-    .app-navigation a.is-active svg{animation:nav-icon-in .28s cubic-bezier(.22,1,.36,1) both}
+    .app-navigation.is-compact a svg{width:18px;height:18px}
+    .app-navigation.is-compact a span{display:none}
     .dashboard-switcher,.quick-app-nav,.bottom-nav,.dashboard-header-actions{display:none!important}
-    @media(max-width:700px){body.has-app-navigation{padding-bottom:calc(92px + env(safe-area-inset-bottom))}.app-navigation{bottom:calc(10px + env(safe-area-inset-bottom));width:calc(100% - 20px);border-radius:20px}.app-navigation a{width:25%;height:52px}.app-navigation.is-compact a{height:44px;width:25%}}
+    @media(max-width:700px){
+      body.has-app-navigation{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+      .app-navigation{bottom:calc(10px + env(safe-area-inset-bottom));width:calc(100% - 20px);padding:5px;border-radius:20px}
+      .app-navigation a{width:25%;height:52px}
+      .app-navigation.is-compact{padding:4px;border-radius:17px}
+      .app-navigation.is-compact a{width:25%;height:44px}
+    }
    `}</style>
  </nav>;
 }
