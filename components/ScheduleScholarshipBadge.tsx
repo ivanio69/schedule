@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import { ScholarshipDate } from "@/components/ScholarshipBadge";
 import type { ScheduleData } from "@/lib/schedule";
@@ -19,8 +20,11 @@ function selectedDate(schedule: ScheduleData) {
 
 export default function ScheduleScholarshipBadge() {
   const [date, setDate] = useState<Date | null>(null);
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
+    setSlot(document.querySelector<HTMLElement>(".schedule-scholarship-slot"));
+
     let schedule: ScheduleData | null = null;
     const sync = () => { if (schedule) setDate(selectedDate(schedule)); };
     fetch("/api/schedule", { cache: "no-store" })
@@ -33,14 +37,16 @@ export default function ScheduleScholarshipBadge() {
     return () => { observer.disconnect(); document.removeEventListener("click", sync); };
   }, []);
 
-  useEffect(() => {
-    const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((item) => /добавить репетицию/i.test(item.textContent ?? ""));
-    const existing = document.querySelector<HTMLElement>(".schedule-scholarship-wrap");
-    if (!button || !existing) return;
-    button.insertAdjacentElement("afterend", existing);
-  }, [date]);
-
   const payout = date ? ScholarshipDate({ date }) : null;
-  if (!payout) return null;
-  return <div className="schedule-scholarship-wrap"><div className="scholarship-badge" role="status"><span>₽</span><strong>В этот день стипендия</strong></div></div>;
+  if (!slot || !payout) return null;
+
+  return createPortal(
+    <div className="schedule-scholarship-wrap">
+      <div className="scholarship-badge" role="status">
+        <span>₽</span>
+        <strong>В этот день стипендия</strong>
+      </div>
+    </div>,
+    slot,
+  );
 }
