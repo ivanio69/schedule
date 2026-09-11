@@ -22,9 +22,7 @@ export default function ScheduleScholarshipBadge() {
 
   useEffect(() => {
     let schedule: ScheduleData | null = null;
-    const sync = () => {
-      if (schedule) setDate(selectedDate(schedule));
-    };
+    const sync = () => { if (schedule) setDate(selectedDate(schedule)); };
     fetch("/api/schedule", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
       .then((data) => { schedule = data?.schedule ?? null; sync(); })
