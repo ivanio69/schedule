@@ -23,18 +23,29 @@ export default function ScheduleScholarshipBadge() {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    setSlot(document.querySelector<HTMLElement>(".schedule-scholarship-slot"));
-
     let schedule: ScheduleData | null = null;
-    const sync = () => { if (schedule) setDate(selectedDate(schedule)); };
+    const sync = () => {
+      const nextSlot = document.querySelector<HTMLElement>(".schedule-scholarship-slot");
+      setSlot((current) => current === nextSlot ? current : nextSlot);
+      if (schedule) setDate(selectedDate(schedule));
+    };
+
+    sync();
     fetch("/api/schedule", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
-      .then((data) => { schedule = data?.schedule ?? null; sync(); })
+      .then((data) => {
+        schedule = data?.schedule ?? null;
+        sync();
+      })
       .catch(() => {});
+
     const observer = new MutationObserver(sync);
-    observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
     document.addEventListener("click", sync);
-    return () => { observer.disconnect(); document.removeEventListener("click", sync); };
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("click", sync);
+    };
   }, []);
 
   const payout = date ? ScholarshipDate({ date }) : null;
