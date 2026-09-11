@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 
 function parseDate(date?: Date | string) {
@@ -20,16 +21,26 @@ function isScholarshipDate(value: Date) {
 
 export function ScholarshipBadge({ date }: { date?: Date | string }) {
   const [visible, setVisible] = useState(false);
+  const [target, setTarget] = useState<HTMLElement | null>(null);
 
-  useEffect(() => setVisible(isScholarshipDate(parseDate(date))), [date]);
+  useEffect(() => {
+    setVisible(isScholarshipDate(parseDate(date)));
 
-  if (!visible) return null;
+    const findTarget = () => setTarget(document.querySelector<HTMLElement>(".dashboard-stats"));
+    findTarget();
+    const observer = new MutationObserver(findTarget);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [date]);
 
-  return (
+  if (!visible || !target) return null;
+
+  return createPortal(
     <div className="scholarship-badge" role="status">
       <span aria-hidden="true">₽</span>
       <strong>Сегодня стипендия</strong>
-    </div>
+    </div>,
+    target,
   );
 }
 
