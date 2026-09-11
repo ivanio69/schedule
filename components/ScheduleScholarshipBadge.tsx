@@ -33,6 +33,13 @@ export default function ScheduleScholarshipBadge() {
     return () => { observer.disconnect(); document.removeEventListener("click", sync); };
   }, []);
 
+  useEffect(() => {
+    const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((item) => /добавить репетицию/i.test(item.textContent ?? ""));
+    const existing = document.querySelector<HTMLElement>(".schedule-scholarship-wrap");
+    if (!button || !existing) return;
+    button.insertAdjacentElement("afterend", existing);
+  }, [date]);
+
   const payout = date ? ScholarshipDate({ date }) : null;
   if (!payout) return null;
   return <div className="schedule-scholarship-wrap"><div className="scholarship-badge" role="status"><span>₽</span><strong>В этот день стипендия</strong></div></div>;
