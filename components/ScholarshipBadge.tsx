@@ -24,7 +24,12 @@ export function ScholarshipBadge({ date }: { date?: Date | string }) {
   useEffect(() => setVisible(isScholarshipDate(parseDate(date))), [date]);
 
   if (!visible) return null;
-  return <div className="scholarship-badge" role="status"><span>₽</span><strong>Сегодня стипендия</strong></div>;
+  return (
+    <>
+      <style jsx global>{`.scholarship-badge{display:flex;align-items:center;justify-content:center;gap:9px;width:min(calc(100% - 28px),980px);margin:18px auto 0;padding:12px 16px;border:1px solid #d8ff45;border-radius:14px;color:#d8ff45;background:rgba(216,255,69,.1);box-shadow:0 0 28px rgba(216,255,69,.12);font-size:12px;font-weight:800;letter-spacing:.02em}.scholarship-badge span{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;color:#09090b;background:#d8ff45;font-size:14px}.scholarship-badge strong{font-weight:800}.schedule-scholarship-wrap{margin:0 0 -4px}.schedule-scholarship-wrap .scholarship-badge{width:100%;margin:18px 0 0}@media(max-width:600px){.scholarship-badge{width:calc(100% - 20px);padding:10px 12px;font-size:11px}.schedule-scholarship-wrap .scholarship-badge{width:100%}}`}</style>
+      <div className="scholarship-badge" role="status"><span>₽</span><strong>Сегодня стипендия</strong></div>
+    </>
+  );
 }
 
 export function ScholarshipDate({ date }: { date: Date | string }) {
