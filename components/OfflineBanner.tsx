@@ -6,6 +6,10 @@ export default function OfflineBanner() {
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);
+    }
+
     const update = () => setOffline(!navigator.onLine);
     update();
     window.addEventListener("online", update);
