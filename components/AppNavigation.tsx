@@ -7,6 +7,7 @@ const items = [
  { href: "/", label: "Сегодня", icon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v3M18 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M8 13h2M14 13h2M8 17h2"/></svg> },
  { href: "/schedule", label: "Полное расписание", icon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg> },
  { href: "/individual-slots", label: "Индивидуальные", icon: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 20a7 7 0 0 1 14 0"/></svg> },
+ { href: "/seminars", label: "Семинары", icon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h4"/></svg> },
  { href: "/settings", label: "Настройки", icon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1-1.5 2.6-.2-.1a2.3 2.3 0 0 0-2.3 0l-.2.1a2.3 2.3 0 0 0-1.1 2v.2h-3v-.2a2.3 2.3 0 0 0-1.1-2l-.2-.1a2.3 2.3 0 0 0-2.3 0l-.2.1-1.5-2.6.1-.1a2.3 2.3 0 0 0 0-2.3l-.1-.2a2.3 2.3 0 0 0 0-2.3l-.1-.1 1.5-2.6.2.1a2.3 2.3 0 0 0 2.3 0l.2-.1a2.3 2.3 0 0 0 1.1-2V4h3v.2a2.3 2.3 0 0 0 1.1 2l.2.1a2.3 2.3 0 0 0 2.3 0l.2-.1 1.5 2.6-.1.1a2.3 2.3 0 0 0 0 2.3l.1.2a2.3 2.3 0 0 0 0 2.3l.1.1Z"/></svg> },
 ];
 
@@ -56,9 +57,9 @@ export default function AppNavigation(){
     @media(max-width:700px){
       body.has-app-navigation{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
       .app-navigation{bottom:calc(10px + env(safe-area-inset-bottom));width:calc(100% - 20px);padding:5px;border-radius:20px}
-      .app-navigation a{width:25%;height:52px}
+      .app-navigation a{width:20%;min-width:0;height:52px}
       .app-navigation.is-compact{padding:4px;border-radius:17px}
-      .app-navigation.is-compact a{width:25%;height:44px}
+      .app-navigation.is-compact a{width:20%;min-width:0;height:44px}
     }
    `}</style>
  </nav>;

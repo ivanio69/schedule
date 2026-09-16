@@ -14,6 +14,7 @@ import "./day-tabs-polish.css";
 import "./page-headings.css";
 import "./scholarship-badge.css";
 import "./offline-banner.css";
+import "./seminars.css";
 import AppNavigation from "@/components/AppNavigation";
 import OfflineBanner from "@/components/OfflineBanner";
 
