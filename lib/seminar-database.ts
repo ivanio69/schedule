@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getDatabase, getPeople } from "@/lib/database";
 import type { SeminarInput, SeminarList } from "@/lib/seminars";
+import { sendPush } from "@/lib/push";
 
 export async function getSeminars() {
   const db = await getDatabase();
@@ -56,7 +57,7 @@ export async function changeSeminar(input: {
       $set: { topics: list.topics.map(t => t.id === topic.id ? { ...t, studentIds: ids } : t) },
       $inc: { revision: 1 },
     });
-    if (result.modifiedCount) return { ok: true };
+    if(result.modifiedCount){if(input.action==="claim"&&topic.studentIds.length){const p=(await getPeople()).find(x=>x.id===input.studentId);void sendPush(topic.studentIds,"seminarParticipants",{title:"Новый участник семинара",body:`${p?.name??"Кто-то"} присоединился к теме «${topic.title}»`,url:"/seminars"})}return{ok:true};}
   }
   return { error: "Записи изменились. Попробуй ещё раз", status: 409 };
 }
