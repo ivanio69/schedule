@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getSchedule, saveSchedule } from "@/lib/database";
+import { getPeople, getSchedule, saveSchedule } from "@/lib/database";
+import { sendPush } from "@/lib/push";
 import type { ScheduleData } from "@/lib/schedule";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -60,7 +61,9 @@ export async function PUT(request: NextRequest) {
   const body = await request.json().catch(() => null) as { schedule?: unknown } | null;
   if (!validateSchedule(body?.schedule)) return NextResponse.json({ error: "Невалидное расписание" }, { status: 400 });
   try {
+    const previous=await getSchedule();
     await saveSchedule(body.schedule);
+    if(JSON.stringify(previous)!==JSON.stringify(body.schedule)){const people=await getPeople(true);void sendPush(people.map(p=>p.id),"schedule",{title:"Расписание изменилось",body:"Администратор обновил расписание.",url:"/schedule"})}
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Failed to save admin schedule", error);
