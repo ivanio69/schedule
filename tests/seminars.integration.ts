@@ -18,20 +18,20 @@ async function main() {
   });
   try {
     const db = await getDatabase();
-    await db.collection("people").insertMany(["a", "b", "c"].map(id => ({ id, name: `Student ${id}`, active: true })));
+    await db.collection("people").insertMany(["a", "b", "c", "d", "e", "f"].map(id => ({ id, name: `Student ${id}`, active: true })));
     assert.equal((await admin.POST(req({}))).status, 401);
     assert.equal((await admin.PUT(req({}))).status, 401);
     assert.equal((await admin.GET(req({}))).status, 401);
-    for (const capacity of [0, 3, "2"]) assert.equal((await admin.POST(req({ subject: "История", title: "Семинар", capacity, topics: ["Тема"] }, true))).status, 400);
+    for (const capacity of [0, 6, 1.5, "2"]) assert.equal((await admin.POST(req({ subject: "История", title: "Семинар", capacity, topics: ["Тема"] }, true))).status, 400);
     assert.equal((await admin.POST(req({ subject: " ", title: "Семинар", capacity: 1, topics: ["Тема"] }, true))).status, 400);
-    for (const capacity of [1, 2]) {
+    for (const capacity of [1, 2, 3, 4, 5]) {
       const response = await admin.POST(req({ subject: "История", title: `Семинар ${capacity}`, capacity, topics: ["Тема 1", "Тема 2"] }, true));
       assert.equal(response.status, 201);
       const { list } = await response.json();
       const base = { listId: list.id, topicId: list.topics[0].id };
       const claim = (studentId: string) => user.POST(req({ ...base, action: "claim", studentId }));
       assert.equal((await claim("missing")).status, 400);
-      const attempts = await Promise.all([claim("a"), claim("b"), claim("c")]);
+      const attempts = await Promise.all(["a", "b", "c", "d", "e", "f"].map(claim));
       assert.equal(attempts.filter(r => r.status === 200).length, capacity);
       let stored = await db.collection("seminars").findOne({ id: list.id });
       assert.equal(stored!.topics[0].studentIds.length, capacity);
@@ -56,11 +56,15 @@ async function main() {
       await Promise.all([user.POST(req(second)), user.POST(req(second))]);
       stored = await db.collection("seminars").findOne({ id: list.id });
       assert.deepEqual(stored!.topics[1].studentIds, ["a"]);
+      const assigned = ["a", "b", "c", "d", "e"].slice(0, capacity);
+      assert.equal((await admin.PUT(req({ ...base, studentIds: assigned, revision: stored!.revision }, true))).status, 200);
+      stored = await db.collection("seminars").findOne({ id: list.id });
+      assert.deepEqual(stored!.topics[0].studentIds, assigned);
       assert.equal((await admin.PUT(req({ ...base, studentIds: [], revision: stored!.revision }, true))).status, 200);
     }
     assert.equal((await user.POST(req({ action: "assign", listId: "x", topicId: "y", studentId: "a" }))).status, 400);
     assert.equal((await user.POST(req({ action: "claim", listId: "missing", topicId: "missing", studentId: "a" }))).status, 404);
-    console.log("PASS: creation, validation, admin authorization, capacities 1/2, concurrent claims, duplicate claims, admin replacement, stale edits, public names, release and reassignment");
+    console.log("PASS: creation, validation, admin authorization, capacities 1–5, concurrent claims, duplicate claims, admin replacement, stale edits, public names, release and reassignment");
   } finally { await (await client).close(); await mongo.stop(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

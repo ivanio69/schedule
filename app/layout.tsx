@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
-import "./seminars.css";
 import "./admin/admin-polish.css";
 import "./admin/admin-lists.css";
 import "./schedule-modal.css";
@@ -15,6 +14,7 @@ import "./day-tabs-polish.css";
 import "./page-headings.css";
 import "./scholarship-badge.css";
 import "./offline-banner.css";
+import "./seminars.css";
 import AppNavigation from "@/components/AppNavigation";
 import OfflineBanner from "@/components/OfflineBanner";
 

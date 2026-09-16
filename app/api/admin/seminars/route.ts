@@ -21,14 +21,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   if (!authenticated(request)) return unauthorized();
   const input = parseSeminarInput(await request.json().catch(() => null));
-  if (!input) return NextResponse.json({ error: "Укажи предмет, название списка, 1–200 тем и лимит 1 или 2 человека" }, { status: 400 });
+  if (!input) return NextResponse.json({ error: "Укажи предмет, название списка, 1–200 тем и лимит от 1 до 5 человек" }, { status: 400 });
   return NextResponse.json({ list: await createSeminar(input) }, { status: 201 });
 }
 export async function PUT(request: NextRequest) {
   if (!authenticated(request)) return unauthorized();
   const b = await request.json().catch(() => null);
   if (!b || typeof b.listId !== "string" || !b.listId || typeof b.topicId !== "string" || !b.topicId ||
-      !Number.isInteger(b.revision) || b.revision < 0 || !Array.isArray(b.studentIds) || b.studentIds.length > 2 ||
+      !Number.isInteger(b.revision) || b.revision < 0 || !Array.isArray(b.studentIds) || b.studentIds.length > 5 ||
       !b.studentIds.every((id: unknown) => typeof id === "string" && id) || new Set(b.studentIds).size !== b.studentIds.length)
     return NextResponse.json({ error: "Проверь участников темы" }, { status: 400 });
   const result = await changeSeminar({ action: "assign", listId: b.listId, topicId: b.topicId, studentIds: b.studentIds, revision: b.revision });
