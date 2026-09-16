@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
+import "./seminars.css";
 import "./admin/admin-polish.css";
 import "./admin/admin-lists.css";
 import "./schedule-modal.css";

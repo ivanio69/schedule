@@ -9,6 +9,8 @@ export type IndividualSlot = {
   note: string;
   capacity: number;
   studentIds: string[];
+  /** Legacy records stored a single participant. */
+  studentId?: string | null;
   createdAt: string;
   updatedAt: string;
 };

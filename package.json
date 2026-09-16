@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "seed": "node scripts/seed-mongodb.mjs",
-    "migrate": "node scripts/migrate-table-to-mongodb.mjs"
+    "migrate": "node scripts/migrate-table-to-mongodb.mjs",
+    "test:seminars": "tsx tests/seminars.integration.ts"
   },
   "dependencies": {
     "@heroui/react": "^3.2.2",
@@ -28,7 +29,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "mongodb-memory-server": "^11.2.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }
