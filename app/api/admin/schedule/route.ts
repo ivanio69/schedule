@@ -1,7 +1,6 @@
 import { createHmac } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getPeople, getSchedule, saveSchedule } from "@/lib/database";
-import { sendPush } from "@/lib/push";
+import { getSchedule, saveSchedule } from "@/lib/database";
 import type { ScheduleData } from "@/lib/schedule";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -36,19 +35,6 @@ function validateSchedule(value: unknown): value is ScheduleData {
   }));
 }
 
-function lessonKey(dayIndex: number, lesson: ScheduleData["days"][number]["table"][number]) {
-  return JSON.stringify([dayIndex, lesson.class, lesson.professor, lesson.auditorium, lesson.timeStart, lesson.timeEnd, lesson.group, lesson.weeks]);
-}
-
-function scheduleLessons(schedule: ScheduleData) {
-  return schedule.days.flatMap((day, dayIndex) => day.table.map((lesson) => ({ dayIndex, lesson, key: lessonKey(dayIndex, lesson) })));
-}
-
-function describeChange(kind: "added" | "removed", item: ReturnType<typeof scheduleLessons>[number]) {
-  const days = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-  return `${kind === "added" ? "Добавлена" : "Удалена"}: ${item.lesson.class} · ${days[item.dayIndex] ?? ""} ${item.lesson.timeStart}`;
-}
-
 export async function POST(request: NextRequest) {
   if (!ADMIN_PASSWORD || !SESSION_SECRET) return NextResponse.json({ error: "Admin auth is not configured" }, { status: 503 });
   const body = await request.json().catch(() => null) as { password?: unknown } | null;
@@ -74,20 +60,7 @@ export async function PUT(request: NextRequest) {
   const body = await request.json().catch(() => null) as { schedule?: unknown } | null;
   if (!validateSchedule(body?.schedule)) return NextResponse.json({ error: "Невалидное расписание" }, { status: 400 });
   try {
-    const previous = await getSchedule();
-    const before = scheduleLessons(previous);
-    const after = scheduleLessons(body.schedule);
-    const beforeKeys = new Set(before.map((item) => item.key));
-    const afterKeys = new Set(after.map((item) => item.key));
-    const added = after.filter((item) => !beforeKeys.has(item.key));
-    const removed = before.filter((item) => !afterKeys.has(item.key));
     await saveSchedule(body.schedule);
-    if (added.length || removed.length) {
-      const people = await getPeople(true);
-      const lines = [...added.map((item) => describeChange("added", item)), ...removed.map((item) => describeChange("removed", item))];
-      const pushBody = lines.length <= 2 ? lines.join(" · ") : `${lines[0]} · и ещё ${lines.length - 1}`;
-      void sendPush(people.map((person) => person.id), "schedule", { title: "Изменение расписания", body: pushBody, url: "/schedule" });
-    }
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Failed to save admin schedule", error);
