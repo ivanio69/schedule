@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getPeople, getSchedule } from "@/lib/database";
-import { changeSeminar, createSeminar, getSeminars } from "@/lib/seminar-database";
+import { changeSeminar, createSeminar, deleteSeminar, getSeminars } from "@/lib/seminar-database";
 import { parseSeminarInput } from "@/lib/seminars";
 
 function authenticated(request: NextRequest) {
@@ -33,4 +33,11 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Проверь участников темы" }, { status: 400 });
   const result = await changeSeminar({ action: "assign", listId: b.listId, topicId: b.topicId, studentIds: b.studentIds, revision: b.revision });
   return NextResponse.json(result, { status: result.status ?? 200 });
+}
+export async function DELETE(request: NextRequest) {
+  if (!authenticated(request)) return unauthorized();
+  const id = request.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Не указан семинар" }, { status: 400 });
+  if (!await deleteSeminar(id)) return NextResponse.json({ error: "Семинар не найден" }, { status: 404 });
+  return NextResponse.json({ ok: true });
 }

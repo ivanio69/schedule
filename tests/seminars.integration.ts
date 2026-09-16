@@ -22,6 +22,7 @@ async function main() {
     assert.equal((await admin.POST(req({}))).status, 401);
     assert.equal((await admin.PUT(req({}))).status, 401);
     assert.equal((await admin.GET(req({}))).status, 401);
+    assert.equal((await admin.DELETE(new NextRequest("http://localhost/api/admin/seminars?id=x", { method: "DELETE" }))).status, 401);
     for (const capacity of [0, 6, 1.5, "2"]) assert.equal((await admin.POST(req({ subject: "История", title: "Семинар", capacity, topics: ["Тема"] }, true))).status, 400);
     assert.equal((await admin.POST(req({ subject: " ", title: "Семинар", capacity: 1, topics: ["Тема"] }, true))).status, 400);
     for (const capacity of [1, 2, 3, 4, 5]) {
@@ -61,10 +62,14 @@ async function main() {
       stored = await db.collection("seminars").findOne({ id: list.id });
       assert.deepEqual(stored!.topics[0].studentIds, assigned);
       assert.equal((await admin.PUT(req({ ...base, studentIds: [], revision: stored!.revision }, true))).status, 200);
+      const deleteRequest = (id: string) => new NextRequest(`http://localhost/api/admin/seminars?id=${id}`, { method: "DELETE", headers: { Cookie: cookie } });
+      assert.equal((await admin.DELETE(deleteRequest(list.id))).status, 200);
+      assert.equal(await db.collection("seminars").countDocuments({ id: list.id }), 0);
+      assert.equal((await admin.DELETE(deleteRequest(list.id))).status, 404);
     }
     assert.equal((await user.POST(req({ action: "assign", listId: "x", topicId: "y", studentId: "a" }))).status, 400);
     assert.equal((await user.POST(req({ action: "claim", listId: "missing", topicId: "missing", studentId: "a" }))).status, 404);
-    console.log("PASS: creation, validation, admin authorization, capacities 1–5, concurrent claims, duplicate claims, admin replacement, stale edits, public names, release and reassignment");
+    console.log("PASS: creation, deletion, validation, admin authorization, capacities 1–5, concurrent claims, duplicate claims, admin replacement, stale edits, public names, release and reassignment");
   } finally { await (await client).close(); await mongo.stop(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

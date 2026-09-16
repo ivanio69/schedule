@@ -20,6 +20,11 @@ export async function createSeminar(input: SeminarInput) {
   return list;
 }
 
+export async function deleteSeminar(id: string) {
+  const result = await (await getDatabase()).collection<SeminarList>("seminars").deleteOne({ id });
+  return result.deletedCount === 1;
+}
+
 // Compare-and-swap protects both capacity and administrator overrides from concurrent writes.
 export async function changeSeminar(input: {
   listId: string; topicId: string; action: "claim" | "release" | "assign";

@@ -76,6 +76,21 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
   function edit(list: SeminarList, topic: SeminarTopic) {
     setEditor({ listId: list.id, topicId: topic.id, revision: list.revision, ids: [...topic.studentIds] });
   }
+  async function remove(list: SeminarList) {
+    if (!confirm(`Удалить семинар «${list.title}» со всеми темами и записями?`)) return;
+    if (busy) return;
+    setBusy(true); setNotice("");
+    try {
+      const response = await fetch(`${endpoint}?id=${encodeURIComponent(list.id)}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Не удалось удалить семинар");
+      setEditor(current => current?.listId === list.id ? null : current);
+      setLists(current => current.filter(item => item.id !== list.id));
+      setNotice("Семинар удалён");
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Не удалось удалить семинар. Проверь подключение к сети");
+    } finally { setBusy(false); }
+  }
   return <section className={`seminars ${admin ? "seminars-admin" : "seminars-client"}`}>
     <header className="seminars-heading"><div><p className={admin ? "admin-eyebrow" : "eyebrow"}>{admin ? "Schedule Admin · Панель" : "СЕМИНАРЫ"}</p><h1>{"Семинары"}</h1><span>{admin ? "Создавай списки и управляй участниками." : "Выбирай темы по предметам. Все видят, кто записан."}</span></div>{admin && <button className="admin-secondary" disabled={busy} onClick={() => void load()}>↻ Обновить</button>}</header>
     {error && <p role="alert" className="seminar-message">{error}</p>}
@@ -95,7 +110,7 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
     {loading ? <p role="status">Загрузка тем…</p> : !lists.length && !error ? <div className="seminar-empty"><h2>Тем пока нет</h2><p>{admin ? "Добавь первый список семинаров выше." : "Здесь появятся списки, которые добавит администратор."}</p></div> : null}
     {!admin && !loading && !personId && <p className="seminar-message"><Link href="/">Выбери своё имя</Link>, чтобы забить тему.</p>}
     {groups.map(group => <section key={group} className="seminar-subject"><h2>{group}</h2>{lists.filter(l => l.subject === group).map(list => <article key={list.id} className="seminar-list">
-      <header className="seminar-list-header"><h3>{admin ? <span className="seminar-summary"><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span></span> : <button className="seminar-summary" aria-expanded={expanded.has(list.id)} aria-controls={`seminar-topics-${list.id}`} onClick={() => setExpanded(current => { const next = new Set(current); if (next.has(list.id)) next.delete(list.id); else next.add(list.id); return next; })}><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span><span className="seminar-summary-count">{list.topics.filter(t => t.studentIds.length < list.capacity).length} свободно</span><svg className={expanded.has(list.id) ? "is-open" : ""} viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></button>}</h3></header>
+      <header className="seminar-list-header"><h3>{admin ? <span className="seminar-summary"><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span><button type="button" className="seminar-delete admin-danger" disabled={busy} onClick={() => void remove(list)} aria-label={`Удалить семинар ${list.title}`}>Удалить</button></span> : <button className="seminar-summary" aria-expanded={expanded.has(list.id)} aria-controls={`seminar-topics-${list.id}`} onClick={() => setExpanded(current => { const next = new Set(current); if (next.has(list.id)) next.delete(list.id); else next.add(list.id); return next; })}><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span><span className="seminar-summary-count">{list.topics.filter(t => t.studentIds.length < list.capacity).length} свободно</span><svg className={expanded.has(list.id) ? "is-open" : ""} viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></button>}</h3></header>
       <motion.div id={`seminar-topics-${list.id}`} initial={false} animate={{ height: admin || expanded.has(list.id) ? "auto" : 0, opacity: admin || expanded.has(list.id) ? 1 : 0 }} transition={{ duration: reducedMotion ? 0 : .26, ease: [.22, 1, .36, 1] }} inert={!admin && !expanded.has(list.id)} aria-hidden={!admin && !expanded.has(list.id)} className="seminar-collapse"><ol>{list.topics.map((topic, index) => {
         const mine = !admin && topic.studentIds.includes(personId ?? "");
         const full = topic.studentIds.length >= list.capacity;

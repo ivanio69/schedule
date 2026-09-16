@@ -44,6 +44,8 @@
 .seminar-summary-count { flex-shrink: 0; border: 1px solid #303036; border-radius: 999px; padding: 4px 8px; color: var(--muted); font-size: 10px; font-weight: 650; }
 .seminar-summary svg { flex-shrink: 0; width: 18px; height: 18px; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform .26s ease; }
 .seminar-summary svg.is-open { transform: rotate(180deg); }
+.seminars .seminar-delete { flex-shrink: 0; color: #ff9b9b; background: transparent; }
+.seminars .seminar-delete:hover:not(:disabled) { border-color: rgba(255,155,155,.45); background: rgba(255,155,155,.08); }
 .seminar-collapse { overflow: hidden; }
 .seminar-list ol { list-style: none; padding: 0; margin: 0; }
 .seminar-list li { border-top: 1px solid var(--border); transition: background .18s ease; }
@@ -74,6 +76,8 @@
   .seminars .seminar-summary { padding: 15px 14px; gap: 8px; flex-wrap: wrap; }
   .seminar-summary-text { flex-basis: calc(100% - 30px); }
   .seminar-summary-count { order: 3; }
+  .seminars-admin .seminar-summary-text { flex-basis: auto; }
+  .seminars-admin .seminar-delete { margin-left: auto; }
   .seminar-topic { grid-template-columns: 18px minmax(0,1fr) auto; gap: 10px; padding: 14px; }
   .seminar-topic > button { grid-column: 2 / -1; justify-self: start; }
   .seminar-create-footer { flex-direction: column; align-items: flex-start; }
