@@ -41,3 +41,5 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") self.skipWaiting();
 });
+
+self.addEventListener("push",e=>{let d={title:"Расписание 214Р",body:"Есть новое уведомление",url:"/"};try{d={...d,...e.data.json()}}catch{}e.waitUntil(self.registration.showNotification(d.title,{body:d.body,data:{url:d.url}}))});self.addEventListener("notificationclick",e=>{e.notification.close();e.waitUntil(clients.openWindow(e.notification.data?.url||"/"))});

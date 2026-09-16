@@ -38,6 +38,7 @@ export async function PUT(request: Request) {
     const settings = await saveProfileSettings(body.personId, {
       preferences: body.preferences === undefined ? existing.preferences : cleanPreferences(body.preferences),
       notes: body.notes === undefined ? existing.notes : cleanNotes(body.notes),
+      notificationPreferences: body.notificationPreferences === undefined ? existing.notificationPreferences : Object.fromEntries(Object.entries(body.notificationPreferences ?? {}).filter(([,v])=>typeof v==="boolean")),
     });
     return NextResponse.json(settings, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

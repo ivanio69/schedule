@@ -15,8 +15,10 @@ import "./page-headings.css";
 import "./scholarship-badge.css";
 import "./offline-banner.css";
 import "./seminars.css";
+import "./push-notifications.css";
 import AppNavigation from "@/components/AppNavigation";
 import OfflineBanner from "@/components/OfflineBanner";
+import PushPrompt from "@/components/PushPrompt";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin", "cyrillic"] });
 export const metadata: Metadata = {
@@ -25,5 +27,5 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru" className={geist.variable} data-theme="dark"><body><OfflineBanner /><AppNavigation /><div className="app-page-transition">{children}</div></body></html>;
+  return <html lang="ru" className={geist.variable} data-theme="dark"><body><OfflineBanner /><PushPrompt /><AppNavigation /><div className="app-page-transition">{children}</div></body></html>;
 }

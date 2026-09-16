@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPeople, getSchedule } from "@/lib/database";
 import { changeSeminar, createSeminar, deleteSeminar, getSeminars } from "@/lib/seminar-database";
 import { parseSeminarInput } from "@/lib/seminars";
+import { sendPush } from "@/lib/push";
 
 function authenticated(request: NextRequest) {
   const secret = process.env.ADMIN_SESSION_SECRET ?? process.env.ADMIN_PASSWORD;
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
   if (!authenticated(request)) return unauthorized();
   const input = parseSeminarInput(await request.json().catch(() => null));
   if (!input) return NextResponse.json({ error: "Укажи предмет, название списка, 1–200 тем и лимит от 1 до 5 человек" }, { status: 400 });
-  return NextResponse.json({ list: await createSeminar(input) }, { status: 201 });
+  const list=await createSeminar(input);const people=await getPeople(true);void sendPush(people.map(p=>p.id),"seminars",{title:"Новые семинары",body:`Открыта запись: ${input.subject} — ${input.title}`,url:"/seminars"});return NextResponse.json({list},{status:201});
 }
 export async function PUT(request: NextRequest) {
   if (!authenticated(request)) return unauthorized();
