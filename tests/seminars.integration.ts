@@ -25,6 +25,45 @@ async function main() {
     assert.equal((await admin.DELETE(new NextRequest("http://localhost/api/admin/seminars?id=x", { method: "DELETE" }))).status, 401);
     for (const capacity of [0, 6, 1.5, "2"]) assert.equal((await admin.POST(req({ subject: "История", title: "Семинар", capacity, topics: ["Тема"] }, true))).status, 400);
     assert.equal((await admin.POST(req({ subject: " ", title: "Семинар", capacity: 1, topics: ["Тема"] }, true))).status, 400);
+    assert.equal((await admin.PATCH(req({}))).status, 401);
+    const created = await (await admin.POST(req({ subject: "История", title: "Редактирование", capacity: 2, topics: ["Занятая", "Свободная"] }, true))).json();
+    const seminar = created.list;
+    const topicId = seminar.topics[0].id;
+    await user.POST(req({ listId: seminar.id, topicId, action: "claim", studentId: "a" }));
+    await user.POST(req({ listId: seminar.id, topicId, action: "claim", studentId: "b" }));
+    const editInput = { listId: seminar.id, revision: 2, subject: "Культура", title: "Обновлённый", capacity: 3,
+      topics: [{ id: topicId, title: "Новое название" }, { title: "Новая тема" }] };
+    const patch = (body: unknown) => admin.PATCH(req(body, true));
+    for (const topics of [[], [null], [{ title: " " }], [{ id: topicId, title: "A" }, { id: topicId, title: "B" }]])
+      assert.equal((await patch({ ...editInput, topics })).status, 400);
+    assert.equal((await patch({ ...editInput, listId: "missing" })).status, 404);
+    assert.equal((await patch({ ...editInput, topics: [{ id: "foreign", title: "A" }] })).status, 400);
+    assert.equal((await patch({ ...editInput, capacity: 1 })).status, 400);
+    assert.equal((await patch({ ...editInput, topics: [{ title: "Удалить занятую" }] })).status, 400);
+    assert.equal((await patch({ ...editInput, revision: 0 })).status, 409);
+    assert.equal((await patch(editInput)).status, 200);
+    let edited = await db.collection("seminars").findOne({ id: seminar.id });
+    assert.equal(edited!.subject, "Культура");
+    assert.equal(edited!.title, "Обновлённый");
+    assert.equal(edited!.capacity, 3);
+    assert.equal(edited!.topics[0].id, topicId);
+    assert.equal(edited!.topics[0].title, "Новое название");
+    assert.deepEqual(edited!.topics[0].studentIds, ["a", "b"]);
+    assert.deepEqual(edited!.topics[1].studentIds, []);
+    assert.notEqual(edited!.topics[1].id, seminar.topics[1].id);
+    assert.equal((await patch(editInput)).status, 409);
+    const raceInput = { ...editInput, revision: edited!.revision };
+    const results = await Promise.all([patch(raceInput), patch({ ...raceInput, title: "Другой администратор" })]);
+    assert.deepEqual(results.map(r => r.status).sort(), [200, 409]);
+    edited = await db.collection("seminars").findOne({ id: seminar.id });
+    const race = await Promise.all([
+      patch({ ...editInput, revision: edited!.revision }),
+      user.POST(req({ listId: seminar.id, topicId, action: "claim", studentId: "c" })),
+    ]);
+    assert.equal(race[1].status, 200);
+    assert.ok([200, 409].includes(race[0].status));
+    edited = await db.collection("seminars").findOne({ id: seminar.id });
+    assert.deepEqual(edited!.topics[0].studentIds, ["a", "b", "c"]);
     for (const capacity of [1, 2, 3, 4, 5]) {
       const response = await admin.POST(req({ subject: "История", title: `Семинар ${capacity}`, capacity, topics: ["Тема 1", "Тема 2"] }, true));
       assert.equal(response.status, 201);
@@ -69,7 +108,7 @@ async function main() {
     }
     assert.equal((await user.POST(req({ action: "assign", listId: "x", topicId: "y", studentId: "a" }))).status, 400);
     assert.equal((await user.POST(req({ action: "claim", listId: "missing", topicId: "missing", studentId: "a" }))).status, 404);
-    console.log("PASS: creation, deletion, validation, admin authorization, capacities 1–5, concurrent claims, duplicate claims, admin replacement, stale edits, public names, release and reassignment");
+    console.log("PASS: editing, preserved bookings, topic validation, concurrent edits/claims, creation, deletion, validation, admin authorization, capacities 1–5, concurrent claims, duplicate claims, admin replacement, stale edits, public names, release and reassignment");
   } finally { await (await client).close(); await mongo.stop(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
