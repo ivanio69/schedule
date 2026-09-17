@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import "./admin-system.css";
+import "./rehearsals/rehearsals.css";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -13,7 +14,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     const addRehearsalsItem = () => {
       const nav = document.querySelector<HTMLElement>(".admin-modebar");
       if (!nav || nav.querySelector("[data-admin-rehearsals-nav]")) return Boolean(nav);
-
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.adminRehearsalsNav = "true";
@@ -24,9 +24,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     };
 
     if (addRehearsalsItem()) return;
-    const observer = new MutationObserver(() => {
-      if (addRehearsalsItem()) observer.disconnect();
-    });
+    const observer = new MutationObserver(() => { if (addRehearsalsItem()) observer.disconnect(); });
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [pathname]);
