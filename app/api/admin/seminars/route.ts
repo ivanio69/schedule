@@ -1,8 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getPeople, getSchedule } from "@/lib/database";
-import { changeSeminar, createSeminar, deleteSeminar, getSeminars } from "@/lib/seminar-database";
-import { parseSeminarInput } from "@/lib/seminars";
+import { changeSeminar, createSeminar, deleteSeminar, editSeminar, getSeminars } from "@/lib/seminar-database";
+import { parseSeminarEditInput, parseSeminarInput } from "@/lib/seminars";
 import { sendPush } from "@/lib/push";
 
 function authenticated(request: NextRequest) {
@@ -41,4 +41,12 @@ export async function DELETE(request: NextRequest) {
   if (!id) return NextResponse.json({ error: "Не указан семинар" }, { status: 400 });
   if (!await deleteSeminar(id)) return NextResponse.json({ error: "Семинар не найден" }, { status: 404 });
   return NextResponse.json({ ok: true });
+}
+
+export async function PATCH(request: NextRequest) {
+  if (!authenticated(request)) return unauthorized();
+  const input = parseSeminarEditInput(await request.json().catch(() => null));
+  if (!input) return NextResponse.json({ error: "Проверь предмет, название, темы и лимит от 1 до 5 человек" }, { status: 400 });
+  const result = await editSeminar(input);
+  return NextResponse.json(result, { status: result.status ?? 200 });
 }

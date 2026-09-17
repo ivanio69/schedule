@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getDatabase, getPeople } from "@/lib/database";
-import type { SeminarInput, SeminarList } from "@/lib/seminars";
+import type { SeminarEditInput, SeminarInput, SeminarList } from "@/lib/seminars";
 import { sendPush } from "@/lib/push";
 
 export async function getSeminars() {
@@ -60,4 +60,30 @@ export async function changeSeminar(input: {
     if(result.modifiedCount){if(input.action==="claim"&&topic.studentIds.length){const p=(await getPeople()).find(x=>x.id===input.studentId);void sendPush(topic.studentIds,"seminarParticipants",{title:"Новый участник семинара",body:`${p?.name??"Кто-то"} присоединился к теме «${topic.title}»`,url:"/seminars"})}return{ok:true};}
   }
   return { error: "Записи изменились. Попробуй ещё раз", status: 409 };
+}
+
+// Preserve bookings by stable topic ID; reject stale edits instead of overwriting claims.
+export async function editSeminar(input: SeminarEditInput) {
+  const collection = (await getDatabase()).collection<SeminarList>("seminars");
+  const list = await collection.findOne({ id: input.listId });
+  if (!list) return { error: "Семинар не найден", status: 404 };
+  const conflict = { error: "Семинар или записи изменились. Открой редактирование заново", status: 409 };
+  if (list.revision !== input.revision) return conflict;
+  const existing = new Map(list.topics.map(topic => [topic.id, topic]));
+  if (input.topics.some(topic => topic.id !== undefined && !existing.has(topic.id)))
+    return { error: "Тема не принадлежит этому семинару", status: 400 };
+  const retained = new Set(input.topics.map(topic => topic.id));
+  if (list.topics.some(topic => !retained.has(topic.id) && topic.studentIds.length))
+    return { error: "Сначала освободи места в теме, которую хочешь удалить", status: 400 };
+  if (list.topics.some(topic => topic.studentIds.length > input.capacity))
+    return { error: "Лимит меньше числа записавшихся участников", status: 400 };
+  const topics = input.topics.map(topic => ({
+    id: topic.id ?? randomUUID(), title: topic.title,
+    studentIds: topic.id ? existing.get(topic.id)!.studentIds : [],
+  }));
+  const result = await collection.updateOne({ id: list.id, revision: input.revision }, {
+    $set: { subject: input.subject, title: input.title, capacity: input.capacity, topics },
+    $inc: { revision: 1 },
+  });
+  return result.modifiedCount ? { ok: true } : conflict;
 }

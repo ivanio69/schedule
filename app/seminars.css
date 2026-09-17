@@ -87,3 +87,16 @@
 @media (prefers-reduced-motion: reduce) {
   .seminars *, .seminars *::before, .seminars *::after { transition: none !important; animation: none !important; }
 }
+
+.seminar-list-edit { padding: 18px; border-top: 1px solid var(--border); }
+.seminar-list-edit fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.seminar-list-edit legend { padding: 0 0 16px; font-size: 15px; font-weight: 700; }
+.seminar-list-edit p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.seminar-edit-topics { display: grid; gap: 16px; margin-bottom: 16px; }
+.seminar-edit-topic { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.seminar-list-edit .seminar-editor-actions { margin-top: 18px; }
+@media (max-width: 650px) {
+  .seminar-edit-topic { grid-template-columns: minmax(0, 1fr); }
+  .seminar-edit-topic > button { justify-self: start; }
+  .seminars-admin .seminar-summary-text { flex-basis: 100%; }
+}
