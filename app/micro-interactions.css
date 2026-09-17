@@ -57,7 +57,7 @@ input:hover, textarea:hover, select:hover { filter:brightness(1.025); }
 
 /* Rehearsal creation flow. */
 .add-rehearsal-button { position:relative; overflow:hidden; transform-origin:center; }
-.add-rehearsal-button:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(184,167,255,.08); }
+.add-rehearsal-button:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(154,230,180,.08); }
 .add-rehearsal-button:active { transform:translateY(0) scale(.985); }
 .add-rehearsal-button::after { content:""; position:absolute; inset:0; background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,.09) 50%,transparent 80%); transform:translateX(-120%); transition:transform .55s ease; pointer-events:none; }
 .add-rehearsal-button:hover::after { transform:translateX(120%); }
