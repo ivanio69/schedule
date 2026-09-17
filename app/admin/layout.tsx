@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import "./admin-system.css";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
