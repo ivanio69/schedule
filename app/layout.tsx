@@ -17,6 +17,7 @@ import "./offline-banner.css";
 import "./seminars.css";
 import "./push-notifications.css";
 import "./design-system.css";
+import "./admin-workspace.css";
 import AppNavigation from "@/components/AppNavigation";
 import OfflineBanner from "@/components/OfflineBanner";
 import PushPrompt from "@/components/PushPrompt";
