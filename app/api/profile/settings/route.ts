@@ -17,6 +17,11 @@ function cleanNotes(value: unknown) {
   return Object.fromEntries(Object.entries(value).filter(([k, v]) => k.length < 300 && typeof v === "string" && v.length <= 2000));
 }
 
+function cleanNotificationPreferences(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"));
+}
+
 export async function GET(request: Request) {
   try {
     const personId = new URL(request.url).searchParams.get("personId");
@@ -38,7 +43,7 @@ export async function PUT(request: Request) {
     const settings = await saveProfileSettings(body.personId, {
       preferences: body.preferences === undefined ? existing.preferences : cleanPreferences(body.preferences),
       notes: body.notes === undefined ? existing.notes : cleanNotes(body.notes),
-      notificationPreferences: body.notificationPreferences === undefined ? existing.notificationPreferences : Object.fromEntries(Object.entries(body.notificationPreferences ?? {}).filter(([,v])=>typeof v==="boolean")),
+      notificationPreferences: body.notificationPreferences === undefined ? existing.notificationPreferences : cleanNotificationPreferences(body.notificationPreferences),
     });
     return NextResponse.json(settings, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
