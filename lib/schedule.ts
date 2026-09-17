@@ -21,6 +21,7 @@ export type Rehearsal = {
   timeEnd: string;
   responsible: string;
   participants: string[];
+  isGlobal?: boolean;
   createdAt: string;
 };
 
