@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
+import AdminHeading from "@/components/AdminHeading";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SeminarList, SeminarTopic } from "@/lib/seminars";
 
@@ -94,7 +95,7 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
     } finally { setBusy(false); }
   }
   return <section className={`seminars ${admin ? "seminars-admin" : "seminars-client"}`}>
-    <header className="seminars-heading"><div><p className={admin ? "admin-eyebrow" : "eyebrow"}>{admin ? "Schedule Admin · Панель" : "СЕМИНАРЫ"}</p><h1>{"Семинары"}</h1><span>{admin ? "Создавай и редактируй семинары, управляй участниками." : "Выбирай темы по предметам. Все видят, кто записан."}</span></div>{admin && <button className="admin-secondary" disabled={busy} onClick={() => void load()}>↻ Обновить</button>}</header>
+    {admin ? <AdminHeading title="Семинары" description="Создавай темы и управляй участниками." actions={<button className="admin-secondary" disabled={busy} onClick={() => void load()}>Обновить</button>}/> : <header className="seminars-heading"><div><p className="eyebrow">СЕМИНАРЫ</p><h1>Семинары</h1><span>Выбирай темы по предметам. Все видят, кто записан.</span></div></header>}
     {error && <p role="alert" className="seminar-message">{error}</p>}
     <AnimatePresence mode="wait">{notice && <motion.p key={notice} role="status" className="seminar-message" initial={{ opacity: 0, y: reducedMotion ? 0 : -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : .18 }}>{notice}</motion.p>}</AnimatePresence>
     {admin && <form className="seminar-create admin-card admin-form-panel" onSubmit={async e => {

@@ -1,0 +1,194 @@
+/*
+ * Shared design language. This file intentionally comes last: older feature
+ * styles remain close to their components while these tokens keep every area
+ * of the product visually coherent.
+ */
+:root {
+  --bg: #0b0b10;
+  --surface: #14141b;
+  --surface-raised: #1a1a23;
+  --surface-hover: #20202a;
+  --border: #30303d;
+  --border-strong: #484857;
+  --text: #f7f7fb;
+  --muted: #a2a2b1;
+  --muted-strong: #c5c5d0;
+  --accent: #b5f0cd;
+  --accent-text: #10291c;
+  --accent-soft: rgba(154,230,180, .14);
+  --success: #8be0b3;
+  --danger: #ff9ea6;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --shadow-card: 0 18px 50px rgba(0, 0, 0, .22);
+}
+
+html { background: var(--bg); }
+body {
+  background:
+    radial-gradient(ellipse 72% 38% at 50% -12%, rgba(154,230,180, .16), transparent 72%),
+    radial-gradient(ellipse 46% 25% at 0% 22%, rgba(80, 136, 255, .06), transparent 70%),
+    var(--bg);
+  letter-spacing: -.005em;
+}
+::selection { color: var(--accent-text); background: var(--accent); }
+button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 3px;
+}
+
+/* Page rhythm and reusable interactive surfaces. */
+.dashboard-v2, .seminars-client, .student-slots, .settings-page { padding-top: 44px !important; }
+.dashboard-v2 h1, .seminars h1, .student-slots h2, .settings-page h1 { font-weight: 760; }
+.schedule-card, .rehearsal-card, .settings-section, .admin-card, .seminar-create, .seminar-list,
+.student-slots-list, .student-slots-mine article, .settings-page-row {
+  box-shadow: 0 1px 0 rgba(255,255,255,.025), var(--shadow-card);
+}
+.schedule-card, .settings-section, .admin-card, .seminar-create, .seminar-list { border-color: var(--border); }
+.schedule-card:hover, .seminar-list:hover { border-color: var(--border-strong); }
+.day-tabs, .bottom-nav, .admin-modebar { background: rgba(20,20,27,.82); backdrop-filter: blur(16px); }
+.day-tabs button.is-active, .bottom-nav button.is-active, .preference-switch button.is-active,
+.admin-modebar button.is-active, .admin-groups button.is-active, .admin-presets button.is-active,
+.admin-chip-row button.is-active, .admin-week-grid button.is-active {
+  color: var(--accent-text); background: var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,.18);
+}
+.icon-button, .admin-secondary, .seminars button, .student-slots-mine button {
+  background: var(--surface); border-color: var(--border);
+}
+.icon-button:hover:not(:disabled), .admin-secondary:hover, .seminars button:hover:not(:disabled) {
+  border-color: var(--border-strong); background: var(--surface-hover);
+}
+.admin-primary, .seminars button.seminar-primary, .student-slots button {
+  color: var(--accent-text); background: var(--accent); border-color: var(--accent);
+}
+.admin-primary:hover, .seminars button.seminar-primary:hover:not(:disabled) { background: #d4f9e3; }
+.admin-danger { color: var(--danger); }
+.admin-success { color: var(--success); }
+.admin-input, .seminars :is(input, select, textarea) { border-color: var(--border); background: #101016; }
+.admin-input:focus, .seminars :is(input, select, textarea):focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* Current page gets a clear hierarchy rather than a sea of equal cards. */
+.dashboard-focus { border-color: rgba(154,230,180,.44) !important; background: linear-gradient(135deg, rgba(154,230,180,.19), rgba(31,31,42,.82)) !important; box-shadow: 0 22px 70px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.08) !important; }
+.dashboard-progress i { background: linear-gradient(90deg, #9ae6b4, #d4f9e3) !important; }
+.dashboard-event-v2.current { border-color: rgba(154,230,180,.58) !important; background: linear-gradient(135deg, rgba(154,230,180,.13), var(--surface-raised)) !important; }
+.dashboard-event-v2.individual { border-color: rgba(112,181,255,.38) !important; }
+.dashboard-event-v2.rehearsal, .seminar-list-mine { border-color: rgba(154,230,180,.55) !important; }
+.dashboard-stats article, .dashboard-event-v2, .dashboard-seminar-card, .settings-page-row, .student-slots-list { background: var(--surface) !important; border-color: var(--border) !important; }
+.dashboard-seminar-card { background: linear-gradient(135deg, rgba(154,230,180,.17), var(--surface)) !important; }
+.dashboard-people button { border-color: var(--border) !important; background: var(--surface) !important; }
+.dashboard-people button:hover { border-color: var(--border-strong) !important; background: var(--surface-hover) !important; }
+
+/* The admin is a workspace: persistent section nav, calmer data density and
+ * a shared treatment for all the embedded management screens. */
+.admin-shell { padding-top: 34px; }
+.admin-unified .admin-modebar-three {
+  position: sticky; top: 12px; z-index: 20; margin-bottom: 24px;
+  border-color: rgba(72,72,87,.82); box-shadow: 0 10px 34px rgba(0,0,0,.28);
+}
+.admin-unified .admin-modebar-three button { min-height: 46px; border-radius: 11px; }
+.admin-unified .admin-modebar-three button.is-active { background: linear-gradient(135deg, var(--accent), #9ae6b4); }
+.admin-header-new { padding-bottom: 4px; }
+.admin-overview, .admin-statistics-grid { gap: 12px; }
+.admin-stat, .admin-statistics-card { border-color: var(--border); background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.012)); }
+.admin-stat:first-child, .admin-statistics-card:nth-child(2) { border-color: rgba(154,230,180,.34); }
+.admin-day-picker button { min-height: 72px; border-color: var(--border); background: var(--surface); }
+.admin-day-picker button.is-active { border-color: rgba(154,230,180,.62); background: var(--accent-soft); box-shadow: inset 0 0 0 1px rgba(154,230,180,.13); }
+.admin-lesson-new { border-color: var(--border); background: var(--surface); }
+.admin-lesson-new:hover, .admin-lesson-new.is-expanded { border-color: var(--border-strong); background: var(--surface-raised); }
+.admin-lesson-summary { min-height: 72px; }
+.admin-lesson-editor { background: rgba(0,0,0,.11); }
+.admin-list-card, .admin-unified .admin-list-card { border-color: var(--border) !important; background: var(--surface) !important; }
+.admin-unified .admin-form-panel { border-color: var(--border) !important; background: linear-gradient(145deg, var(--surface-raised), var(--surface)) !important; }
+.admin-unified .admin-row:hover, .admin-unified .admin-person-row:hover, .admin-unified .admin-individual-row:hover { background: rgba(154,230,180,.045) !important; }
+.admin-unified .admin-avatar { border-color: rgba(154,230,180,.26); background: linear-gradient(145deg, #234332, #14251c); color: #d4f9e3; }
+.admin-statistics-person>b.has-devices { color: var(--accent); }
+
+/* One navigation component on every device: labelled on wide screens, an
+ * easy-to-scan icon strip on phones without squeezed micro-labels. */
+.app-navigation { border-color: rgba(154,230,180,.2) !important; background: rgba(20,20,27,.88) !important; }
+.app-navigation a.is-active { color: var(--accent-text) !important; background: var(--accent) !important; }
+.app-navigation a.is-active:after { background: var(--accent-text) !important; }
+
+@media (max-width: 700px) {
+  .dashboard-v2, .seminars-client, .student-slots, .settings-page { padding-top: 28px !important; }
+  .admin-shell { padding-top: 22px; }
+  .admin-unified .admin-modebar-three { top: 7px; margin-bottom: 18px; }
+  .admin-unified .admin-modebar-three button { min-height: 42px; }
+  .dashboard-stats { grid-template-columns: 1fr 1fr !important; }
+  .dashboard-stats article:first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .app-navigation { width: calc(100% - 16px) !important; bottom: calc(8px + env(safe-area-inset-bottom)) !important; }
+  .app-navigation a { height: 50px !important; }
+  .app-navigation a span { display: none !important; }
+  .app-navigation a svg { width: 20px !important; height: 20px !important; }
+  .admin-unified .admin-modebar-three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-unified .admin-modebar-three button { font-size: 11px; }
+  .admin-day-picker { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+
+/* Client rhythm: shared spacing, readable metadata, consistent controls. */
+body :is(.dashboard-v2:not(.dashboard-choose), .settings-page, .seminars-client, .student-slots) {
+  width:min(calc(100% - 32px),980px);
+}
+body :is(.dashboard-section-head, .seminar-subject > h2, .student-slot-subjects h3, .student-slots-mine h3) {
+  margin-bottom:12px;
+}
+body :is(.dashboard-section-head h2, .seminar-subject > h2, .student-slot-subjects h3, .student-slots-mine h3) {
+  font-size:18px; line-height:1.4; letter-spacing:-.02em;
+}
+body :is(.dashboard-event-v2, .dashboard-seminar-card, .settings-page-row, .student-slots-list, .seminar-list) {
+  border-radius:var(--radius-md);
+}
+body :is(.dashboard-event-content p, .dashboard-event-time small, .dashboard-seminar-card small,
+ .settings-page-row small, .student-slot-info span, .student-slot-info small, .student-slot-date span) {
+  color:var(--muted); font-size:12px; line-height:1.5;
+}
+body :is(.dashboard-event-content, .student-slot-info, .settings-page-row > div) { min-width:0; overflow-wrap:anywhere; }
+body :is(.dashboard-note, .settings-page-switch button, .student-slots button, .seminars-client .seminar-topic button, .icon-button) {
+  min-height:44px; font-size:12px; border-radius:var(--radius-sm);
+}
+body .settings-page-switch button.is-active { color:var(--accent-text); background:var(--accent); }
+body .student-slots-mine button { color:var(--muted-strong); border-color:var(--border); background:var(--surface); }
+body .student-slots-mine article { grid-template-columns:minmax(0,1fr) auto; }
+body :is(.dashboard-empty, .student-slots-empty, .seminar-empty) {
+  min-height:180px; padding:28px 20px; color:var(--muted); line-height:1.5;
+}
+body .dashboard-event-v2.past { opacity:.65; }
+body .dashboard-event-v2.current { box-shadow:inset 3px 0 var(--accent); }
+
+/* Keep fixed dialogs viewport-relative; don't animate their ancestors. */
+.app-page-transition { animation:none; will-change:auto; }
+.app-page-transition > :is(.dashboard-v2, .settings-page, .seminars-client, .student-slots, .schedule-shell) {
+  animation:none; filter:none; transform:none;
+}
+body :is(.dashboard-timeline, .dashboard-seminars) { animation:none; }
+@keyframes client-reveal {
+  from { opacity:0; transform:translateY(6px); }
+  to { opacity:1; transform:none; }
+}
+@media(prefers-reduced-motion:no-preference) {
+  body :is(.dashboard-event-v2, .dashboard-seminar-card, .settings-page-row, .student-slots-list, .student-slots-mine article) {
+    animation:client-reveal .24s ease-out backwards;
+    transition:border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+  }
+  body :is(.dashboard-seminar-grid, .settings-page-list) > :nth-child(2) { animation-delay:35ms; }
+  body :is(.dashboard-seminar-grid, .settings-page-list) > :nth-child(3) { animation-delay:70ms; }
+}
+@media(hover:hover) {
+  body :is(.dashboard-seminar-card:hover, .settings-page-row:hover, .student-slots-list article:hover) {
+    background:var(--surface-hover); border-color:var(--border-strong);
+  }
+}
+@media(max-width:600px) {
+  body :is(.dashboard-v2:not(.dashboard-choose), .settings-page, .seminars-client, .student-slots) { width:calc(100% - 24px); }
+  body :is(.settings-page input, .settings-page textarea, .seminars-client input, .seminars-client textarea) { font-size:16px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  body :is(.dashboard-event-v2, .dashboard-seminar-card, .settings-page-row, .student-slots-list, .student-slots-mine article) { animation:none; transition:none; }
+}
