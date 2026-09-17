@@ -15,22 +15,30 @@ export async function GET(request: NextRequest) {
   if (!authenticated(request)) return NextResponse.json({ error: "Войди в панель администратора" }, { status: 401 });
   try {
     const db = await getDatabase();
-    const [people, schedule, seminars, pushPersonIds, individualLessons, individualSlots, rehearsals] = await Promise.all([
+    const [people, schedule, seminars, pushDeviceCounts, individualLessons, individualSlots, rehearsals] = await Promise.all([
       getPeople(),
       getSchedule(),
       getSeminars(),
-      db.collection("push_subscriptions").distinct("personId"),
+      db.collection("push_subscriptions").aggregate<{ _id: string; devices: number }>([
+        { $match: { personId: { $type: "string" } } },
+        { $group: { _id: "$personId", devices: { $sum: 1 } } },
+      ]).toArray(),
       db.collection("individual_lessons").countDocuments(),
       db.collection("individual_slots").countDocuments(),
       db.collection("rehearsals").countDocuments(),
     ]);
     const activePeople = people.filter(person => person.active).length;
-    const pushUsers = new Set(pushPersonIds.filter((id): id is string => typeof id === "string")).size;
+    const devicesByPersonId = new Map(pushDeviceCounts.map(item => [item._id, item.devices]));
+    const pushDevicesByPerson = people
+      .map(person => ({ personId: person.id, name: person.name, active: person.active, devices: devicesByPersonId.get(person.id) ?? 0 }))
+      .sort((a, b) => b.devices - a.devices || a.name.localeCompare(b.name, "ru"));
+    const pushUsers = pushDevicesByPerson.filter(person => person.devices > 0).length;
+    const pushDevices = pushDevicesByPerson.reduce((total, person) => total + person.devices, 0);
     const lessons = schedule.days.reduce((total, day) => total + day.table.length, 0);
     const seminarTopics = seminars.reduce((total, list) => total + list.topics.length, 0);
     const seminarBookings = seminars.reduce((total, list) => total + list.topics.reduce((sum, topic) => sum + topic.studentIds.length, 0), 0);
     return NextResponse.json({
-      stats: { people: people.length, activePeople, pushUsers, lessons, seminarLists: seminars.length, seminarTopics, seminarBookings, individualLessons, individualSlots, rehearsals }
+      stats: { people: people.length, activePeople, pushUsers, pushDevices, pushDevicesByPerson, lessons, seminarLists: seminars.length, seminarTopics, seminarBookings, individualLessons, individualSlots, rehearsals }
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Failed to load admin statistics", error);
