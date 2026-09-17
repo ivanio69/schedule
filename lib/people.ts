@@ -2,6 +2,7 @@ export type Person = {
   id: string;
   name: string;
   active: boolean;
+  adminLink?: boolean;
   createdAt: string;
 };
 

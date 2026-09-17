@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   if (!authorized(request)) return bad();
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (!body || typeof body.name !== "string" || !body.name.trim()) return NextResponse.json({ error: "Укажите имя" }, { status: 400 });
-  const person = await savePerson({ name: body.name.trim().slice(0,120), active: body.active !== false });
+  const person = await savePerson({ name: body.name.trim().slice(0,120), active: body.active !== false, adminLink: body.adminLink === true });
   return NextResponse.json({ person }, { status: 201 });
 }
 
@@ -26,7 +26,7 @@ export async function PUT(request: NextRequest) {
   if (!authorized(request)) return bad();
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (!body || typeof body.id !== "string" || typeof body.name !== "string" || !body.name.trim()) return NextResponse.json({ error: "Проверьте данные человека" }, { status: 400 });
-  const person = await savePerson({ name: body.name.trim().slice(0,120), active: body.active !== false }, body.id);
+  const person = await savePerson({ name: body.name.trim().slice(0,120), active: body.active !== false, adminLink: body.adminLink === true }, body.id);
   return NextResponse.json({ person });
 }
 
