@@ -131,3 +131,64 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+/* Client rhythm: shared spacing, readable metadata, consistent controls. */
+body :is(.dashboard-v2:not(.dashboard-choose), .settings-page, .seminars-client, .student-slots) {
+  width:min(calc(100% - 32px),980px);
+}
+body :is(.dashboard-section-head, .seminar-subject > h2, .student-slot-subjects h3, .student-slots-mine h3) {
+  margin-bottom:12px;
+}
+body :is(.dashboard-section-head h2, .seminar-subject > h2, .student-slot-subjects h3, .student-slots-mine h3) {
+  font-size:18px; line-height:1.4; letter-spacing:-.02em;
+}
+body :is(.dashboard-event-v2, .dashboard-seminar-card, .settings-page-row, .student-slots-list, .seminar-list) {
+  border-radius:var(--radius-md);
+}
+body :is(.dashboard-event-content p, .dashboard-event-time small, .dashboard-seminar-card small,
+ .settings-page-row small, .student-slot-info span, .student-slot-info small, .student-slot-date span) {
+  color:var(--muted); font-size:12px; line-height:1.5;
+}
+body :is(.dashboard-event-content, .student-slot-info, .settings-page-row > div) { min-width:0; overflow-wrap:anywhere; }
+body :is(.dashboard-note, .settings-page-switch button, .student-slots button, .seminars-client .seminar-topic button, .icon-button) {
+  min-height:44px; font-size:12px; border-radius:var(--radius-sm);
+}
+body .settings-page-switch button.is-active { color:var(--accent-text); background:var(--accent); }
+body .student-slots-mine button { color:var(--muted-strong); border-color:var(--border); background:var(--surface); }
+body .student-slots-mine article { grid-template-columns:minmax(0,1fr) auto; }
+body :is(.dashboard-empty, .student-slots-empty, .seminar-empty) {
+  min-height:180px; padding:28px 20px; color:var(--muted); line-height:1.5;
+}
+body .dashboard-event-v2.past { opacity:.65; }
+body .dashboard-event-v2.current { box-shadow:inset 3px 0 var(--accent); }
+
+/* Keep fixed dialogs viewport-relative; don't animate their ancestors. */
+.app-page-transition { animation:none; will-change:auto; }
+.app-page-transition > :is(.dashboard-v2, .settings-page, .seminars-client, .student-slots, .schedule-shell) {
+  animation:none; filter:none; transform:none;
+}
+body :is(.dashboard-timeline, .dashboard-seminars) { animation:none; }
+@keyframes client-reveal {
+  from { opacity:0; transform:translateY(6px); }
+  to { opacity:1; transform:none; }
+}
+@media(prefers-reduced-motion:no-preference) {
+  body :is(.dashboard-event-v2, .dashboard-seminar-card, .settings-page-row, .student-slots-list, .student-slots-mine article) {
+    animation:client-reveal .24s ease-out backwards;
+    transition:border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+  }
+  body :is(.dashboard-seminar-grid, .settings-page-list) > :nth-child(2) { animation-delay:35ms; }
+  body :is(.dashboard-seminar-grid, .settings-page-list) > :nth-child(3) { animation-delay:70ms; }
+}
+@media(hover:hover) {
+  body :is(.dashboard-seminar-card:hover, .settings-page-row:hover, .student-slots-list article:hover) {
+    background:var(--surface-hover); border-color:var(--border-strong);
+  }
+}
+@media(max-width:600px) {
+  body :is(.dashboard-v2:not(.dashboard-choose), .settings-page, .seminars-client, .student-slots) { width:calc(100% - 24px); }
+  body :is(.settings-page input, .settings-page textarea, .seminars-client input, .seminars-client textarea) { font-size:16px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  body :is(.dashboard-event-v2, .dashboard-seminar-card, .settings-page-row, .student-slots-list, .student-slots-mine article) { animation:none; transition:none; }
+}

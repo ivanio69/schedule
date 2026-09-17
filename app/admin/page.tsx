@@ -20,7 +20,7 @@ type AdminSection = "rehearsals" | "schedule" | "people" | "individuals" | "semi
 type AdminStats={people:number;activePeople:number;pushUsers:number;pushDevices:number;pushDevicesByPerson:{personId:string;name:string;active:boolean;devices:number}[];lessons:number;seminarLists:number;seminarTopics:number;seminarBookings:number;individualLessons:number;individualSlots:number;rehearsals:number};
 function AdminSectionNavigation({ section, onChange }: { section: AdminSection; onChange: (section: AdminSection) => void }) {
  return <nav className="admin-modebar admin-modebar-three" aria-label="Разделы администратора">{([
-  ["schedule", "Расписание"], ["people", "Люди"], ["individuals", "Индивидуальные"], ["seminars", "Семинары"], ["rehearsals", "Репетиции"], ["notifications", "Уведомления"], ["statistics", "Статистика"],
+  ["schedule", "Расписание"], ["people", "Люди"], ["individuals", "Индивидуальные"], ["seminars", "Семинары"], ["notifications", "Уведомления"], ["statistics", "Статистика"],
  ] as const).map(([value, label], index) => <button key={value} className={section === value ? "is-active" : ""} aria-current={section === value ? "page" : undefined} onClick={() => onChange(value)}><span>0{index + 1}</span>{label}</button>)}</nav>;
 }
 export default function AdminPage(){

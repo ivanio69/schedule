@@ -22,7 +22,7 @@
   width:100%; margin:0; padding:0;
 }
 .admin-unified .admin-overview { grid-template-columns:repeat(3,minmax(0,1fr)); }
-.admin-unified .admin-modebar-three { grid-template-columns:repeat(7,minmax(0,1fr)); }
+.admin-unified .admin-modebar-three { grid-template-columns:repeat(6,minmax(0,1fr)); }
 .admin-unified .admin-modebar-three button span { display:none; }
 .admin-rehearsal-form { padding:20px; margin-bottom:16px; }
 .admin-rehearsal-actions { margin-top:16px; }

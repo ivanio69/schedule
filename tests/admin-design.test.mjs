@@ -9,7 +9,7 @@ test("All admin tabs use the shared heading", () => {
   assert.doesNotMatch(read("components/AdminIndividualSlots.tsx"), /<main/);
 });
 test("Rehearsals stay inside the admin tab shell", () => {
-  assert.match(read("app/admin/page.tsx"), /\["rehearsals", "Репетиции"\]/);
+  assert.doesNotMatch(read("app/admin/page.tsx"), /\["rehearsals", "Репетиции"\]/);
   assert.match(read("app/admin/page.tsx"), /<AdminRehearsals\/>/);
   assert.match(read("app/admin/rehearsals/page.tsx"), /redirect\("\/admin\?tab=rehearsals"\)/);
   assert.doesNotMatch(read("components/AdminRehearsals.tsx"), /AdminPageFrame/);
