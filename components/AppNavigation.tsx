@@ -7,7 +7,7 @@ const items = [
  { href: "/", label: "Сегодня", icon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v3M18 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M8 13h2M14 13h2M8 17h2"/></svg> },
  { href: "/schedule", label: "Полное расписание", icon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg> },
  { href: "/individual-slots", label: "Индивидуальные", icon: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 20a7 7 0 0 1 14 0"/></svg> },
- { href: "/seminars", label: "Семинары", icon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h4"/></svg> },
+ { href: "/seminars", label: "Семинары", icon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 5.5c3.2-.8 6-.1 8.5 2.3v11c-2.5-2.4-5.3-3.1-8.5-2.3v-11Z"/><path d="M20.5 5.5c-3.2-.8-6-.1-8.5 2.3v11c2.5-2.4 5.3-3.1 8.5-2.3v-11Z"/></svg> },
  { href: "/settings", label: "Настройки", icon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1-1.5 2.6-.2-.1a2.3 2.3 0 0 0-2.3 0l-.2.1a2.3 2.3 0 0 0-1.1 2v.2h-3v-.2a2.3 2.3 0 0 0-1.1-2l-.2-.1a2.3 2.3 0 0 0-2.3 0l-.2.1-1.5-2.6.1-.1a2.3 2.3 0 0 0 0-2.3l-.1-.2a2.3 2.3 0 0 0 0-2.3l-.1-.1 1.5-2.6.2.1a2.3 2.3 0 0 0 2.3 0l.2-.1a2.3 2.3 0 0 0 1.1-2V4h3v.2a2.3 2.3 0 0 0 1.1 2l.2.1a2.3 2.3 0 0 0 2.3 0l.2-.1 1.5 2.6-.1.1a2.3 2.3 0 0 0 0 2.3l.1.2a2.3 2.3 0 0 0 0 2.3l.1.1Z"/></svg> },
 ];
 
@@ -31,7 +31,7 @@ export default function AppNavigation(){
  useEffect(()=>{document.body.classList.toggle("has-app-navigation",mounted&&authenticated);return()=>document.body.classList.remove("has-app-navigation")},[mounted,authenticated]);
  if(pathname.startsWith("/admin") || !mounted || !authenticated) return null;
  return <nav className={`app-navigation${compact?" is-compact":""}`} aria-label="Основные разделы">
-   {items.map(({href,label,icon})=><Link key={href} className={pathname===href?"is-active":""} href={href} aria-label={label} title={label}>{icon}<span>{label}</span></Link>)}
+   {items.map(({href,label,icon})=><Link key={href} className={pathname===href?"is-active":""} href={href} aria-current={pathname===href?"page":undefined} aria-label={label} title={label}>{icon}<span>{href==="/schedule"?"Расписание":href==="/individual-slots"?"Запись":label}</span></Link>)}
    <style jsx global>{`
     @view-transition { navigation: auto; }
     ::view-transition-old(root){animation:page-out .16s ease both}

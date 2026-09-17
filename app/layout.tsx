@@ -18,6 +18,7 @@ import "./seminars.css";
 import "./push-notifications.css";
 import "./design-system.css";
 import "./admin-workspace.css";
+import "./client-polish.css";
 import AppNavigation from "@/components/AppNavigation";
 import OfflineBanner from "@/components/OfflineBanner";
 import PushPrompt from "@/components/PushPrompt";
