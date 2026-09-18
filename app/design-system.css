@@ -192,3 +192,42 @@ body :is(.dashboard-timeline, .dashboard-seminars) { animation:none; }
 @media(prefers-reduced-motion:reduce) {
   body :is(.dashboard-event-v2, .dashboard-seminar-card, .settings-page-row, .student-slots-list, .student-slots-mine article) { animation:none; transition:none; }
 }
+
+
+/* Stable, labelled navigation: one outline icon style and no scroll resizing. */
+body.has-app-navigation { padding-bottom:calc(96px + env(safe-area-inset-bottom)); }
+body .app-navigation.navigation-labelled {
+  position:fixed; left:50%; bottom:calc(10px + env(safe-area-inset-bottom));
+  z-index:1000; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:4px;
+  width:min(520px,calc(100% - 16px)) !important; padding:6px;
+  border:1px solid var(--border); border-radius:20px;
+  transform:translateX(-50%); backdrop-filter:blur(18px);
+  box-shadow:0 12px 40px rgba(0,0,0,.3); animation:none;
+}
+body .navigation-labelled a {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-width:0; height:60px !important; gap:5px; padding:4px 1px;
+  border-radius:14px; color:var(--muted-strong); text-decoration:none;
+  transition:color .18s ease,background-color .18s ease;
+}
+body .navigation-labelled a span {
+  display:block !important; max-width:none; opacity:1; white-space:nowrap;
+  font-size:11px; line-height:1.25; font-weight:650;
+}
+body .navigation-labelled a svg {
+  width:22px !important; height:22px !important; fill:none; stroke:currentColor;
+  stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round;
+  transition:transform .18s ease;
+}
+body .navigation-labelled a.is-active { color:var(--accent-text); background:var(--accent); }
+body .navigation-labelled a::before, body .navigation-labelled a::after { content:none; }
+body .navigation-labelled a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+@media(hover:hover) {
+  body .navigation-labelled a:not(.is-active):hover { background:var(--surface-hover); color:var(--text); }
+  body .navigation-labelled a:hover svg { transform:translateY(-2px); }
+}
+@media(max-width:360px) { body .navigation-labelled a span { font-size:10px; } }
+@media(prefers-reduced-motion:reduce) {
+  body .navigation-labelled a, body .navigation-labelled a svg { transition:none; transform:none; }
+}
+.dashboard-switcher, .quick-app-nav, .bottom-nav, .dashboard-header-actions { display:none !important; }
