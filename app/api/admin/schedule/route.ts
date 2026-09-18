@@ -30,7 +30,7 @@ function validateSchedule(value: unknown): value is ScheduleData {
     const item = lesson as Record<string, unknown>;
     return typeof item.class === "string" && typeof item.professor === "string" && typeof item.auditorium === "string"
       && typeof item.timeStart === "string" && typeof item.timeEnd === "string"
-      && Array.isArray(item.group) && item.group.every(Number.isInteger)
+      && Array.isArray(item.group) && item.group.every(group => Number.isInteger(group) || group === "china")
       && Array.isArray(item.weeks) && item.weeks.every(Number.isInteger);
   }));
 }

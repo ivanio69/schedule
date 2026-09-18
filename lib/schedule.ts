@@ -1,4 +1,4 @@
-export type Group = number;
+export type Group = number | "china";
 export type GroupPreference = "1" | "2" | "both";
 
 export type Lesson = {
@@ -28,7 +28,7 @@ export type Rehearsal = {
 };
 
 export type Day = { table: Lesson[] };
-export type ScheduleData = { semesterStart: number[]; days: Day[]; changes?: ScheduleChange[] };
+export type ScheduleData = { semesterStart: number[]; days: Day[]; changes?: ScheduleChange[]; chinaSubgroupInitialized?: boolean };
 export type ScheduleChange = { key: string; date: string; lesson: Lesson; kind: "move" | "cancel"; targetDate: string; timeStart: string; timeEnd: string; auditorium: string; reason: string; revision: number };
 
 export const DAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб"] as const;
@@ -57,9 +57,10 @@ export function getSubgroupSubjects(schedule: ScheduleData) {
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 }
 
-export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, preferences: Record<string, GroupPreference> = {}) {
+export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, preferences: Record<string, GroupPreference> = {}, chinaMode = false) {
   const date = getScheduleDate(schedule, week, dayIndex);
   return getOccurrences(schedule, date).filter(lesson => {
+    if (chinaMode && !lesson.group.includes("china")) return false;
     const preference = preferences[lesson.class] ?? "both";
     return preference === "both" || !lesson.group.length || lesson.group.includes(Number(preference));
   });
