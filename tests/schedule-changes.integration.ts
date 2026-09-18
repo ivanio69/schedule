@@ -1,0 +1,80 @@
+import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
+import { MongoMemoryServer } from "mongodb-memory-server";
+import { NextRequest } from "next/server";
+import webpush from "web-push";
+import { getLessonsForWeek, getOccurrences, type Lesson, type ScheduleData } from "../lib/schedule";
+
+async function main() {
+  const mongo = await MongoMemoryServer.create();
+  process.env.MONGODB_URI = mongo.getUri();
+  process.env.MONGODB_DB = "schedule_changes_test";
+  process.env.ADMIN_SESSION_SECRET = "schedule-test";
+  const vapid = webpush.generateVAPIDKeys();
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = vapid.publicKey;
+  process.env.VAPID_PRIVATE_KEY = vapid.privateKey;
+  const deliveries: string[] = [];
+  const originalSend = webpush.sendNotification;
+  webpush.sendNotification = (async (subscription: { endpoint: string }) => { deliveries.push(subscription.endpoint); return { statusCode: 201, body: "", headers: {} }; }) as typeof webpush.sendNotification;
+  const { getDatabase, getSchedule, saveSchedule } = await import("../lib/database");
+  const { default: client } = await import("../lib/mongodb");
+  const { POST } = await import("../app/api/admin/schedule/changes/route");
+  const cookie = "schedule_admin=" + createHmac("sha256", "schedule-test").update("schedule-admin").digest("hex");
+  const req = (body: unknown, auth = true) => new NextRequest("http://localhost/api/admin/schedule/changes", { method: "POST", headers: { "Content-Type": "application/json", ...(auth ? { cookie } : {}) }, body: JSON.stringify(body) });
+  try {
+    const db = await getDatabase();
+    const lesson: Lesson = { class: "История", professor: "Преподаватель", auditorium: "1", timeStart: "09:00", timeEnd: "10:30", weeks: [1,2,3], group: [1] };
+    const schedule: ScheduleData = { semesterStart: [2026,8,7], days: [{ table: [lesson] },{ table: [{...lesson,class:"Литература"}] },...Array.from({length:4},()=>({table:[]}))] };
+    await saveSchedule(schedule);
+    await db.collection("push_subscriptions").insertMany(["a","b","c"].map(personId=>({personId,endpoint:"https://example.invalid/"+personId,keys:{p256dh:"test",auth:"test"}})));
+    await db.collection("profile_settings").insertOne({personId:"b",notificationPreferences:{seminars:false,individuals:false}});
+    const profile = await import("../app/api/profile/settings/route");
+    await db.collection("people").insertOne({id:"c",name:"Test",active:true});
+    const savedPreference = await profile.PUT(new Request("http://localhost/api/profile/settings", {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({personId:"c",notificationPreferences:{scheduleChanges:false}})}));
+    assert.equal(savedPreference.status,200);
+    const loadedPreference = await (await profile.GET(new Request("http://localhost/api/profile/settings?personId=c"))).json();
+    assert.equal(loadedPreference.notificationPreferences.scheduleChanges,false);
+    const before = await getSchedule();
+    const occurrence = getOccurrences(before,"2026-09-07")[0].occurrence!;
+    const input = {...occurrence,kind:"move",targetDate:"2026-09-09",timeStart:"11:00",timeEnd:"12:30",auditorium:"2",reason:"Изменение"};
+    assert.equal((await POST(req(input,false))).status,401);
+    assert.equal((await POST(req({...input,targetDate:"2026-09-13"}))).status,400);
+    assert.equal((await POST(req({...input,timeEnd:"10:00"}))).status,400);
+    assert.equal((await POST(req({...input,targetDate:"2026-09-08",timeStart:"09:30",timeEnd:"11:00"}))).status,409);
+    const race = await Promise.all([POST(req(input)),POST(req(input))]);
+    assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);
+    assert.equal(deliveries.length,2,"one broadcast, respecting schedule preference");
+    assert.ok(!deliveries.some(endpoint=>endpoint.endsWith("/c")),"schedule opt-out applies");
+    let updated = await getSchedule();
+    assert.equal(getOccurrences(updated,"2026-09-07").length,0);
+    assert.equal(getOccurrences(updated,"2026-09-14").length,1,"other weeks unchanged");
+    assert.equal(getLessonsForWeek(updated,2,1)[0].auditorium,"2");
+    assert.equal(getLessonsForWeek(updated,2,1,{"История":"2"}).length,0);
+    // Stable identity survives template edits and sorting.
+    updated.days[0].table[0].class = "История культуры";
+    await saveSchedule(updated);
+    updated = await getSchedule();
+    assert.equal(getOccurrences(updated,"2026-09-07").length,0);
+    assert.equal((await POST(req({...input,revision:1,targetDate:"2026-09-10"}))).status,200);
+    assert.equal(getOccurrences(await getSchedule(),"2026-09-09").length,0);
+    const cancelled = await POST(req({...input,revision:2,kind:"cancel"}));
+    assert.equal(cancelled.status,200);
+    assert.equal(getOccurrences(await getSchedule(),"2026-09-10").length,0);
+    assert.equal((await POST(req({...input,revision:2,kind:"cancel"}))).status,409);
+    assert.equal(deliveries.length,6);
+    delete process.env.VAPID_PRIVATE_KEY;
+    const next = getOccurrences(await getSchedule(),"2026-09-14")[0].occurrence!;
+    const unavailable = await (await POST(req({...next,kind:"cancel",reason:""}))).json();
+    assert.equal(unavailable.ok,true);
+    assert.ok(unavailable.warning);
+    assert.equal(getOccurrences(await getSchedule(),"2026-09-14").length,0);
+    const allWeeks = {...schedule,days:[{table:[{...lesson,weeks:[]}]}]};
+    assert.equal(getLessonsForWeek(allWeeks,0,1).length,1);
+    console.log("Schedule changes: auth, validation, conflicts, concurrent retries, move, re-move, cancellation, template identity, subgroup filtering and mocked all-device push passed.");
+  } finally {
+    webpush.sendNotification = originalSend;
+    await (await client).close();
+    await mongo.stop();
+  }
+}
+main().catch(error=>{ console.error(error); process.exitCode=1; });

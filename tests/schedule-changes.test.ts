@@ -1,0 +1,28 @@
+import assert from "node:assert/strict";
+import { getLessonsForWeek, getOccurrences, getScheduleDate, validScheduleDate, type Lesson, type ScheduleData, type ScheduleChange } from "../lib/schedule";
+
+const lesson: Lesson = { id: "history", class: "История", professor: "Преподаватель", auditorium: "1", timeStart: "09:00", timeEnd: "10:30", group: [1], weeks: [1,2,3] };
+const schedule: ScheduleData = { semesterStart: [2026,8,7], days: [{table:[lesson]},...Array.from({length:5},()=>({table:[]}))] };
+const change: ScheduleChange = {key:"history",date:"2026-09-07",lesson,kind:"move",targetDate:"2026-09-09",timeStart:"11:00",timeEnd:"12:30",auditorium:"2",reason:"",revision:1};
+schedule.changes = [change];
+assert.equal(getScheduleDate(schedule,2,0),"2026-09-14");
+assert.equal(validScheduleDate(schedule,"2026-09-13"),false);
+assert.equal(validScheduleDate(schedule,"2026-02-30"),false);
+assert.equal(validScheduleDate(schedule,"2026-10-01"),false);
+assert.equal(getOccurrences(schedule,"2026-09-07").length,0);
+assert.equal(getOccurrences(schedule,"2026-09-14").length,1);
+assert.equal(getLessonsForWeek(schedule,2,1)[0].auditorium,"2");
+assert.equal(getLessonsForWeek(schedule,2,1,{"История":"2"}).length,0);
+schedule.days[0].table[0] = {...lesson,class:"Новое название",timeStart:"08:00"};
+assert.equal(getOccurrences(schedule,"2026-09-07").length,0,"template edit cannot resurrect moved occurrence");
+change.targetDate = "2026-09-15";
+assert.equal(getOccurrences(schedule,"2026-09-09").length,0);
+assert.equal(getLessonsForWeek(schedule,1,2).length,1);
+change.kind = "cancel";
+assert.equal(getLessonsForWeek(schedule,1,2).length,0);
+assert.equal(getOccurrences(schedule,"2026-09-14").length,1);
+schedule.days[0].table[0].weeks = [];
+assert.equal(getOccurrences(schedule,"2026-09-07").length,0);
+const allWeeks: ScheduleData = {...schedule,changes:[]};
+assert.equal(getLessonsForWeek(allWeeks,0,1).length,1);
+console.log("Schedule occurrence tests passed.");

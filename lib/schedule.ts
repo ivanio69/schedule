@@ -1,7 +1,8 @@
-export type Group = number;
+export type Group = number | "china";
 export type GroupPreference = "1" | "2" | "both";
 
 export type Lesson = {
+  id?: string;
   class: string;
   professor: string;
   auditorium: string;
@@ -9,6 +10,7 @@ export type Lesson = {
   timeEnd: string;
   group: number[];
   weeks: number[];
+  occurrence?: { key: string; date: string; revision: number };
 };
 
 export type Rehearsal = {
@@ -26,7 +28,8 @@ export type Rehearsal = {
 };
 
 export type Day = { table: Lesson[] };
-export type ScheduleData = { semesterStart: number[]; days: Day[] };
+export type ScheduleData = { semesterStart: number[]; days: Day[]; changes?: ScheduleChange[]; chinaSubgroupInitialized?: boolean };
+export type ScheduleChange = { key: string; date: string; lesson: Lesson; kind: "move" | "cancel"; targetDate: string; timeStart: string; timeEnd: string; auditorium: string; reason: string; revision: number };
 
 export const DAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб"] as const;
 
@@ -54,15 +57,45 @@ export function getSubgroupSubjects(schedule: ScheduleData) {
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 }
 
-export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, preferences: Record<string, GroupPreference> = {}) {
-  const day = schedule.days[dayIndex];
-  if (!day) return [];
-  return day.table.filter((lesson) => {
-    if (!lesson.weeks.includes(week)) return false;
-    if (lesson.group.length <= 1) return true;
+export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, preferences: Record<string, GroupPreference> = {}, chinaMode = false) {
+  const date = getScheduleDate(schedule, week, dayIndex);
+  return getOccurrences(schedule, date).filter(lesson => {
+    if (chinaMode && !lesson.group.includes("china")) return false;
     const preference = preferences[lesson.class] ?? "both";
-    return preference === "both" || lesson.group.includes(Number(preference));
-  }).sort((a, b) => a.timeStart.localeCompare(b.timeStart));
+    return preference === "both" || !lesson.group.length || lesson.group.includes(Number(preference));
+  });
+}
+
+export function lessonKey(lesson: Lesson) {
+  return lesson.id ?? JSON.stringify([lesson.class, lesson.professor, lesson.timeStart, lesson.timeEnd, lesson.auditorium, [...lesson.group].sort(), [...lesson.weeks].sort((a,b)=>a-b)]);
+}
+export function getScheduleDate(schedule: ScheduleData, week: number, day: number) {
+  const [y,m,d] = schedule.semesterStart;
+  const monday = new Date(Date.UTC(y,m,d));
+  monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay()+6)%7 + (week-1)*7 + day);
+  return monday.toISOString().slice(0,10);
+}
+export function datePosition(schedule: ScheduleData, date: string) {
+  const days = (Date.parse(date) - Date.parse(getScheduleDate(schedule,1,0))) / 86400000;
+  return { week: Math.floor(days/7)+1, day: ((days%7)+7)%7 };
+}
+export function validScheduleDate(schedule: ScheduleData, date: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date))) return false;
+  if (new Date(date).toISOString().slice(0,10) !== date) return false;
+  const {week,day} = datePosition(schedule,date);
+  return week >= 1 && week <= getTotalWeeks(schedule) && day < 6;
+}
+export function getOccurrences(schedule: ScheduleData, date: string): Lesson[] {
+  if (!validScheduleDate(schedule,date)) return [];
+  const {week,day} = datePosition(schedule,date);
+  const changes = schedule.changes ?? [];
+  const lessons = (schedule.days[day]?.table ?? []).filter(l=>!l.weeks.length || l.weeks.includes(week))
+    .filter(l=>!changes.some(c=>c.date===date && c.key===lessonKey(l)))
+    .map(l=>({...l, occurrence:{key:lessonKey(l),date,revision:0}}));
+  for (const c of changes) {
+    if (c.kind==="move" && c.targetDate===date) lessons.push({...c.lesson,timeStart:c.timeStart,timeEnd:c.timeEnd,auditorium:c.auditorium,occurrence:{key:c.key,date:c.date,revision:c.revision}});
+  }
+  return lessons.sort((a,b)=>a.timeStart.localeCompare(b.timeStart));
 }
 
 function getSemesterMonday(schedule: ScheduleData) {
