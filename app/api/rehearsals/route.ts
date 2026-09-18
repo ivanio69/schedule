@@ -99,8 +99,16 @@ export async function DELETE(request: Request) {
   try {
     const url = new URL(request.url), id = url.searchParams.get("id"), creatorId = url.searchParams.get("creatorId");
     if (!id || !creatorId) return NextResponse.json({ error: "Не хватает данных" }, { status: 400 });
+    const db = await getDatabase();
+    const rehearsal = await db.collection<Rehearsal>("rehearsals").findOne({ id, creatorId });
+    if (!rehearsal) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
+    const people = await getPeople(true);
+    const idsByName = new Map(people.map((person) => [person.name, person.id]));
+    const participantIds = rehearsal.participants.map((name) => idsByName.get(name)).filter((value): value is string => Boolean(value));
     const deleted = await deleteRehearsal(id, creatorId);
-    return deleted ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
+    if (!deleted) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
+    await notifyParticipants(participantIds, "Репетиция отменена", rehearsal);
+    return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to delete rehearsal", error);
     return NextResponse.json({ error: "Не удалось удалить репетицию" }, { status: 500 });
