@@ -364,3 +364,11 @@ body .rehearsal-notes-field textarea{min-height:80px;resize:vertical;line-height
   body .rehearsal-form__head{flex-direction:column}
   body .rehearsal-schedule-link{width:100%;text-align:center}
 }
+
+body .rehearsal-people-picker button.is-locked,
+body .rehearsal-people-picker button.is-locked:disabled{
+  opacity:1;
+  cursor:not-allowed;
+  border-style:dashed;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--rehearsal) 28%,transparent)
+}
