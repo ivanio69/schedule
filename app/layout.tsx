@@ -4,6 +4,7 @@ import "./globals.css";
 import "./admin/admin-polish.css";
 import "./admin/admin-lists.css";
 import "./schedule-modal.css";
+import "./rehearsal-editor.css";
 import "./dashboard-login.css";
 import "./page-transitions.css";
 import "./loading-state.css";

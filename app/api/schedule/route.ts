@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
-import { getIndividualLessons, getPeople, getRehearsals, getSchedule } from "@/lib/database";
+import { filterRehearsalsForPerson, getIndividualLessons, getPeople, getRehearsals, getSchedule } from "@/lib/database";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const date = new URL(request.url).searchParams.get("date");
+    const url = new URL(request.url);
+    const date = url.searchParams.get("date");
+    const personId = url.searchParams.get("personId");
     const schedule = await getSchedule();
-    const rehearsals = date ? await getRehearsals(date) : [];
+    const rehearsals = await filterRehearsalsForPerson(date ? await getRehearsals(date) : [], personId);
     const individualLessons = date ? await getIndividualLessons(undefined, date) : [];
     const people = individualLessons.length ? await getPeople() : [];
     const names = new Map(people.map((person) => [person.id, person.name]));

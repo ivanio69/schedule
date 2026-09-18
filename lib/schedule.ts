@@ -13,6 +13,17 @@ export type Lesson = {
   occurrence?: { key: string; date: string; revision: number };
 };
 
+export type RehearsalParticipantMode = "rehearsal" | "blocks";
+
+export type RehearsalBlock = {
+  id: string;
+  title: string;
+  timeStart: string;
+  timeEnd: string;
+  notes?: string;
+  participants: string[];
+};
+
 export type Rehearsal = {
   id: string;
   creatorId: string;
@@ -23,6 +34,9 @@ export type Rehearsal = {
   timeEnd: string;
   responsible: string;
   participants: string[];
+  participantMode?: RehearsalParticipantMode;
+  blocks?: RehearsalBlock[];
+  notes?: string;
   isGlobal?: boolean;
   createdAt: string;
 };

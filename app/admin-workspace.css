@@ -42,3 +42,10 @@
  .admin-rehearsal-item { flex-wrap:wrap; }
  .admin-rehearsal-copy { flex-basis:100%; order:1; }
 }
+
+.admin-rehearsal-schedule-link,.admin-rehearsal-edit-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.admin-rehearsal-notes{display:grid;gap:6px;margin-top:14px;color:var(--muted);font-size:10px;font-weight:700}
+.admin-rehearsal-notes textarea{min-height:82px;resize:vertical;line-height:1.45}
+.admin-rehearsal-participants{display:grid;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.admin-rehearsal-copy small{display:block;margin-top:5px;line-height:1.45}
+@media(max-width:600px){.admin-rehearsal-schedule-link{width:100%}.admin-rehearsal-edit-link{order:2;flex:1}.admin-rehearsal-item>.admin-danger{order:2;flex:1}}
