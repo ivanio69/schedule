@@ -231,3 +231,57 @@ body .navigation-labelled a:focus-visible { outline:2px solid var(--accent); out
   body .navigation-labelled a, body .navigation-labelled a svg { transition:none; transform:none; }
 }
 .dashboard-switcher, .quick-app-nav, .bottom-nav, .dashboard-header-actions { display:none !important; }
+
+
+/* Event identity is independent of the green application accent. */
+:root {
+  --rehearsal:#f5c16c; --rehearsal-bg:rgba(245,193,108,.09);
+  --global-rehearsal:#ff9c8a; --seminar:#c4b5fd; --individual:#8fc9ff;
+}
+body :is(.rehearsal-card, .dashboard-rehearsal, .dashboard-event-v2.rehearsal) { --event-color:var(--rehearsal); }
+body :is(.rehearsal-card.is-global, .dashboard-rehearsal.is-global, .dashboard-event-v2.rehearsal.is-global) { --event-color:var(--global-rehearsal); }
+body :is(.seminar-list, .dashboard-seminar-card) { --event-color:var(--seminar); }
+body :is(.individual-lesson-card, .booked-individual-slot-card, .dashboard-event-v2.individual, .student-slots-list, .student-slots-mine article) { --event-color:var(--individual); }
+body :is(.rehearsal-card, .dashboard-rehearsal, .dashboard-event-v2.rehearsal,
+ .seminar-list, .dashboard-seminar-card, .individual-lesson-card, .booked-individual-slot-card,
+ .dashboard-event-v2.individual, .student-slots-list, .student-slots-mine article) {
+  border-color:color-mix(in srgb,var(--event-color) 48%,var(--border)) !important;
+  background:color-mix(in srgb,var(--event-color) 7%,var(--surface)) !important;
+  box-shadow:inset 3px 0 var(--event-color) !important;
+}
+body :is(.rehearsal-card, .individual-lesson-card, .booked-individual-slot-card) .schedule-card__time {
+  border-right-color:color-mix(in srgb,var(--event-color) 25%,var(--border));
+  background:color-mix(in srgb,var(--event-color) 5%,var(--surface));
+}
+body :is(.rehearsal-card, .individual-lesson-card) .card-kind-badge,
+body .booked-individual-slot-badge,
+body .dashboard-rehearsal .dashboard-rehearsal__main>span,
+body :is(.dashboard-event-v2.rehearsal,.dashboard-event-v2.individual) .dashboard-event-content>span,
+body .dashboard-seminar-card>span { color:var(--event-color); }
+body :is(.card-kind-badge--rehearsal,.card-kind-badge--individual,.booked-individual-slot-badge) {
+  background:color-mix(in srgb,var(--event-color) 12%,transparent);
+  border-color:color-mix(in srgb,var(--event-color) 35%,transparent);
+}
+body .seminar-mine-badge { color:var(--seminar); background:color-mix(in srgb,var(--seminar) 14%,transparent); }
+body .seminar-list-mine .seminar-summary, body .seminar-list li.seminar-mine {
+  background:color-mix(in srgb,var(--seminar) 12%,var(--surface));
+}
+body .seminar-list li.seminar-mine { box-shadow:inset 3px 0 var(--seminar); }
+
+/* No nested mobile gutters: payout banner fills its containing card column. */
+body .schedule-scholarship-wrap { width:100%; min-width:0; max-width:100%; box-sizing:border-box; }
+body :is(.schedule-scholarship-wrap,.dashboard-stats)>.scholarship-badge {
+  width:100%; min-width:0; max-width:100%; margin:0; box-sizing:border-box;
+}
+body .dashboard-stats>.scholarship-badge { grid-column:1 / -1; }
+body .scholarship-badge strong { min-width:0; overflow-wrap:anywhere; }
+
+/* Settings sections share one hierarchy and spacing scale. */
+.settings-page .settings-group { margin-top:28px; }
+.settings-page .settings-group h2 { margin:0; font-size:20px; line-height:1.4; }
+.settings-page .settings-group-description { margin:6px 0 0; color:var(--muted); font-size:13px; }
+.settings-page .settings-group .settings-page-list { margin-top:12px; gap:0; border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+.settings-page .settings-group .settings-page-row { margin:0; border:0; border-radius:0; box-shadow:none; border-bottom:1px solid var(--border); }
+.settings-page .settings-group .settings-page-row:last-child { border-bottom:0; }
+.settings-page .settings-group :is(.settings-logout,.settings-admin-link) { margin-top:12px; }
+.settings-page-status { line-height:1.5; }
