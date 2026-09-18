@@ -1,4 +1,4 @@
-export type Group = number;
+export type Group = number | "china";
 export type GroupPreference = "1" | "2" | "both";
 
 export type Lesson = {
@@ -57,9 +57,10 @@ export function getSubgroupSubjects(schedule: ScheduleData) {
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 }
 
-export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, preferences: Record<string, GroupPreference> = {}) {
+export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, preferences: Record<string, GroupPreference> = {}, chinaMode = false) {
   const date = getScheduleDate(schedule, week, dayIndex);
   return getOccurrences(schedule, date).filter(lesson => {
+    if (chinaMode && !lesson.group.includes("china")) return false;
     const preference = preferences[lesson.class] ?? "both";
     return preference === "both" || !lesson.group.length || lesson.group.includes(Number(preference));
   });
