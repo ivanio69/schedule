@@ -26,8 +26,14 @@ async function main() {
     const lesson: Lesson = { class: "История", professor: "Преподаватель", auditorium: "1", timeStart: "09:00", timeEnd: "10:30", weeks: [1,2,3], group: [1] };
     const schedule: ScheduleData = { semesterStart: [2026,8,7], days: [{ table: [lesson] },{ table: [{...lesson,class:"Литература"}] },...Array.from({length:4},()=>({table:[]}))] };
     await saveSchedule(schedule);
-    await db.collection("push_subscriptions").insertMany(["a","b"].map(personId=>({personId,endpoint:"https://example.invalid/"+personId,keys:{p256dh:"test",auth:"test"}})));
+    await db.collection("push_subscriptions").insertMany(["a","b","c"].map(personId=>({personId,endpoint:"https://example.invalid/"+personId,keys:{p256dh:"test",auth:"test"}})));
     await db.collection("profile_settings").insertOne({personId:"b",notificationPreferences:{seminars:false,individuals:false}});
+    const profile = await import("../app/api/profile/settings/route");
+    await db.collection("people").insertOne({id:"c",name:"Test",active:true});
+    const savedPreference = await profile.PUT(new Request("http://localhost/api/profile/settings", {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({personId:"c",notificationPreferences:{scheduleChanges:false}})}));
+    assert.equal(savedPreference.status,200);
+    const loadedPreference = await (await profile.GET(new Request("http://localhost/api/profile/settings?personId=c"))).json();
+    assert.equal(loadedPreference.notificationPreferences.scheduleChanges,false);
     const before = await getSchedule();
     const occurrence = getOccurrences(before,"2026-09-07")[0].occurrence!;
     const input = {...occurrence,kind:"move",targetDate:"2026-09-09",timeStart:"11:00",timeEnd:"12:30",auditorium:"2",reason:"Изменение"};
@@ -37,7 +43,8 @@ async function main() {
     assert.equal((await POST(req({...input,targetDate:"2026-09-08",timeStart:"09:30",timeEnd:"11:00"}))).status,409);
     const race = await Promise.all([POST(req(input)),POST(req(input))]);
     assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);
-    assert.equal(deliveries.length,2,"one broadcast, including opted-out category");
+    assert.equal(deliveries.length,2,"one broadcast, respecting schedule preference");
+    assert.ok(!deliveries.some(endpoint=>endpoint.endsWith("/c")),"schedule opt-out applies");
     let updated = await getSchedule();
     assert.equal(getOccurrences(updated,"2026-09-07").length,0);
     assert.equal(getOccurrences(updated,"2026-09-14").length,1,"other weeks unchanged");

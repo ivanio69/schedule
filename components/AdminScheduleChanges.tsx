@@ -40,7 +40,7 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
         throw new Error(data.error ?? "Не удалось сохранить изменение");
       }
       close();
-      setMessage(data.warning ?? (data.delivery.subscriptions ? `Сохранено. Push-сервис принял уведомления для ${data.delivery.sent} из ${data.delivery.subscriptions} устройств.${data.delivery.failed ? " Часть отправок не удалась — используйте раздел «Уведомления»." : ""}` : "Сохранено. Подключённых push-устройств пока нет."));
+      setMessage(data.warning ?? (data.delivery.subscriptions ? `Сохранено. Push-сервис принял уведомления для ${data.delivery.sent} из ${data.delivery.subscriptions} устройств.${data.delivery.failed ? " Часть отправок не удалась — используйте раздел «Уведомления»." : ""}` : "Сохранено. Нет устройств с включёнными уведомлениями об отменах и переносах."));
       try { await reload(); } catch { setError("Изменение сохранено. Обновите страницу, чтобы увидеть актуальное расписание."); }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Ошибка сети. Обновите расписание перед повторной попыткой.");
@@ -56,7 +56,7 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
       <button className="admin-secondary" disabled={busy} onClick={() => { close(); setWeek(getCurrentWeek(schedule)); setDay(Math.min((new Date().getDay()+6)%7,5)); }}>Текущая неделя</button>
     </div>
     <div className={styles.days} aria-label="День недели">{DAY_NAMES.map((name, i) => <button key={name} aria-pressed={day === i} disabled={busy} onClick={() => { close(); setDay(i); }}><strong>{name}</strong><span>{getScheduleDate(schedule, week, i).slice(5).split("-").reverse().join(".")}</span><small>{getOccurrences(schedule, getScheduleDate(schedule, week, i)).length} пар</small></button>)}</div>
-    <p className={styles.hint}>Перенос и отмена действуют только на выбранную пару. Уведомление получат все с подключёнными push-уведомлениями.</p>
+    <p className={styles.hint}>Перенос и отмена действуют только на выбранную пару. Уведомление получат подписчики, включившие отмены и переносы в настройках.</p>
     {message && <p className={styles.notice} role="status">{message}</p>}
     {error && <p className={styles.error} role="alert">{error}</p>}
     {!lessons.length && <div className={styles.empty}>На этот день пар нет</div>}
@@ -80,7 +80,7 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
               <label>Аудитория<input className="admin-input" name="auditorium" maxLength={120} defaultValue={lesson.auditorium}/></label>
             </div>}
             <label>Причина <span>(необязательно, попадёт в уведомление)</span><input autoFocus={editing.kind === "cancel"} className="admin-input" name="reason" maxLength={300} placeholder="Например, преподаватель заболел"/></label>
-            <div className={styles.confirm}><button type="button" className="admin-secondary" onClick={close}>Назад</button><button className={editing.kind === "cancel" ? "admin-danger" : "admin-primary"} type="submit">{busy ? "Сохраняем…" : editing.kind === "cancel" ? "Отменить и уведомить всех" : "Перенести и уведомить всех"}</button></div>
+            <div className={styles.confirm}><button type="button" className="admin-secondary" onClick={close}>Назад</button><button className={editing.kind === "cancel" ? "admin-danger" : "admin-primary"} type="submit">{busy ? "Сохраняем…" : editing.kind === "cancel" ? "Отменить и уведомить" : "Перенести и уведомить"}</button></div>
           </fieldset>
         </form>}
       </article>;

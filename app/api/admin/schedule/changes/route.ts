@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       const body = input.kind === "cancel"
         ? `${lesson.class}: ${format(currentDate)}, ${lesson.timeStart} — отменена.`
         : `${lesson.class}: ${format(currentDate)} ${lesson.timeStart} → ${format(change.targetDate)} ${change.timeStart}–${change.timeEnd}${change.auditorium ? ", ауд. " + change.auditorium : ""}.`;
-      const delivery = await sendPush(ids, null, { title: input.kind === "cancel" ? "Отмена пары" : "Перенос пары", body: body + (change.reason ? " " + change.reason : ""), url: "/schedule" });
+      const delivery = await sendPush(ids, "scheduleChanges", { title: input.kind === "cancel" ? "Отмена пары" : "Перенос пары", body: body + (change.reason ? " " + change.reason : ""), url: "/schedule" });
       return reply({ ok: true, delivery });
     } catch (error) {
       console.error("Schedule change saved, notification failed", error);
