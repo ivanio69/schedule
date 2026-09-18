@@ -28,7 +28,7 @@ export type Rehearsal = {
 };
 
 export type Day = { table: Lesson[] };
-export type ScheduleData = { semesterStart: number[]; days: Day[]; changes?: ScheduleChange[] };
+export type ScheduleData = { semesterStart: number[]; days: Day[]; changes?: ScheduleChange[]; chinaSubgroupInitialized?: boolean };
 export type ScheduleChange = { key: string; date: string; lesson: Lesson; kind: "move" | "cancel"; targetDate: string; timeStart: string; timeEnd: string; auditorium: string; reason: string; revision: number };
 
 export const DAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб"] as const;
