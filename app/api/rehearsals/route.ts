@@ -1,34 +1,96 @@
 import { NextResponse } from "next/server";
 import { createRehearsal, deleteRehearsal, filterRehearsalsForPerson, getDatabase, getPeople, getRehearsals, updateRehearsal } from "@/lib/database";
-import type { Rehearsal } from "@/lib/schedule";
+import { getChangedRehearsalAudienceNames, getRehearsalAudienceNames, getRehearsalBounds } from "@/lib/rehearsals";
 import { sendPush } from "@/lib/push";
+import type { Rehearsal, RehearsalBlock, RehearsalParticipantMode } from "@/lib/schedule";
 
 function validTime(value: unknown) { return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value); }
 function validDate(value: unknown) { return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)); }
-function validPayload(value: unknown): value is Omit<Rehearsal, "id" | "createdAt" | "creatorName"> {
-  if (!value || typeof value !== "object") return false;
-  const input = value as Partial<Rehearsal>;
-  return typeof input.creatorId === "string" && input.creatorId.length >= 8 && input.creatorId.length <= 128 && typeof input.subject === "string" && input.subject.trim().length >= 1 && input.subject.trim().length <= 120 && validDate(input.date) && validTime(input.timeStart) && validTime(input.timeEnd) && typeof input.responsible === "string" && input.responsible.trim().length >= 1 && input.responsible.trim().length <= 120 && Array.isArray(input.participants) && input.participants.length <= 100 && input.participants.every((p) => typeof p === "string" && p.trim().length > 0 && p.trim().length <= 120);
-}
-function validEditPayload(value: unknown) {
-  if (!value || typeof value !== "object") return false;
-  const input = value as Partial<Rehearsal>;
-  return typeof input.subject === "string" && input.subject.trim().length >= 1 && input.subject.trim().length <= 120 && validDate(input.date) && validTime(input.timeStart) && validTime(input.timeEnd) && typeof input.responsible === "string" && input.responsible.trim().length >= 1 && input.responsible.trim().length <= 120 && Array.isArray(input.participants) && input.participants.length <= 100 && input.participants.every((p) => typeof p === "string" && p.trim().length > 0 && p.trim().length <= 120);
-}
-async function resolveParticipants(participants: string[]) {
+function cleanText(value: unknown, max: number) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
+function cleanNotes(value: unknown) { return cleanText(value, 2000); }
+
+async function normalizeParticipantNames(values: unknown, allowEmpty = true) {
+  if (!Array.isArray(values) || values.length > 100 || values.some(value => typeof value !== "string")) return null;
   const people = await getPeople(true);
-  const byName = new Map(people.map((person) => [person.name, person]));
-  const normalized = [...new Set(participants.map((participant) => participant.trim()).filter(Boolean))];
-  if (normalized.some((participant) => !byName.has(participant))) return null;
-  return { participants: normalized, participantIds: normalized.map((participant) => byName.get(participant)!.id) };
+  const allowed = new Set(people.map(person => person.name));
+  const names = [...new Set(values.map(value => String(value).trim()).filter(Boolean))];
+  if (!allowEmpty && names.length === 0) return null;
+  if (names.some(name => !allowed.has(name))) return null;
+  return names;
 }
 
-async function notifyParticipants(participantIds: string[], title: string, rehearsal: Rehearsal) {
-  if (!participantIds.length) return;
+async function normalizeBlocks(values: unknown): Promise<RehearsalBlock[] | null> {
+  if (!Array.isArray(values) || values.length < 1 || values.length > 40) return null;
+  const blocks: RehearsalBlock[] = [];
+  for (const value of values) {
+    if (!value || typeof value !== "object") return null;
+    const raw = value as Partial<RehearsalBlock>;
+    const id = cleanText(raw.id, 128);
+    const title = cleanText(raw.title, 120);
+    const notes = cleanNotes(raw.notes);
+    if (!id || !title || !validTime(raw.timeStart) || !validTime(raw.timeEnd) || String(raw.timeStart) >= String(raw.timeEnd)) return null;
+    const participants = await normalizeParticipantNames(raw.participants);
+    if (!participants) return null;
+    blocks.push({ id, title, timeStart: String(raw.timeStart), timeEnd: String(raw.timeEnd), notes, participants });
+  }
+  return blocks;
+}
+
+async function normalizeInput(body: unknown, creatorId: string) {
+  if (!body || typeof body !== "object") return null;
+  const raw = body as Partial<Rehearsal>;
+  const subject = cleanText(raw.subject, 120);
+  const responsible = cleanText(raw.responsible, 120);
+  const notes = cleanNotes(raw.notes);
+  if (!subject || !responsible || !validDate(raw.date)) return null;
+
+  const participantMode: RehearsalParticipantMode = raw.participantMode === "blocks" ? "blocks" : "rehearsal";
+  if (participantMode === "blocks") {
+    const blocks = await normalizeBlocks(raw.blocks);
+    if (!blocks) return null;
+    const bounds = getRehearsalBounds(blocks);
+    return {
+      creatorId,
+      subject,
+      date: String(raw.date),
+      timeStart: bounds.timeStart,
+      timeEnd: bounds.timeEnd,
+      responsible,
+      participants: [] as string[],
+      participantMode,
+      blocks,
+      notes,
+    };
+  }
+
+  if (!validTime(raw.timeStart) || !validTime(raw.timeEnd) || String(raw.timeStart) >= String(raw.timeEnd)) return null;
+  const participants = await normalizeParticipantNames(raw.participants);
+  if (!participants) return null;
+  return {
+    creatorId,
+    subject,
+    date: String(raw.date),
+    timeStart: String(raw.timeStart),
+    timeEnd: String(raw.timeEnd),
+    responsible,
+    participants,
+    participantMode,
+    blocks: [] as RehearsalBlock[],
+    notes,
+  };
+}
+
+async function notifyNames(names: string[], title: string, rehearsal: Rehearsal) {
+  if (!names.length) return;
   try {
+    const people = await getPeople();
+    const ids = new Map(people.map(person => [person.name, person.id]));
+    const participantIds = [...new Set(names.map(name => ids.get(name)).filter((value): value is string => Boolean(value)))];
+    if (!participantIds.length) return;
+    const blockText = rehearsal.blocks?.length ? ` · ${rehearsal.blocks.length} блоков` : "";
     await sendPush(participantIds, null, {
       title,
-      body: `${rehearsal.subject} · ${rehearsal.date} · ${rehearsal.timeStart}–${rehearsal.timeEnd}`,
+      body: `${rehearsal.subject} · ${rehearsal.date} · ${rehearsal.timeStart}–${rehearsal.timeEnd}${blockText}`,
       url: "/schedule",
     });
   } catch (error) {
@@ -40,16 +102,29 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const date = url.searchParams.get("date");
+    const id = url.searchParams.get("id");
     const personId = url.searchParams.get("personId");
+    const db = await getDatabase();
+
+    if (id) {
+      const rehearsal = await db.collection<Rehearsal>("rehearsals").findOne({ id });
+      if (!rehearsal) return NextResponse.json({ error: "Репетиция не найдена" }, { status: 404 });
+      const visible = await filterRehearsalsForPerson([rehearsal], personId);
+      if (!visible.length) return NextResponse.json({ error: "Репетиция не найдена" }, { status: 404 });
+      const people = await getPeople();
+      const creatorName = people.find(person => person.id === rehearsal.creatorId)?.name;
+      return NextResponse.json({ rehearsal: { ...rehearsal, creatorName: rehearsal.creatorName ?? creatorName } }, { headers: { "Cache-Control": "no-store" } });
+    }
+
     if (date) {
       if (!validDate(date)) return NextResponse.json({ error: "Некорректная дата" }, { status: 400 });
       return NextResponse.json({ rehearsals: await filterRehearsalsForPerson(await getRehearsals(date), personId) }, { headers: { "Cache-Control": "no-store" } });
     }
-    const db = await getDatabase();
+
     const rehearsals = await db.collection<Rehearsal>("rehearsals").find({}).sort({ date: 1, timeStart: 1 }).toArray();
     const people = await getPeople();
-    const names = new Map(people.map((person) => [person.id, person.name]));
-    const hydrated = rehearsals.map((item) => ({ ...item, creatorName: item.creatorName ?? names.get(item.creatorId) }));
+    const names = new Map(people.map(person => [person.id, person.name]));
+    const hydrated = rehearsals.map(item => ({ ...item, creatorName: item.creatorName ?? names.get(item.creatorId) }));
     return NextResponse.json({ rehearsals: await filterRehearsalsForPerson(hydrated, personId) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Failed to load rehearsals", error);
@@ -60,13 +135,15 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => null);
-    if (!validPayload(body)) return NextResponse.json({ error: "Проверьте данные репетиции" }, { status: 400 });
-    if (body.timeStart >= body.timeEnd) return NextResponse.json({ error: "Время окончания должно быть позже начала" }, { status: 400 });
-    const resolved = await resolveParticipants(body.participants);
-    if (!resolved) return NextResponse.json({ error: "Участники должны выбираться из списка группы" }, { status: 400 });
-    const rehearsal = await createRehearsal({ ...body, subject: body.subject.trim(), responsible: body.responsible.trim(), participants: resolved.participants });
-    await notifyParticipants(resolved.participantIds, "Новая репетиция", rehearsal);
-    return NextResponse.json({ rehearsal }, { status: 201 });
+    const creatorId = typeof body?.creatorId === "string" ? body.creatorId : "";
+    if (!creatorId || creatorId.length > 128) return NextResponse.json({ error: "Сначала выберите свой профиль" }, { status: 400 });
+    const creator = (await getPeople(true)).find(person => person.id === creatorId);
+    if (!creator) return NextResponse.json({ error: "Профиль не найден" }, { status: 400 });
+    const input = await normalizeInput(body, creatorId);
+    if (!input) return NextResponse.json({ error: "Проверьте данные репетиции" }, { status: 400 });
+    const rehearsal = await createRehearsal(input);
+    await notifyNames(getRehearsalAudienceNames(rehearsal), "Новая репетиция", rehearsal);
+    return NextResponse.json({ rehearsal: { ...rehearsal, creatorName: creator.name } }, { status: 201 });
   } catch (error) {
     console.error("Failed to create rehearsal", error);
     return NextResponse.json({ error: "Не удалось создать репетицию" }, { status: 500 });
@@ -78,16 +155,21 @@ export async function PUT(request: Request) {
     const body = await request.json().catch(() => null);
     const id = typeof body?.id === "string" ? body.id : "";
     const creatorId = typeof body?.creatorId === "string" ? body.creatorId : "";
-    if (!id || !creatorId || !validEditPayload(body)) return NextResponse.json({ error: "Проверьте данные репетиции" }, { status: 400 });
-    if (body.timeStart >= body.timeEnd) return NextResponse.json({ error: "Время окончания должно быть позже начала" }, { status: 400 });
-    const resolved = await resolveParticipants(body.participants);
-    if (!resolved) return NextResponse.json({ error: "Участники должны выбираться из списка группы" }, { status: 400 });
-    const updated = await updateRehearsal(id, creatorId, { subject: body.subject.trim(), date: body.date, timeStart: body.timeStart, timeEnd: body.timeEnd, responsible: body.responsible.trim(), participants: resolved.participants });
+    if (!id || !creatorId) return NextResponse.json({ error: "Проверьте данные репетиции" }, { status: 400 });
+
+    const db = await getDatabase();
+    const before = await db.collection<Rehearsal>("rehearsals").findOne({ id, creatorId, isGlobal: { $ne: true } });
+    if (!before) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
+
+    const input = await normalizeInput(body, creatorId);
+    if (!input) return NextResponse.json({ error: "Проверьте данные репетиции" }, { status: 400 });
+    const updated = await updateRehearsal(id, creatorId, input);
     if (!updated) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
+
     const people = await getPeople();
-    const creatorName = people.find((person) => person.id === creatorId)?.name;
+    const creatorName = people.find(person => person.id === creatorId)?.name;
     const rehearsal = { ...updated, creatorName };
-    await notifyParticipants(resolved.participantIds, "Репетиция изменена", rehearsal);
+    await notifyNames(getChangedRehearsalAudienceNames(before, rehearsal), "Репетиция изменена", rehearsal);
     return NextResponse.json({ rehearsal });
   } catch (error) {
     console.error("Failed to update rehearsal", error);
@@ -97,17 +179,16 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const url = new URL(request.url), id = url.searchParams.get("id"), creatorId = url.searchParams.get("creatorId");
+    const url = new URL(request.url);
+    const id = url.searchParams.get("id");
+    const creatorId = url.searchParams.get("creatorId");
     if (!id || !creatorId) return NextResponse.json({ error: "Не хватает данных" }, { status: 400 });
     const db = await getDatabase();
-    const rehearsal = await db.collection<Rehearsal>("rehearsals").findOne({ id, creatorId });
+    const rehearsal = await db.collection<Rehearsal>("rehearsals").findOne({ id, creatorId, isGlobal: { $ne: true } });
     if (!rehearsal) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
-    const people = await getPeople(true);
-    const idsByName = new Map(people.map((person) => [person.name, person.id]));
-    const participantIds = rehearsal.participants.map((name) => idsByName.get(name)).filter((value): value is string => Boolean(value));
     const deleted = await deleteRehearsal(id, creatorId);
     if (!deleted) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
-    await notifyParticipants(participantIds, "Репетиция отменена", rehearsal);
+    await notifyNames(getRehearsalAudienceNames(rehearsal), "Репетиция отменена", rehearsal);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to delete rehearsal", error);
