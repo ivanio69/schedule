@@ -44,18 +44,31 @@ async function normalizeInput(body: unknown, creatorId: string) {
   const notes = cleanNotes(raw.notes);
   if (!subject || !responsible || !validDate(raw.date)) return null;
 
+  const creator = (await getPeople(true)).find(person => person.id === creatorId);
+  if (!creator) return null;
+
   const participantMode: RehearsalParticipantMode = raw.participantMode === "blocks" ? "blocks" : "rehearsal";
   const hasSchedule = Array.isArray(raw.blocks) && raw.blocks.length > 0;
-  const blocks = hasSchedule ? await normalizeBlocks(raw.blocks) : [];
-  if (hasSchedule && !blocks) return null;
-  if (participantMode === "blocks" && !blocks?.length) return null;
+  const normalizedBlocks = hasSchedule ? await normalizeBlocks(raw.blocks) : [];
+  if (hasSchedule && !normalizedBlocks) return null;
+  if (participantMode === "blocks" && !normalizedBlocks?.length) return null;
 
-  const participants = participantMode === "rehearsal" ? await normalizeParticipantNames(raw.participants) : [];
-  if (participantMode === "rehearsal" && !participants) return null;
+  const normalizedParticipants = participantMode === "rehearsal" ? await normalizeParticipantNames(raw.participants) : [];
+  if (participantMode === "rehearsal" && !normalizedParticipants) return null;
+
+  const participants = participantMode === "rehearsal"
+    ? [...new Set([creator.name, ...(normalizedParticipants ?? [])])]
+    : [];
+  const blocks = (normalizedBlocks ?? []).map(block => ({
+    ...block,
+    participants: participantMode === "blocks"
+      ? [...new Set([creator.name, ...block.participants])]
+      : [],
+  }));
 
   let timeStart = String(raw.timeStart ?? "");
   let timeEnd = String(raw.timeEnd ?? "");
-  if (blocks?.length) {
+  if (blocks.length) {
     const bounds = getRehearsalBounds(blocks);
     timeStart = bounds.timeStart;
     timeEnd = bounds.timeEnd;
@@ -70,9 +83,9 @@ async function normalizeInput(body: unknown, creatorId: string) {
     timeStart,
     timeEnd,
     responsible,
-    participants: participants ?? [],
+    participants,
     participantMode,
-    blocks: blocks ?? [],
+    blocks,
     notes,
   };
 }
