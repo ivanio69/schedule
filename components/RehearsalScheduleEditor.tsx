@@ -38,6 +38,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
   const didSeedAdmin = useRef(false);
 
   const bounds = useMemo(() => getRehearsalBounds(blocks), [blocks]);
+  const creatorName = useMemo(() => people.find(person => person.id === creatorId)?.name ?? "", [people, creatorId]);
 
   useEffect(() => {
     if (!admin) setCreatorId(localStorage.getItem("schedule_person_id") ?? "");
@@ -76,21 +77,37 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
     setBlocks(current => current.map(block => ({ ...block, participants: all })));
   }, [admin, editId, people]);
 
-  const toggleName = (name: string) => setParticipants(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name]);
-  const toggleBlockName = (blockId: string, name: string) => setBlocks(current => current.map(block => block.id !== blockId ? block : {
-    ...block,
-    participants: block.participants.includes(name) ? block.participants.filter(item => item !== name) : [...block.participants, name],
-  }));
+  useEffect(() => {
+    if (admin || !creatorName || loading) return;
+    setParticipants(current => current.includes(creatorName) ? current : [creatorName, ...current]);
+    setBlocks(current => current.map(block => ({
+      ...block,
+      participants: block.participants.includes(creatorName) ? block.participants : [creatorName, ...block.participants],
+    })));
+  }, [admin, creatorName, loading]);
+
+  const toggleName = (name: string) => { if (!admin && name === creatorName) return; setParticipants(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name]); };
+  const toggleBlockName = (blockId: string, name: string) => {
+    if (!admin && name === creatorName) return;
+    setBlocks(current => current.map(block => block.id !== blockId ? block : {
+      ...block,
+      participants: block.participants.includes(name) ? block.participants.filter(item => item !== name) : [...block.participants, name],
+    }));
+  };
   const updateBlock = (id: string, patch: Partial<RehearsalBlock>) => setBlocks(current => current.map(block => block.id === id ? { ...block, ...patch } : block));
-  const addBlock = () => setBlocks(current => [...current, blankBlock(crypto.randomUUID())]);
+  const addBlock = () => setBlocks(current => [...current, { ...blankBlock(crypto.randomUUID()), participants: !admin && creatorName ? [creatorName] : [] }]);
   const removeBlock = (id: string) => setBlocks(current => current.length === 1 ? current : current.filter(block => block.id !== id));
 
   const changeMode = (mode: RehearsalParticipantMode) => {
     if (mode === participantMode) return;
     if (mode === "blocks") {
-      setBlocks(current => current.map(block => ({ ...block, participants: block.participants.length ? block.participants : participants })));
+      setBlocks(current => current.map(block => {
+        const base = block.participants.length ? block.participants : participants;
+        return { ...block, participants: !admin && creatorName ? unique([creatorName, ...base]) : base };
+      }));
     } else if (!participants.length) {
-      setParticipants(unique(blocks.flatMap(block => block.participants)));
+      const next = unique(blocks.flatMap(block => block.participants));
+      setParticipants(!admin && creatorName ? unique([creatorName, ...next]) : next);
     }
     setParticipantMode(mode);
   };
@@ -112,12 +129,12 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
         date,
         notes,
         participantMode,
-        participants: participantMode === "rehearsal" ? participants : [],
+        participants: participantMode === "rehearsal" ? (!admin && creatorName ? unique([creatorName, ...participants]) : participants) : [],
         blocks: blocks.map(block => ({
           ...block,
           title: block.title.trim(),
           notes: block.notes?.trim() ?? "",
-          participants: participantMode === "blocks" ? block.participants : [],
+          participants: participantMode === "blocks" ? (!admin && creatorName ? unique([creatorName, ...block.participants]) : block.participants) : [],
         })),
         timeStart: bounds.timeStart,
         timeEnd: bounds.timeEnd,
@@ -157,7 +174,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
         <button type="button" className={participantMode === "rehearsal" ? "is-active" : ""} onClick={() => changeMode("rehearsal")}>Общий список</button>
         <button type="button" className={participantMode === "blocks" ? "is-active" : ""} onClick={() => changeMode("blocks")}>По блокам</button>
       </div>
-      {participantMode === "rehearsal" && <div className="rehearsal-editor-people">{people.map(person => <button type="button" key={person.id} className={participants.includes(person.name) ? "is-active" : ""} onClick={() => toggleName(person.name)}>{person.name}</button>)}</div>}
+      {participantMode === "rehearsal" && <div className="rehearsal-editor-people">{people.map(person => <button type="button" key={person.id} className={`${participants.includes(person.name) ? "is-active" : ""}${!admin && person.name===creatorName ? " is-locked" : ""}`} disabled={!admin && person.name===creatorName} title={!admin && person.name===creatorName ? "Автор участвует автоматически" : undefined} onClick={() => toggleName(person.name)}>{person.name}{!admin && person.name===creatorName ? " · автор" : ""}</button>)}</div>}
       <small>{participantMode === "rehearsal" ? "Этот список относится ко всей репетиции и ко всем её блокам." : "Участники выбираются отдельно внутри каждого блока."}</small>
     </section>
 
@@ -171,7 +188,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
           <label>Конец<input type="time" value={block.timeEnd} onChange={event => updateBlock(block.id, { timeEnd: event.target.value })} /></label>
         </div>
         <label className="rehearsal-block-notes">Заметка<textarea value={block.notes ?? ""} onChange={event => updateBlock(block.id, { notes: event.target.value })} placeholder="Что происходит в этом блоке…" /></label>
-        {participantMode === "blocks" && <div className="rehearsal-block-audience"><span>Участники блока</span><div className="rehearsal-editor-people">{people.map(person => <button type="button" key={person.id} className={block.participants.includes(person.name) ? "is-active" : ""} onClick={() => toggleBlockName(block.id, person.name)}>{person.name}</button>)}</div><small>{block.participants.length ? `Выбрано: ${block.participants.length}` : "Никто не приглашён в этот блок"}</small></div>}
+        {participantMode === "blocks" && <div className="rehearsal-block-audience"><span>Участники блока</span><div className="rehearsal-editor-people">{people.map(person => <button type="button" key={person.id} className={`${block.participants.includes(person.name) ? "is-active" : ""}${!admin && person.name===creatorName ? " is-locked" : ""}`} disabled={!admin && person.name===creatorName} title={!admin && person.name===creatorName ? "Автор участвует автоматически" : undefined} onClick={() => toggleBlockName(block.id, person.name)}>{person.name}{!admin && person.name===creatorName ? " · автор" : ""}</button>)}</div><small>{block.participants.length ? `Выбрано: ${block.participants.length}` : "Никто не приглашён в этот блок"}</small></div>}
       </article>)}
     </section>
 
