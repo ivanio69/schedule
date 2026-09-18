@@ -1,16 +1,20 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import table from "@/app/table.json";
 import clientPromise from "@/lib/mongodb";
 import type { IndividualLesson, Person } from "@/lib/people";
 import type { IndividualSlot } from "@/lib/individual-slots";
-import type { Rehearsal, ScheduleData } from "@/lib/schedule";
+import type { Rehearsal, ScheduleData, ScheduleChange } from "@/lib/schedule";
+
+import { lessonKey } from "@/lib/schedule";
+
+function identifyLessons(schedule:ScheduleData):ScheduleData { return {...schedule,days:schedule.days.map((day,d)=>({...day,table:day.table.map((lesson,i)=>({...lesson,id:lesson.id??createHash("sha256").update(d+":"+i+":"+lessonKey(lesson)).digest("hex")}))}))}; }
 
 const DB_NAME = process.env.MONGODB_DB ?? "schedule";
 type ScheduleDocument = ScheduleData & { _id: string };
 export type ProfileSettings = { personId:string; preferences:Record<string,"1"|"2"|"both">; notes:Record<string,string>; notificationPreferences?:Record<string,boolean>; updatedAt:string };
 export async function getDatabase(){const mongo=await clientPromise;return mongo.db(DB_NAME)}
-export async function getSchedule():Promise<ScheduleData>{const db=await getDatabase();const c=db.collection<ScheduleDocument>("schedule");const stored=await c.findOne({_id:"current"});if(stored){const{_id:_ignored,...schedule}=stored;return schedule}await c.insertOne({...table,_id:"current"} as ScheduleDocument);return table}
-export async function saveSchedule(schedule:ScheduleData){const db=await getDatabase();await db.collection<ScheduleDocument>("schedule").replaceOne({_id:"current"},schedule,{upsert:true})}
+export async function getSchedule():Promise<ScheduleData>{const db=await getDatabase();const c=db.collection<ScheduleDocument>("schedule");const stored=await c.findOne({_id:"current"});if(stored){const{_id:_ignored,...schedule}=stored;return {...identifyLessons(schedule),changes:await db.collection<ScheduleChange>("schedule_changes").find({},{projection:{_id:0}}).toArray()}}await c.insertOne({...table,_id:"current"} as ScheduleDocument);return identifyLessons(table)}
+export async function saveSchedule(schedule:ScheduleData){const db=await getDatabase();await db.collection<ScheduleDocument>("schedule").replaceOne({_id:"current"},{semesterStart:schedule.semesterStart,days:schedule.days},{upsert:true})}
 export async function getPeople(activeOnly=false){const db=await getDatabase();return db.collection<Person>("people").find(activeOnly?{active:true}:{}).sort({name:1}).toArray()}
 export async function savePerson(input:Omit<Person,"id"|"createdAt">,id?:string){const db=await getDatabase();const person:Person={...input,id:id??randomUUID(),createdAt:new Date().toISOString()};await db.collection<Person>("people").replaceOne({id:person.id},person,{upsert:true});return person}
 export async function deletePerson(id:string){const db=await getDatabase();return(await db.collection<Person>("people").deleteOne({id})).deletedCount===1}
