@@ -306,3 +306,47 @@ body .rehearsal-form .admin-primary{
   border-color:var(--rehearsal);
   background:var(--rehearsal)
 }
+
+body .add-rehearsal-button{
+  border-color:color-mix(in srgb,var(--rehearsal) 62%,transparent);
+  color:var(--rehearsal);
+  background:color-mix(in srgb,var(--rehearsal) 8%,var(--surface))
+}
+body .add-rehearsal-button:hover{
+  border-color:var(--rehearsal);
+  background:color-mix(in srgb,var(--rehearsal) 13%,var(--surface))
+}
+body .add-rehearsal-button:focus-visible{outline-color:var(--rehearsal)!important}
+body .rehearsal-participants{
+  grid-column:1 / -1;
+  display:grid;
+  gap:7px;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:700
+}
+body .rehearsal-participants small,
+body .details-modal__edit-participants small{color:var(--muted);font-size:10px;font-weight:500}
+body .rehearsal-people-picker{display:flex;flex-wrap:wrap;gap:6px}
+body .rehearsal-people-picker button{
+  min-height:34px;
+  padding:7px 10px;
+  border:1px solid color-mix(in srgb,var(--rehearsal) 28%,var(--border));
+  border-radius:999px;
+  color:var(--muted-strong);
+  background:var(--surface);
+  cursor:pointer;
+  font-size:11px;
+  font-weight:650;
+  transition:border-color .16s ease,background-color .16s ease,color .16s ease
+}
+body .rehearsal-people-picker button:hover{
+  border-color:color-mix(in srgb,var(--rehearsal) 58%,var(--border));
+  color:var(--text)
+}
+body .rehearsal-people-picker button.is-active{
+  border-color:var(--rehearsal);
+  color:#271b08;
+  background:var(--rehearsal)
+}
+body .rehearsal-people-picker button:focus-visible{outline-color:var(--rehearsal)!important}
