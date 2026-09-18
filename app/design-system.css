@@ -350,3 +350,17 @@ body .rehearsal-people-picker button.is-active{
   background:var(--rehearsal)
 }
 body .rehearsal-people-picker button:focus-visible{outline-color:var(--rehearsal)!important}
+
+body .rehearsal-form__head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+body .rehearsal-schedule-link{
+  flex:0 0 auto;padding:8px 10px;border:1px solid color-mix(in srgb,var(--rehearsal) 48%,transparent);
+  border-radius:10px;color:var(--rehearsal);background:color-mix(in srgb,var(--rehearsal) 8%,transparent);
+  text-decoration:none;font-size:11px;font-weight:750
+}
+body .rehearsal-schedule-link:hover{background:color-mix(in srgb,var(--rehearsal) 14%,transparent)}
+body .rehearsal-notes-field{grid-column:1 / -1}
+body .rehearsal-notes-field textarea{min-height:80px;resize:vertical;line-height:1.45}
+@media(max-width:600px){
+  body .rehearsal-form__head{flex-direction:column}
+  body .rehearsal-schedule-link{width:100%;text-align:center}
+}
