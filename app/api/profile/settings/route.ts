@@ -45,6 +45,8 @@ export async function PUT(request: Request) {
       notes: body.notes === undefined ? existing.notes : cleanNotes(body.notes),
       notificationPreferences: body.notificationPreferences === undefined ? existing.notificationPreferences : cleanNotificationPreferences(body.notificationPreferences),
       chinaMode: body.chinaMode === undefined ? existing.chinaMode : body.chinaMode === true,
+      firstLessonReminder: [5,10,15,30].includes(body.firstLessonReminder) ? body.firstLessonReminder : existing.firstLessonReminder,
+      eventReminders: body.eventReminders && typeof body.eventReminders === "object" ? Object.fromEntries(Object.entries(body.eventReminders).filter(([k,v])=>k.length<400&&[5,10,15,30].includes(Number(v)))) as Record<string,5|10|15|30> : existing.eventReminders,
     });
     return NextResponse.json(settings, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
