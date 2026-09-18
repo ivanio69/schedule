@@ -46,6 +46,7 @@ export async function PUT(request: Request) {
       notificationPreferences: body.notificationPreferences === undefined ? existing.notificationPreferences : cleanNotificationPreferences(body.notificationPreferences),
       chinaMode: body.chinaMode === undefined ? existing.chinaMode : body.chinaMode === true,
       firstLessonReminder: [5, 10, 15, 30].includes(Number(body.firstLessonReminder)) ? Number(body.firstLessonReminder) as 5|10|15|30 : existing.firstLessonReminder,
+      firstLessonReminderEnabled: body.firstLessonReminderEnabled === undefined ? existing.firstLessonReminderEnabled : body.firstLessonReminderEnabled === true,
       eventReminders: body.eventReminders && typeof body.eventReminders === "object" && !Array.isArray(body.eventReminders) ? Object.fromEntries(Object.entries(body.eventReminders).filter(([key,value]) => key.length < 400 && [5,10,15,30].includes(Number(value))).map(([key,value]) => [key, Number(value)])) as Record<string,5|10|15|30> : existing.eventReminders,
     });
     return NextResponse.json(settings, { headers: { "Cache-Control": "no-store" } });
