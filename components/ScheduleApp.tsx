@@ -103,6 +103,11 @@ export default function ScheduleApp() {
     return () => { cancelled = true; };
   }, [selectedDate]);
 
+  useEffect(() => {
+    if ((!rehearsalOpen && !rehearsalEditing) || !creatorName) return;
+    setRehearsalParticipants(current => current.includes(creatorName) ? current : [creatorName, ...current]);
+  }, [rehearsalOpen, rehearsalEditing, creatorName]);
+
   useEffect(() => { if (Object.keys(preferences).length) window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(preferences)); }, [preferences]);
   useEffect(() => {
     if (!details) { setRehearsalEditing(false); return; }
