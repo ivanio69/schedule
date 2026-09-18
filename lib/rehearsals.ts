@@ -15,6 +15,25 @@ export function getRehearsalAudienceNames(rehearsal: Pick<Rehearsal, "participan
   return uniq(rehearsal.participants ?? []);
 }
 
+export function ensureRehearsalAuthorParticipation(rehearsal: Rehearsal, creatorName?: string): Rehearsal {
+  if (!creatorName || rehearsal.isGlobal) return rehearsal;
+  if (getRehearsalParticipantMode(rehearsal) === "blocks") {
+    return {
+      ...rehearsal,
+      creatorName: rehearsal.creatorName ?? creatorName,
+      blocks: (rehearsal.blocks ?? []).map(block => ({
+        ...block,
+        participants: uniq([creatorName, ...block.participants]),
+      })),
+    };
+  }
+  return {
+    ...rehearsal,
+    creatorName: rehearsal.creatorName ?? creatorName,
+    participants: uniq([creatorName, ...rehearsal.participants]),
+  };
+}
+
 export function getRehearsalBounds(blocks: RehearsalBlock[]) {
   const ordered = [...blocks].sort((a, b) => a.timeStart.localeCompare(b.timeStart));
   return {
