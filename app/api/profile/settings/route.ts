@@ -44,6 +44,7 @@ export async function PUT(request: Request) {
       preferences: body.preferences === undefined ? existing.preferences : cleanPreferences(body.preferences),
       notes: body.notes === undefined ? existing.notes : cleanNotes(body.notes),
       notificationPreferences: body.notificationPreferences === undefined ? existing.notificationPreferences : cleanNotificationPreferences(body.notificationPreferences),
+      chinaMode: body.chinaMode === undefined ? existing.chinaMode : body.chinaMode === true,
     });
     return NextResponse.json(settings, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
