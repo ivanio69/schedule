@@ -19,8 +19,8 @@
 .details-modal__edit-form{margin-top:22px}
 .details-modal__edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .details-modal__edit-grid label{display:grid;align-content:start;color:var(--muted);font-size:10px;font-weight:700}
-.details-modal__edit-participants{grid-column:1 / -1}
-.details-modal__edit-participants small{margin-top:5px;color:var(--muted);font-size:10px;font-weight:500}
+.details-modal__edit-participants{grid-column:1 / -1;display:grid;gap:7px;color:var(--muted);font-size:10px;font-weight:700}
+.details-modal__edit-participants small{margin-top:0;color:var(--muted);font-size:10px;font-weight:500}
 .details-modal__actions{display:flex;gap:8px;margin-top:18px}
 .details-modal__actions>button{flex:1;min-height:42px}
 .details-modal__edit-button,.details-modal__save{
