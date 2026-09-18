@@ -22,6 +22,7 @@ export default function AdminRehearsals() {
   const [participants, setParticipants] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState("");
 
   const load = async () => {
     const response = await fetch(`/api/admin/rehearsals?date=${encodeURIComponent(date)}`, { cache: "no-store" });
@@ -43,13 +44,36 @@ export default function AdminRehearsals() {
 
   const toggleParticipant = (name: string) => setParticipants(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name]);
 
+  const resetForm = () => {
+    setEditingId("");
+    setSubject("");
+    setResponsible("");
+    setStart("18:00");
+    setEnd("20:00");
+    setNotes("");
+    setParticipants(people.map(person => person.name));
+  };
+
+  const beginEdit = (item: Rehearsal) => {
+    setEditingId(item.id);
+    setDate(item.date);
+    setSubject(item.subject);
+    setResponsible(item.responsible);
+    setStart(item.timeStart);
+    setEnd(item.timeEnd);
+    setNotes(item.notes ?? "");
+    setParticipants(item.participants ?? []);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const create = async () => {
     setSaving(true);
     setMessage("");
     const response = await fetch("/api/admin/rehearsals", {
-      method: "POST",
+      method: editingId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...(editingId ? { id: editingId } : {}),
         subject,
         responsible,
         date,
@@ -63,11 +87,9 @@ export default function AdminRehearsals() {
     });
     const data = await response.json();
     if (response.ok) {
-      setSubject("");
-      setResponsible("");
-      setNotes("");
-      setParticipants(people.map(person => person.name));
-      setMessage("Общая репетиция создана");
+      const wasEditing = Boolean(editingId);
+      resetForm();
+      setMessage(wasEditing ? "Общая репетиция изменена" : "Общая репетиция создана");
       await load();
     } else setMessage(data.error ?? "Ошибка");
     setSaving(false);
@@ -88,7 +110,7 @@ export default function AdminRehearsals() {
       actions={<a className="admin-primary admin-rehearsal-schedule-link" href={`/admin/rehearsals/new?date=${encodeURIComponent(date)}`}>＋ Репетиция с графиком</a>}
     />
     <section className="admin-card admin-rehearsal-form">
-      <p className="admin-eyebrow">Обычная общая репетиция</p>
+      <p className="admin-eyebrow">{editingId?"Редактирование общей репетиции":"Обычная общая репетиция"}</p>
       <div className="admin-form-grid admin-form-grid-main">
         <label>Дата<input className="admin-input" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
         <label>Название<input className="admin-input" value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Например, общая репетиция показа"/></label>
@@ -103,7 +125,7 @@ export default function AdminRehearsals() {
         <span className="admin-field-title">Приглашённые <em>{participants.length}/{people.length}</em></span>
         <div className="rehearsal-people-picker">{people.map(person=><button type="button" key={person.id} className={participants.includes(person.name)?"is-active":""} onClick={()=>toggleParticipant(person.name)}>{person.name}</button>)}</div>
       </div>
-      <div className="admin-actions admin-rehearsal-actions"><button className="admin-primary" disabled={saving} onClick={()=>void create()}>{saving?"Создаю…":"＋ Создать общую репетицию"}</button></div>
+      <div className="admin-actions admin-rehearsal-actions">{editingId&&<button className="admin-secondary" onClick={resetForm}>Отмена</button>}<button className="admin-primary" disabled={saving} onClick={()=>void create()}>{saving?"Сохраняю…":editingId?"Сохранить изменения":"＋ Создать общую репетицию"}</button></div>
       {message&&<p className={message.includes("создана")?"admin-success":"admin-error"}>{message}</p>}
     </section>
 
@@ -115,7 +137,7 @@ export default function AdminRehearsals() {
           <div className="admin-muted">Ответственный: {item.responsible} · {item.blocks?.length?`${item.blocks.length} блоков · `:""}{item.participantMode==="blocks"?"участники по блокам":`приглашено ${item.participants.length}`}</div>
           {item.notes&&<small className="admin-muted">{item.notes}</small>}
         </div>
-        {item.blocks?.length?<a className="admin-secondary admin-rehearsal-edit-link" href={`/admin/rehearsals/new?edit=${encodeURIComponent(item.id)}`}>Изменить график</a>:null}
+        {item.blocks?.length?<a className="admin-secondary admin-rehearsal-edit-link" href={`/admin/rehearsals/new?edit=${encodeURIComponent(item.id)}`}>Изменить график</a>:<button className="admin-secondary admin-rehearsal-edit-link" onClick={()=>beginEdit(item)}>Изменить</button>}
         <button className="admin-danger" onClick={()=>void remove(item.id)}>Удалить</button>
       </article>)}
       {globalItems.length===0&&<div className="admin-card admin-empty">На эту дату общих репетиций нет.</div>}
