@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createRehearsal, deleteRehearsal, filterRehearsalsForPerson, getDatabase, getPeople, getRehearsals, updateRehearsal } from "@/lib/database";
-import { getChangedRehearsalAudienceNames, getRehearsalAudienceNames, getRehearsalBounds } from "@/lib/rehearsals";
+import { ensureRehearsalAuthorParticipation, getChangedRehearsalAudienceNames, getRehearsalAudienceNames, getRehearsalBounds } from "@/lib/rehearsals";
 import { sendPush } from "@/lib/push";
 import type { Rehearsal, RehearsalBlock, RehearsalParticipantMode } from "@/lib/schedule";
 
@@ -123,7 +123,7 @@ export async function GET(request: Request) {
       if (!visible.length) return NextResponse.json({ error: "Репетиция не найдена" }, { status: 404 });
       const people = await getPeople();
       const creatorName = people.find(person => person.id === rehearsal.creatorId)?.name;
-      return NextResponse.json({ rehearsal: { ...rehearsal, creatorName: rehearsal.creatorName ?? creatorName } }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json({ rehearsal: ensureRehearsalAuthorParticipation({ ...rehearsal, creatorName: rehearsal.creatorName ?? creatorName }, creatorName) }, { headers: { "Cache-Control": "no-store" } });
     }
 
     if (date) {
@@ -134,7 +134,7 @@ export async function GET(request: Request) {
     const rehearsals = await db.collection<Rehearsal>("rehearsals").find({}).sort({ date: 1, timeStart: 1 }).toArray();
     const people = await getPeople();
     const names = new Map(people.map(person => [person.id, person.name]));
-    const hydrated = rehearsals.map(item => ({ ...item, creatorName: item.creatorName ?? names.get(item.creatorId) }));
+    const hydrated = rehearsals.map(item => ensureRehearsalAuthorParticipation({ ...item, creatorName: item.creatorName ?? names.get(item.creatorId) }, names.get(item.creatorId)));
     return NextResponse.json({ rehearsals: await filterRehearsalsForPerson(hydrated, personId) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Failed to load rehearsals", error);
@@ -198,7 +198,10 @@ export async function DELETE(request: Request) {
     if (!rehearsal) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
     const deleted = await deleteRehearsal(id, creatorId);
     if (!deleted) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
-    await notifyNames(getRehearsalAudienceNames(rehearsal), "Репетиция отменена", rehearsal);
+    const people = await getPeople();
+    const creatorName = people.find(person => person.id === rehearsal.creatorId)?.name;
+    const hydrated = ensureRehearsalAuthorParticipation(rehearsal, creatorName);
+    await notifyNames(getRehearsalAudienceNames(hydrated), "Репетиция отменена", hydrated);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Failed to delete rehearsal", error);
