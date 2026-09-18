@@ -4,8 +4,8 @@ const uniq = (values: string[]) => [...new Set(values.map(value => value.trim())
 const sorted = (values: string[]) => [...values].sort((a, b) => a.localeCompare(b, "ru"));
 const sameNames = (a: string[], b: string[]) => JSON.stringify(sorted(uniq(a))) === JSON.stringify(sorted(uniq(b)));
 
-export function getRehearsalParticipantMode(rehearsal: Pick<Rehearsal, "participantMode" | "blocks">): RehearsalParticipantMode {
-  return rehearsal.participantMode === "blocks" && (rehearsal.blocks?.length ?? 0) > 0 ? "blocks" : "rehearsal";
+export function getRehearsalParticipantMode(rehearsal: Pick<Rehearsal, "participantMode">): RehearsalParticipantMode {
+  return rehearsal.participantMode === "blocks" ? "blocks" : "rehearsal";
 }
 
 export function getRehearsalAudienceNames(rehearsal: Pick<Rehearsal, "participantMode" | "participants" | "blocks">) {
@@ -53,7 +53,15 @@ export function getChangedRehearsalAudienceNames(before: Rehearsal, after: Rehea
     || (before.notes ?? "") !== (after.notes ?? "");
 
   if (beforeMode === "rehearsal") {
-    if (topLevelChanged || before.timeStart !== after.timeStart || before.timeEnd !== after.timeEnd || !sameNames(before.participants, after.participants)) {
+    const oldBlocks = before.blocks ?? [];
+    const newBlocks = after.blocks ?? [];
+    const blocksChanged = oldBlocks.length !== newBlocks.length
+      || [...new Set([...oldBlocks.map(block => block.id), ...newBlocks.map(block => block.id)])].some(id => {
+        const oldBlock = oldBlocks.find(block => block.id === id);
+        const newBlock = newBlocks.find(block => block.id === id);
+        return !sameBlock(oldBlock, newBlock);
+      });
+    if (topLevelChanged || before.timeStart !== after.timeStart || before.timeEnd !== after.timeEnd || !sameNames(before.participants, after.participants) || blocksChanged) {
       add(beforeAudience);
       add(afterAudience);
     }
@@ -85,6 +93,6 @@ export function normalizeRehearsalParticipants(rehearsal: Pick<Rehearsal, "parti
   return {
     participantMode: mode,
     participants: mode === "rehearsal" ? uniq(rehearsal.participants ?? []) : [],
-    blocks: (rehearsal.blocks ?? []).map(block => ({ ...block, participants: uniq(block.participants) })),
+    blocks: (rehearsal.blocks ?? []).map(block => ({ ...block, participants: mode === "blocks" ? uniq(block.participants) : [] })),
   };
 }
