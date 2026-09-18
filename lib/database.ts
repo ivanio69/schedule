@@ -7,14 +7,15 @@ import type { Rehearsal, ScheduleData, ScheduleChange } from "@/lib/schedule";
 
 import { lessonKey } from "@/lib/schedule";
 
-function identifyLessons(schedule:ScheduleData):ScheduleData { return {...schedule,days:schedule.days.map((day,d)=>({...day,table:day.table.map((lesson,i)=>({...lesson,group:lesson.group.includes("china")?lesson.group:[...lesson.group,"china"],id:lesson.id??createHash("sha256").update(d+":"+i+":"+lessonKey(lesson)).digest("hex")}))}))}; }
+function identifyLessons(schedule:ScheduleData):ScheduleData { return {...schedule,days:schedule.days.map((day,d)=>({...day,table:day.table.map((lesson,i)=>({...lesson,id:lesson.id??createHash("sha256").update(d+":"+i+":"+lessonKey(lesson)).digest("hex")}))}))}; }
+function initializeChinaSubgroup(schedule:ScheduleData):ScheduleData { return schedule.chinaSubgroupInitialized?schedule:{...schedule,chinaSubgroupInitialized:true,days:schedule.days.map(day=>({...day,table:day.table.map(lesson=>({...lesson,group:lesson.group.includes("china")?lesson.group:[...lesson.group,"china"]}))}))}; }
 
 const DB_NAME = process.env.MONGODB_DB ?? "schedule";
 type ScheduleDocument = ScheduleData & { _id: string };
 export type ProfileSettings = { personId:string; preferences:Record<string,"1"|"2"|"both">; notes:Record<string,string>; notificationPreferences?:Record<string,boolean>; chinaMode?:boolean; updatedAt:string };
 export async function getDatabase(){const mongo=await clientPromise;return mongo.db(DB_NAME)}
-export async function getSchedule():Promise<ScheduleData>{const db=await getDatabase();const c=db.collection<ScheduleDocument>("schedule");const stored=await c.findOne({_id:"current"});if(stored){const{_id:_ignored,...schedule}=stored;return {...identifyLessons(schedule),changes:await db.collection<ScheduleChange>("schedule_changes").find({},{projection:{_id:0}}).toArray()}}await c.insertOne({...table,_id:"current"} as ScheduleDocument);return identifyLessons(table)}
-export async function saveSchedule(schedule:ScheduleData){const db=await getDatabase();await db.collection<ScheduleDocument>("schedule").replaceOne({_id:"current"},{semesterStart:schedule.semesterStart,days:schedule.days},{upsert:true})}
+export async function getSchedule():Promise<ScheduleData>{const db=await getDatabase();const c=db.collection<ScheduleDocument>("schedule");const stored=await c.findOne({_id:"current"});if(stored){const{_id:_ignored,...raw}=stored;const schedule=initializeChinaSubgroup(raw);if(!raw.chinaSubgroupInitialized)await c.replaceOne({_id:"current"},{...schedule,_id:"current"} as ScheduleDocument);return {...identifyLessons(schedule),changes:await db.collection<ScheduleChange>("schedule_changes").find({},{projection:{_id:0}}).toArray()}}const initial=initializeChinaSubgroup(table);await c.insertOne({...initial,_id:"current"} as ScheduleDocument);return identifyLessons(initial)}
+export async function saveSchedule(schedule:ScheduleData){const db=await getDatabase();await db.collection<ScheduleDocument>("schedule").replaceOne({_id:"current"},{semesterStart:schedule.semesterStart,days:schedule.days,chinaSubgroupInitialized:true},{upsert:true})}
 export async function getPeople(activeOnly=false){const db=await getDatabase();return db.collection<Person>("people").find(activeOnly?{active:true}:{}).sort({name:1}).toArray()}
 export async function savePerson(input:Omit<Person,"id"|"createdAt">,id?:string){const db=await getDatabase();const person:Person={...input,id:id??randomUUID(),createdAt:new Date().toISOString()};await db.collection<Person>("people").replaceOne({id:person.id},person,{upsert:true});return person}
 export async function deletePerson(id:string){const db=await getDatabase();return(await db.collection<Person>("people").deleteOne({id})).deletedCount===1}
