@@ -45,37 +45,34 @@ async function normalizeInput(body: unknown, creatorId: string) {
   if (!subject || !responsible || !validDate(raw.date)) return null;
 
   const participantMode: RehearsalParticipantMode = raw.participantMode === "blocks" ? "blocks" : "rehearsal";
-  if (participantMode === "blocks") {
-    const blocks = await normalizeBlocks(raw.blocks);
-    if (!blocks) return null;
+  const hasSchedule = Array.isArray(raw.blocks) && raw.blocks.length > 0;
+  const blocks = hasSchedule ? await normalizeBlocks(raw.blocks) : [];
+  if (hasSchedule && !blocks) return null;
+  if (participantMode === "blocks" && !blocks?.length) return null;
+
+  const participants = participantMode === "rehearsal" ? await normalizeParticipantNames(raw.participants) : [];
+  if (participantMode === "rehearsal" && !participants) return null;
+
+  let timeStart = String(raw.timeStart ?? "");
+  let timeEnd = String(raw.timeEnd ?? "");
+  if (blocks?.length) {
     const bounds = getRehearsalBounds(blocks);
-    return {
-      creatorId,
-      subject,
-      date: String(raw.date),
-      timeStart: bounds.timeStart,
-      timeEnd: bounds.timeEnd,
-      responsible,
-      participants: [] as string[],
-      participantMode,
-      blocks,
-      notes,
-    };
+    timeStart = bounds.timeStart;
+    timeEnd = bounds.timeEnd;
+  } else if (!validTime(raw.timeStart) || !validTime(raw.timeEnd) || timeStart >= timeEnd) {
+    return null;
   }
 
-  if (!validTime(raw.timeStart) || !validTime(raw.timeEnd) || String(raw.timeStart) >= String(raw.timeEnd)) return null;
-  const participants = await normalizeParticipantNames(raw.participants);
-  if (!participants) return null;
   return {
     creatorId,
     subject,
     date: String(raw.date),
-    timeStart: String(raw.timeStart),
-    timeEnd: String(raw.timeEnd),
+    timeStart,
+    timeEnd,
     responsible,
-    participants,
+    participants: participants ?? [],
     participantMode,
-    blocks: [] as RehearsalBlock[],
+    blocks: blocks ?? [],
     notes,
   };
 }
