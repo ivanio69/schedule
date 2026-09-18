@@ -285,3 +285,24 @@ body .scholarship-badge strong { min-width:0; overflow-wrap:anywhere; }
 .settings-page .settings-group .settings-page-row:last-child { border-bottom:0; }
 .settings-page .settings-group :is(.settings-logout,.settings-admin-link) { margin-top:12px; }
 .settings-page-status { line-height:1.5; }
+
+/* Rehearsal creation is visually tied to the rehearsal event color. */
+body .rehearsal-form{
+  border-color:color-mix(in srgb,var(--rehearsal) 50%,var(--border));
+  background:color-mix(in srgb,var(--rehearsal) 8%,var(--surface));
+  box-shadow:inset 3px 0 var(--rehearsal),var(--shadow-card)
+}
+body .rehearsal-form .rehearsal-label{
+  color:var(--rehearsal);
+  border-color:color-mix(in srgb,var(--rehearsal) 38%,transparent);
+  background:color-mix(in srgb,var(--rehearsal) 11%,transparent)
+}
+body .rehearsal-form .admin-input:focus{
+  border-color:var(--rehearsal);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--rehearsal) 16%,transparent)
+}
+body .rehearsal-form .admin-primary{
+  color:#271b08;
+  border-color:var(--rehearsal);
+  background:var(--rehearsal)
+}
