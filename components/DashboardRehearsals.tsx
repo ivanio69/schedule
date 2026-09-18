@@ -10,10 +10,11 @@ export default function DashboardRehearsals() {
   const [items, setItems] = useState<Rehearsal[]>([]);
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    if (!localStorage.getItem("schedule_person_id")) { setReady(true); return; }
+    const personId = localStorage.getItem("schedule_person_id");
+    if (!personId) { setReady(true); return; }
     let stopped = false;
     const load = async () => { try {
-      const response = await fetch("/api/rehearsals", { cache: "no-store" }); if (!response.ok) return;
+      const response = await fetch(`/api/rehearsals?personId=${encodeURIComponent(personId)}`, { cache: "no-store" }); if (!response.ok) return;
       const data = await response.json() as { rehearsals?: Rehearsal[] }; if (stopped) return;
       const today = new Date(), from = dateKey(today), until = dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7));
       setItems((data.rehearsals ?? []).filter(item => item.date >= from && item.date < until).sort((a,b)=>`${a.date}${a.timeStart}`.localeCompare(`${b.date}${b.timeStart}`)));
