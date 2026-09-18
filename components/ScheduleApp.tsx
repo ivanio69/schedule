@@ -56,6 +56,8 @@ export default function ScheduleApp() {
   const [rehearsalEnd, setRehearsalEnd] = useState("20:00");
   const [rehearsalSaving, setRehearsalSaving] = useState(false);
   const [rehearsalError, setRehearsalError] = useState("");
+  const [rehearsalEditing, setRehearsalEditing] = useState(false);
+  const [rehearsalDate, setRehearsalDate] = useState("");
   const didInitializeWeek = useRef(false);
 
   const totalWeeks = useMemo(() => schedule ? getTotalWeeks(schedule) : 1, [schedule]);
@@ -68,7 +70,7 @@ export default function ScheduleApp() {
   useEffect(() => {
     void (async () => {
       try {
-        const response = await fetch(`/api/schedule?date=${selectedDate}`, { cache: "no-store" });
+        const response = await fetch(`/api/schedule?date=${selectedDate}&personId=${encodeURIComponent(creatorId)}`, { cache: "no-store" });
         if (!response.ok) throw new Error();
         const data = await response.json() as { schedule: ScheduleData; rehearsals: Rehearsal[] };
         setSchedule(data.schedule);
@@ -81,7 +83,7 @@ export default function ScheduleApp() {
       } catch { setRehearsals([]); } finally { setLoading(false); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate]);
+  }, [selectedDate, creatorId]);
 
   useEffect(() => {
     if (!selectedDate) return;
@@ -99,7 +101,7 @@ export default function ScheduleApp() {
 
   useEffect(() => { if (Object.keys(preferences).length) window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(preferences)); }, [preferences]);
   useEffect(() => {
-    if (!details) return;
+    if (!details) { setRehearsalEditing(false); return; }
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setDetails(null); };
     window.addEventListener("keydown", onKeyDown);
     const previous = document.body.style.overflow;
@@ -108,7 +110,7 @@ export default function ScheduleApp() {
   }, [details]);
 
   const refreshRehearsals = async () => {
-    const response = await fetch(`/api/rehearsals?date=${selectedDate}`, { cache: "no-store" });
+    const response = await fetch(`/api/rehearsals?date=${selectedDate}&personId=${encodeURIComponent(creatorId)}`, { cache: "no-store" });
     if (!response.ok) return;
     const data = await response.json() as { rehearsals: Rehearsal[] };
     setRehearsals(data.rehearsals ?? []);
@@ -139,6 +141,63 @@ export default function ScheduleApp() {
     finally { setRehearsalSaving(false); }
   };
 
+  const openCreateRehearsal = () => {
+    setRehearsalSubject("");
+    setRehearsalResponsible("");
+    setRehearsalParticipants("");
+    setRehearsalStart("18:00");
+    setRehearsalEnd("20:00");
+    setRehearsalDate(selectedDate);
+    setRehearsalError("");
+    setRehearsalOpen(true);
+  };
+
+  const beginRehearsalEdit = (item: Rehearsal) => {
+    setRehearsalSubject(item.subject);
+    setRehearsalResponsible(item.responsible);
+    setRehearsalParticipants(item.participants.join(", "));
+    setRehearsalStart(item.timeStart);
+    setRehearsalEnd(item.timeEnd);
+    setRehearsalDate(item.date);
+    setRehearsalError("");
+    setRehearsalEditing(true);
+  };
+
+  const saveRehearsalEdit = async (item: Rehearsal) => {
+    const participants = rehearsalParticipants.split(",").map(v => v.trim()).filter(Boolean);
+    if (!creatorId || !rehearsalSubject.trim() || !rehearsalResponsible.trim() || !rehearsalDate) {
+      setRehearsalError("Заполните данные репетиции");
+      return;
+    }
+    setRehearsalSaving(true);
+    setRehearsalError("");
+    try {
+      const response = await fetch("/api/rehearsals", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: item.id,
+          creatorId,
+          subject: rehearsalSubject,
+          date: rehearsalDate,
+          timeStart: rehearsalStart,
+          timeEnd: rehearsalEnd,
+          responsible: rehearsalResponsible,
+          participants,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Не удалось изменить репетицию");
+      setRehearsalEditing(false);
+      setDetails(null);
+      await refreshRehearsals();
+    } catch (error) {
+      setRehearsalError(error instanceof Error ? error.message : "Не удалось изменить репетицию");
+    } finally {
+      setRehearsalSaving(false);
+    }
+  };
+
   const removeRehearsal = async (id: string) => {
     if (!creatorId) return;
     const response = await fetch(`/api/rehearsals?id=${encodeURIComponent(id)}&creatorId=${encodeURIComponent(creatorId)}`, { method: "DELETE" });
@@ -159,11 +218,11 @@ export default function ScheduleApp() {
       <nav className="day-tabs" aria-label="Дни недели">{DAY_NAMES.map((name,index)=><button type="button" key={name} className={day===index?"is-active":""} aria-current={day===index?"page":undefined} onClick={()=>setDay(index)}><span>{name}</span><small>{index+1}</small></button>)}</nav>
       <section className="schedule-panel" {...handlers} aria-live="polite">
         <div className="week-toolbar"><button type="button" className="icon-button" onClick={()=>setWeek(v=>Math.max(1,v-1))} disabled={week===1} aria-label="Предыдущая неделя">←</button><button type="button" className="week-number" onClick={()=>setWeek(currentWeek)} aria-label="Перейти к текущей неделе"><span>Неделя</span><strong>{week}</strong>{week===currentWeek&&<em>сейчас</em>}</button><button type="button" className="icon-button" onClick={()=>setWeek(v=>Math.min(totalWeeks,v+1))} disabled={week===totalWeeks} aria-label="Следующая неделя">→</button></div>
-        {rehearsalOpen ? <section className="rehearsal-form"><div><p className="rehearsal-label">Новая репетиция</p><h2>{selectedDate}</h2></div><div className="rehearsal-grid"><label>Предмет<input className="admin-input" value={rehearsalSubject} onChange={e=>setRehearsalSubject(e.target.value)} placeholder="Например, сценическое движение" autoFocus /></label><label>Ответственный<input className="admin-input" value={rehearsalResponsible} onChange={e=>setRehearsalResponsible(e.target.value)} placeholder="ФИО" /></label><label>Начало<input className="admin-input" type="time" value={rehearsalStart} onChange={e=>setRehearsalStart(e.target.value)} /></label><label>Конец<input className="admin-input" type="time" value={rehearsalEnd} onChange={e=>setRehearsalEnd(e.target.value)} /></label><label className="rehearsal-participants">Участники<input className="admin-input" value={rehearsalParticipants} onChange={e=>setRehearsalParticipants(e.target.value)} /><small>Укажите через запятую</small></label></div>{rehearsalError&&<p className="admin-error">{rehearsalError}</p>}<div className="rehearsal-form__actions"><button type="button" className="admin-secondary" onClick={()=>setRehearsalOpen(false)}>Отмена</button><button type="button" className="admin-primary" disabled={rehearsalSaving} onClick={()=>void createRehearsal()}>{rehearsalSaving?"Создаю…":"Создать репетицию"}</button></div></section> : <><button type="button" className="add-rehearsal-button" onClick={()=>{setRehearsalError("");setRehearsalOpen(true)}}>＋ Добавить репетицию</button><div className="schedule-scholarship-slot" /></>}
+        {rehearsalOpen ? <section className="rehearsal-form"><div><p className="rehearsal-label">Новая репетиция</p><h2>{selectedDate}</h2></div><div className="rehearsal-grid"><label>Предмет<input className="admin-input" value={rehearsalSubject} onChange={e=>setRehearsalSubject(e.target.value)} placeholder="Например, сценическое движение" autoFocus /></label><label>Ответственный<input className="admin-input" value={rehearsalResponsible} onChange={e=>setRehearsalResponsible(e.target.value)} placeholder="ФИО" /></label><label>Начало<input className="admin-input" type="time" value={rehearsalStart} onChange={e=>setRehearsalStart(e.target.value)} /></label><label>Конец<input className="admin-input" type="time" value={rehearsalEnd} onChange={e=>setRehearsalEnd(e.target.value)} /></label><label className="rehearsal-participants">Участники<input className="admin-input" value={rehearsalParticipants} onChange={e=>setRehearsalParticipants(e.target.value)} /><small>Укажите через запятую</small></label></div>{rehearsalError&&<p className="admin-error">{rehearsalError}</p>}<div className="rehearsal-form__actions"><button type="button" className="admin-secondary" onClick={()=>setRehearsalOpen(false)}>Отмена</button><button type="button" className="admin-primary" disabled={rehearsalSaving} onClick={()=>void createRehearsal()}>{rehearsalSaving?"Создаю…":"Создать репетицию"}</button></div></section> : <><button type="button" className="add-rehearsal-button" onClick={openCreateRehearsal}>＋ Добавить репетицию</button><div className="schedule-scholarship-slot" /></>}
         <AnimatePresence mode="wait" initial={false}><motion.div key={`${week}-${day}-${chinaMode}-${JSON.stringify(preferences)}-${individualLessons.map(item=>item.id).join(",")}`} className="lesson-list" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.18}}>{entries.map(entry=>entry.type==="lesson"?<ScheduleCard key={`lesson-${entry.item.timeStart}-${entry.item.class}-${entry.item.auditorium}-${entry.item.group.join(",")}`} lesson={entry.item} onClick={()=>setDetails({type:"lesson",item:entry.item})}/>:entry.type==="individual"?<IndividualLessonCard key={`individual-${entry.item.id}`} lesson={entry.item} onClick={()=>setDetails({type:"individual",item:entry.item})}/>:<RehearsalCard key={entry.item.id} rehearsal={entry.item} own={entry.item.creatorId===creatorId} onDelete={entry.item.creatorId===creatorId?()=>void removeRehearsal(entry.item.id):undefined} onClick={()=>setDetails({type:"rehearsal",item:entry.item})}/>) }{entries.length===0&&<div className="empty-state"><span className="empty-state__icon">—</span><h2>Ничего нет</h2><p>В этот день ничего не запланировано.</p></div>}</motion.div></AnimatePresence>
       </section><footer className="schedule-footer"><span>{DAY_NAMES[day]}</span><span>Нажмите на занятие для подробностей</span></footer>
     </> : <section className="settings-panel" aria-label="Настройки расписания"><div className="settings-section"><div><p className="settings-section__eyebrow">Подгруппы</p><h2>Настройки предметов</h2><p>Для каждого предмета с подгруппами выберите, какую группу показывать.</p></div><div className="settings-list">{subgroupSubjects.map(({name,groups})=>{const value=preferences[name]??"both";return <div className="setting-row setting-row--subject" key={name}><span><strong>{name}</strong><small>Подгруппы: {groups.join(" и ")}</small></span><div className="preference-switch" role="group" aria-label={`Подгруппа для предмета ${name}`}>{(["1","2","both"] as GroupPreference[]).map(option=><button type="button" key={option} className={value===option?"is-active":""} aria-pressed={value===option} onClick={()=>setPreference(name,option)}>{option==="both"?"Обе":option}</button>)}</div></div>})}</div></div></section>}
     <nav className="bottom-nav" aria-label="Разделы"><button type="button" className={view==="schedule"?"is-active":""} onClick={()=>setView("schedule")}>Расписание</button><button type="button" className={view==="settings"?"is-active":""} onClick={()=>setView("settings")}>Настройки</button></nav>
-    <AnimatePresence>{details&&<motion.div className="details-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setDetails(null)}} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.section className="details-modal" role="dialog" aria-modal="true" aria-labelledby="details-title" initial={{opacity:0,y:28,scale:.94}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:18,scale:.97}} transition={{type:"spring",stiffness:420,damping:28,mass:.65}}><div className="details-modal__header"><div><span className="details-modal__eyebrow">{details.type==="lesson"?"Занятие":details.type==="individual"?"Индивидуальное занятие":"Репетиция"}</span><h2 id="details-title">{details.type==="lesson"?details.item.class:details.item.subject}</h2></div><button type="button" className="details-modal__close" onClick={()=>setDetails(null)} aria-label="Закрыть">×</button></div><div className="details-modal__time"><strong>{details.item.timeStart}</strong><span>—</span><span>{details.item.timeEnd}</span></div><dl className="details-modal__list"><div><dt>Дата</dt><dd>{formatDate(details.type==="lesson"?selectedDate:details.item.date)}</dd></div>{details.type==="lesson"?<><div><dt>Преподаватель</dt><dd>{details.item.professor}</dd></div><div><dt>Аудитория</dt><dd>{details.item.auditorium}</dd></div><div><dt>Подгруппа</dt><dd>{details.item.group.length===2?"Обе группы":`${details.item.group[0]} подгруппа`}</dd></div></>:details.type==="individual"?<><div><dt>Студент</dt><dd>{details.item.personName}</dd></div><div><dt>Преподаватель</dt><dd>{details.item.professor}</dd></div><div><dt>Аудитория</dt><dd>{details.item.auditorium}</dd></div>{details.item.note&&<div><dt>Примечание</dt><dd>{details.item.note}</dd></div>}</>:<><div><dt>Автор</dt><dd>{details.item.creatorName??"Автор не указан"}</dd></div><div><dt>Ответственный</dt><dd>{details.item.responsible}</dd></div><div><dt>Участники</dt><dd className="details-modal__participants">{details.item.participants.length?details.item.participants.map(p=><span key={p}>{p}</span>):<span>Не указаны</span>}</dd></div></>}</dl>{details.type==="rehearsal"&&details.item.creatorId===creatorId&&<button type="button" className="details-modal__delete" onClick={()=>void removeRehearsal(details.item.id)}>Удалить репетицию</button>}</motion.section></motion.div>}</AnimatePresence>
+    <AnimatePresence>{details&&<motion.div className="details-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setDetails(null)}} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.section className={`details-modal${details.type==="rehearsal"?" details-modal--rehearsal":""}`} role="dialog" aria-modal="true" aria-labelledby="details-title" initial={{opacity:0,y:28,scale:.94}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:18,scale:.97}} transition={{type:"spring",stiffness:420,damping:28,mass:.65}}><div className="details-modal__header"><div><span className="details-modal__eyebrow">{details.type==="lesson"?"Занятие":details.type==="individual"?"Индивидуальное занятие":rehearsalEditing?"Редактирование репетиции":"Репетиция"}</span><h2 id="details-title">{details.type==="lesson"?details.item.class:details.type==="rehearsal"&&rehearsalEditing?rehearsalSubject:details.item.subject}</h2></div><button type="button" className="details-modal__close" onClick={()=>setDetails(null)} aria-label="Закрыть">×</button></div>{details.type==="rehearsal"&&rehearsalEditing?<div className="details-modal__edit-form"><div className="details-modal__edit-grid"><label>Название<input className="admin-input" value={rehearsalSubject} onChange={e=>setRehearsalSubject(e.target.value)} autoFocus /></label><label>Дата<input className="admin-input" type="date" value={rehearsalDate} onChange={e=>setRehearsalDate(e.target.value)} /></label><label>Ответственный<input className="admin-input" value={rehearsalResponsible} onChange={e=>setRehearsalResponsible(e.target.value)} /></label><label>Начало<input className="admin-input" type="time" value={rehearsalStart} onChange={e=>setRehearsalStart(e.target.value)} /></label><label>Конец<input className="admin-input" type="time" value={rehearsalEnd} onChange={e=>setRehearsalEnd(e.target.value)} /></label><label className="details-modal__edit-participants">Участники<input className="admin-input" value={rehearsalParticipants} onChange={e=>setRehearsalParticipants(e.target.value)} /><small>Через запятую, как при создании</small></label></div>{rehearsalError&&<p className="admin-error">{rehearsalError}</p>}<div className="details-modal__actions"><button type="button" className="admin-secondary" disabled={rehearsalSaving} onClick={()=>{setRehearsalEditing(false);setRehearsalError("")}}>Отмена</button><button type="button" className="details-modal__save" disabled={rehearsalSaving} onClick={()=>void saveRehearsalEdit(details.item)}>{rehearsalSaving?"Сохраняю…":"Сохранить изменения"}</button></div></div>:<><div className="details-modal__time"><strong>{details.item.timeStart}</strong><span>—</span><span>{details.item.timeEnd}</span></div><dl className="details-modal__list"><div><dt>Дата</dt><dd>{formatDate(details.type==="lesson"?selectedDate:details.item.date)}</dd></div>{details.type==="lesson"?<><div><dt>Преподаватель</dt><dd>{details.item.professor}</dd></div><div><dt>Аудитория</dt><dd>{details.item.auditorium}</dd></div><div><dt>Подгруппа</dt><dd>{details.item.group.length===2?"Обе группы":`${details.item.group[0]} подгруппа`}</dd></div></>:details.type==="individual"?<><div><dt>Студент</dt><dd>{details.item.personName}</dd></div><div><dt>Преподаватель</dt><dd>{details.item.professor}</dd></div><div><dt>Аудитория</dt><dd>{details.item.auditorium}</dd></div>{details.item.note&&<div><dt>Примечание</dt><dd>{details.item.note}</dd></div>}</>:<><div><dt>Автор</dt><dd>{details.item.creatorName??"Автор не указан"}</dd></div><div><dt>Ответственный</dt><dd>{details.item.responsible}</dd></div><div><dt>Участники</dt><dd className="details-modal__participants">{details.item.participants.length?details.item.participants.map(p=><span key={p}>{p}</span>):<span>Не указаны</span>}</dd></div></>}</dl>{details.type==="rehearsal"&&details.item.creatorId===creatorId&&<div className="details-modal__actions"><button type="button" className="details-modal__edit-button" onClick={()=>beginRehearsalEdit(details.item)}>Редактировать</button><button type="button" className="details-modal__delete" onClick={()=>void removeRehearsal(details.item.id)}>Удалить репетицию</button></div>}</>}</motion.section></motion.div>}</AnimatePresence>
   </main></MotionConfig>;
 }
