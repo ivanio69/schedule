@@ -1,0 +1,23 @@
+name: Schedule changes
+on:
+  pull_request:
+    paths:
+      - "lib/schedule.ts"
+      - "lib/database.ts"
+      - "lib/push.ts"
+      - "app/api/admin/schedule/**"
+      - "tests/schedule-changes*"
+      - ".github/workflows/schedule-changes.yml"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --import tsx tests/schedule-changes.test.ts
+      - run: node --import tsx tests/schedule-changes.integration.ts
