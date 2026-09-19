@@ -106,3 +106,12 @@
   .seminar-edit-topic > button { justify-self: start; }
   .seminars-admin .seminar-summary-text { flex-basis: 100%; }
 }
+.seminar-tools { display: flex; align-items: end; flex-wrap: wrap; gap: 14px; margin: 24px 0; padding: 18px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); }
+.seminar-search { flex: 1 1 240px; display: grid; gap: 8px; font-size: 12px; font-weight: 600; }
+.seminar-search input { width: 100%; min-height: 44px; }
+.seminar-filters { display: flex; gap: 5px; padding: 4px; border-radius: 14px; background: var(--bg); }
+.seminars .seminar-filters button { min-height: 40px; border: 0; border-radius: 10px; background: transparent; }
+.seminars .seminar-filters button[aria-pressed="true"], .seminars .seminar-filters button[aria-pressed="true"]:hover:not(:disabled) { background: var(--accent); color: var(--accent-text); }
+.seminar-tools > p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; }
+.seminars .seminar-summary:disabled { opacity: 1; cursor: default; }
+.seminar-tools :focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
