@@ -12,7 +12,7 @@ export default function AmbientBackground() {
       setSpots(Array.from({ length: 6 }, (_, index) => {
         const angle = (Math.PI * 2 * index) / 6 - Math.PI / 2;
         return {
-          transform: `translate(${random(0, 100)}vw, ${random(0, 100)}vh)`,
+          transform: `translate(${random(-50, 50)}vw, ${random(-50, 50)}dvh)`,
           width: `${random(45, 85)}vmax`,
           height: `${random(35, 65)}vmax`,
           animationDuration: `${random(24, 44)}s`,
@@ -37,7 +37,7 @@ export default function AmbientBackground() {
         root.dataset.loading = String(next);
         if (loading === true && !next) {
           for (const spot of root.children) {
-            (spot as HTMLElement).style.transform = `translate(${Math.random() * 100}vw, ${Math.random() * 100}vh)`;
+            (spot as HTMLElement).style.transform = `translate(${Math.random() * 100 - 50}vw, ${Math.random() * 100 - 50}dvh)`;
           }
         }
       }

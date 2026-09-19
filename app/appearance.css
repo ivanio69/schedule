@@ -286,13 +286,13 @@ body .seminars-client .seminar-filters button[aria-pressed="true"]:hover{
 /* Persistent viewport background: random spots become the loading spinner. */
 html body { position:relative; isolation:isolate; background:var(--bg)!important; animation:none!important; }
 .ambient-background {
-  position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none;
+  position:fixed; inset:0; width:100vw; height:100dvh; z-index:-1; overflow:hidden; pointer-events:none;
   opacity:.34; transition:opacity .55s ease;
   --spot-strength:38%; --neutral-strength:18%;
 }
 html[data-theme="light"] .ambient-background { --spot-strength:22%; --neutral-strength:10%; }
 .ambient-background > span {
-  position:absolute; left:0; top:0;
+  position:absolute; left:50%; top:50%;
   transition:
     transform .72s cubic-bezier(.22,1,.36,1),
     width .72s cubic-bezier(.22,1,.36,1),
@@ -306,7 +306,7 @@ html[data-theme="light"] .ambient-background { --spot-strength:22%; --neutral-st
   transform:translate(-50%,-50%);
   animation-name:ambient-float; animation-timing-function:ease-in-out; animation-iteration-count:infinite;
 }
-html[data-accent="default"] .ambient-background > span > i {
+html[data-accent="default"] .ambient-background > span > i,html[data-accent="neutral"] .ambient-background > span > i {
   background:radial-gradient(ellipse,color-mix(in srgb,var(--text) var(--neutral-strength),transparent),transparent 70%);
 }
 .ambient-background[data-loading="true"] {
@@ -317,14 +317,14 @@ html[data-accent="default"] .ambient-background > span > i {
 .ambient-background[data-loading="true"] > span {
   width:clamp(24px,5.2vmin,46px)!important;
   height:clamp(24px,5.2vmin,46px)!important;
-  transform:translate(calc(50vw + var(--loading-ring-x)),calc(50vh + var(--loading-ring-y)))!important;
+  transform:translate(var(--loading-ring-x),var(--loading-ring-y))!important;
 }
 .ambient-background[data-loading="true"] > span > i {
   background:radial-gradient(circle,color-mix(in srgb,var(--accent) 84%,transparent) 0%,color-mix(in srgb,var(--accent) 44%,transparent) 42%,transparent 74%);
   filter:blur(.6px);
   animation:ambient-loading-pulse .82s ease-in-out var(--loading-ring-delay) infinite alternate;
 }
-html[data-accent="default"] .ambient-background[data-loading="true"] > span > i {
+html[data-accent="default"] .ambient-background[data-loading="true"] > span > i,html[data-accent="neutral"] .ambient-background[data-loading="true"] > span > i {
   background:radial-gradient(circle,color-mix(in srgb,var(--text) 78%,transparent) 0%,color-mix(in srgb,var(--text) 34%,transparent) 42%,transparent 74%);
 }
 body:has(.app-loading-state.is-screen) :is(.app-page-transition, .app-navigation) { visibility:hidden; }
@@ -342,4 +342,11 @@ body .app-loading-state.is-screen { visibility:visible; }
 @media(prefers-reduced-motion:reduce) {
   .ambient-background, .ambient-background > span, .ambient-background > span > i { transition:none; animation:none!important; }
   .ambient-background[data-loading="true"] > span > i { opacity:.82; transform:translate(-50%,-50%); }
+}
+
+@media(max-width:600px){
+  .ambient-background[data-loading="true"] > span{
+    width:clamp(22px,6.2vmin,34px)!important;
+    height:clamp(22px,6.2vmin,34px)!important;
+  }
 }
