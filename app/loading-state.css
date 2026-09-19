@@ -12,7 +12,7 @@
   background-repeat:no-repeat,no-repeat,repeat;
   opacity:0;
   transform:scale(1.025);
-  animation:app-loading-background-enter .68s cubic-bezier(.22,1,.36,1) .04s forwards,app-loading-background-float 7.8s cubic-bezier(.45,.05,.55,.95) .72s infinite alternate;
+  animation:app-loading-background-enter .68s cubic-bezier(.22,1,.36,1) .04s forwards,app-loading-background-float 4.6s cubic-bezier(.45,.05,.55,.95) .72s infinite alternate;
 }
 .app-loading-state.is-screen::after{
   z-index:-1;
@@ -21,7 +21,7 @@
   background-position:var(--loading-x3,58%) var(--loading-y3,7%);
   background-repeat:no-repeat;
   opacity:0;
-  animation:app-loading-glow-enter .82s ease .12s forwards,app-loading-glow-float 6.2s ease-in-out .94s infinite alternate;
+  animation:app-loading-glow-enter .82s ease .12s forwards,app-loading-glow-float 3.7s ease-in-out .94s infinite alternate;
 }
 html[data-accent="default"] .app-loading-state.is-screen::before{
   background:
