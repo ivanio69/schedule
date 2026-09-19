@@ -2,46 +2,108 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
+const SPOT_COUNT = 6;
+const FORM_MS = 180;
+const ORBIT_MS = 1100;
+
 export default function AmbientBackground() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [spots, setSpots] = useState<CSSProperties[]>([]);
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      const random = (min: number, max: number) => min + Math.random() * (max - min);
-      setSpots(Array.from({ length: 6 }, (_, index) => {
-        const angle = (Math.PI * 2 * index) / 6 - Math.PI / 2;
-        return {
-          transform: `translate(${random(-50, 50)}vw, ${random(-50, 50)}dvh)`,
-          width: `${random(45, 85)}vmax`,
-          height: `${random(35, 65)}vmax`,
-          animationDuration: `${random(24, 44)}s`,
-          animationDelay: `${random(-44, 0)}s`,
-          "--drift-x": `${random(-25, 25)}vw`,
-          "--drift-y": `${random(-25, 25)}vh`,
-          "--drift-x2": `${random(-25, 25)}vw`,
-          "--drift-y2": `${random(-25, 25)}vh`,
-          "--loading-ring-x": `${Math.cos(angle) * 10.5}vmin`,
-          "--loading-ring-y": `${Math.sin(angle) * 10.5}vmin`,
-          "--loading-ring-delay": `${-index * 0.09}s`,
-        } as CSSProperties;
-      }));
+    const random = (min: number, max: number) => min + Math.random() * (max - min);
+    const seedFrame = requestAnimationFrame(() => {
+      setSpots(Array.from({ length: SPOT_COUNT }, (_, index) => ({
+        transform: `translate(${random(-50, 50)}vw, ${random(-50, 50)}dvh)`,
+        width: `${random(45, 85)}vmax`,
+        height: `${random(35, 65)}vmax`,
+        animationDuration: `${random(24, 44)}s`,
+        animationDelay: `${random(-44, 0)}s`,
+        "--drift-x": `${random(-25, 25)}vw`,
+        "--drift-y": `${random(-25, 25)}vh`,
+        "--drift-x2": `${random(-25, 25)}vw`,
+        "--drift-y2": `${random(-25, 25)}vh`,
+        "--loading-ring-delay": `${-index * 0.09}s`,
+      } as CSSProperties)));
     });
 
-    let loading: boolean | undefined;
+    let loading = false;
+    let orbitFrame = 0;
+    let orbitStartedAt = 0;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    const viewport = () => {
+      const visual = window.visualViewport;
+      return {
+        left: visual?.offsetLeft ?? 0,
+        top: visual?.offsetTop ?? 0,
+        width: visual?.width ?? window.innerWidth,
+        height: visual?.height ?? window.innerHeight,
+      };
+    };
+
+    const layoutRing = (timestamp: number) => {
+      const root = rootRef.current;
+      if (!root || !loading) return;
+
+      const view = viewport();
+      root.style.left = `${view.left}px`;
+      root.style.top = `${view.top}px`;
+      root.style.width = `${view.width}px`;
+      root.style.height = `${view.height}px`;
+      root.style.right = "auto";
+      root.style.bottom = "auto";
+
+      const elapsed = Math.max(0, timestamp - orbitStartedAt);
+      const phase = reducedMotion.matches || elapsed <= FORM_MS
+        ? 0
+        : ((elapsed - FORM_MS) / ORBIT_MS) * Math.PI * 2;
+      const radius = Math.max(36, Math.min(54, Math.min(view.width, view.height) * 0.105));
+
+      Array.from(root.children).forEach((node, index) => {
+        const angle = phase + (Math.PI * 2 * index) / SPOT_COUNT - Math.PI / 2;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        (node as HTMLElement).style.transform = `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)`;
+      });
+
+      root.dataset.orbiting = String(elapsed > FORM_MS + 40);
+      if (!reducedMotion.matches) orbitFrame = requestAnimationFrame(layoutRing);
+    };
+
+    const startOrbit = () => {
+      if (orbitFrame) cancelAnimationFrame(orbitFrame);
+      orbitStartedAt = performance.now();
+      orbitFrame = requestAnimationFrame(layoutRing);
+    };
+
+    const stopOrbit = () => {
+      if (orbitFrame) cancelAnimationFrame(orbitFrame);
+      orbitFrame = 0;
+      const root = rootRef.current;
+      if (!root) return;
+      delete root.dataset.orbiting;
+      for (const property of ["left", "top", "width", "height", "right", "bottom"]) root.style.removeProperty(property);
+      for (const spot of root.children) {
+        (spot as HTMLElement).style.transform = `translate(${random(-50, 50)}vw, ${random(-50, 50)}dvh)`;
+      }
+    };
+
     const syncLoading = () => {
       const next = !!document.querySelector(".app-loading-state.is-screen:not(.app-loading-ghost)");
-      if (next === loading) return;
       const root = rootRef.current;
-      if (root) {
-        root.dataset.loading = String(next);
-        if (loading === true && !next) {
-          for (const spot of root.children) {
-            (spot as HTMLElement).style.transform = `translate(${Math.random() * 100 - 50}vw, ${Math.random() * 100 - 50}dvh)`;
-          }
-        }
+      if (!root) return;
+      root.dataset.loading = String(next);
+
+      if (next && !loading) {
+        loading = true;
+        startOrbit();
+      } else if (!next && loading) {
+        loading = false;
+        stopOrbit();
+      } else if (next && loading && !orbitFrame) {
+        startOrbit();
       }
-      loading = next;
     };
 
     const observer = new MutationObserver(syncLoading);
@@ -49,7 +111,8 @@ export default function AmbientBackground() {
     syncLoading();
 
     return () => {
-      cancelAnimationFrame(frame);
+      cancelAnimationFrame(seedFrame);
+      if (orbitFrame) cancelAnimationFrame(orbitFrame);
       observer.disconnect();
     };
   }, []);
