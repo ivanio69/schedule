@@ -28,7 +28,7 @@ import AmbientBackground from "@/components/AmbientBackground";
 import AppearanceProvider from "@/components/AppearanceProvider";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin", "cyrillic"] });
-const appearanceBootScript = `(()=>{try{const root=document.documentElement;const raw=localStorage.getItem("schedule_appearance");if(!raw)return;const value=JSON.parse(raw);const accents=["default","mint","blue","violet","amber","rose"];root.dataset.theme=value.theme==="light"?"light":"dark";root.dataset.accent=accents.includes(value.appAccent)?value.appAccent:"default";root.dataset.rehearsalAccent=accents.includes(value.rehearsalAccent)?value.rehearsalAccent:"default";root.dataset.individualAccent=accents.includes(value.individualAccent)?value.individualAccent:"default";root.dataset.seminarAccent=accents.includes(value.seminarAccent)?value.seminarAccent:"default"}catch{}})();`;
+const appearanceBootScript = `(()=>{try{const root=document.documentElement;const raw=localStorage.getItem("schedule_appearance");if(!raw)return;const value=JSON.parse(raw);const accents=["neutral","mint","blue","violet","amber","rose"];const pick=(v,f)=>v==="default"?f:accents.includes(v)?v:f;root.dataset.theme=value.theme==="light"?"light":"dark";root.dataset.accent=pick(value.appAccent,"neutral");root.dataset.rehearsalAccent=pick(value.rehearsalAccent,"amber");root.dataset.individualAccent=pick(value.individualAccent,"rose");root.dataset.seminarAccent=pick(value.seminarAccent,"violet")}catch{}})();`;
 
 export const metadata: Metadata = {
   title: "Расписание 214Р",
@@ -36,5 +36,5 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><AmbientBackground /><AppearanceProvider /><OfflineBanner /><PushPrompt /><AppNavigation /><div className="app-page-transition">{children}</div></body></html>;
+  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent="neutral" data-rehearsal-accent="amber" data-individual-accent="rose" data-seminar-accent="violet" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><AmbientBackground /><AppearanceProvider /><OfflineBanner /><PushPrompt /><AppNavigation /><div className="app-page-transition">{children}</div></body></html>;
 }
