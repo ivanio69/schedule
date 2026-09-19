@@ -10,7 +10,7 @@ export type Lesson = {
   timeEnd: string;
   group: Group[];
   weeks: number[];
-  occurrence?: { key: string; date: string; revision: number };
+  occurrence?: { key: string; date: string; revision: number; status?: "cancelled" | "moved"; reason?: string; originalDate?: string };
 };
 
 export type RehearsalParticipantMode = "rehearsal" | "blocks";
@@ -119,11 +119,17 @@ export function getOccurrences(schedule: ScheduleData, date: string): Lesson[] {
   if (!validScheduleDate(schedule,date)) return [];
   const {week,day} = datePosition(schedule,date);
   const changes = schedule.changes ?? [];
-  const lessons = (schedule.days[day]?.table ?? []).filter(l=>!l.weeks.length || l.weeks.includes(week))
-    .filter(l=>!changes.some(c=>c.date===date && c.key===lessonKey(l)))
-    .map(l=>({...l, occurrence:{key:lessonKey(l),date,revision:0}}));
+  const lessons = (schedule.days[day]?.table ?? [])
+    .filter(l=>!l.weeks.length || l.weeks.includes(week))
+    .flatMap(l=>{
+      const key=lessonKey(l);
+      const change=changes.find(c=>c.date===date&&c.key===key);
+      if (!change) return [{...l,occurrence:{key,date,revision:0}}];
+      if (change.kind==="move") return [];
+      return [{...l,occurrence:{key,date,revision:change.revision,status:"cancelled" as const,reason:change.reason}}];
+    });
   for (const c of changes) {
-    if (c.kind==="move" && c.targetDate===date) lessons.push({...c.lesson,timeStart:c.timeStart,timeEnd:c.timeEnd,auditorium:c.auditorium,occurrence:{key:c.key,date:c.date,revision:c.revision}});
+    if (c.kind==="move" && c.targetDate===date) lessons.push({...c.lesson,timeStart:c.timeStart,timeEnd:c.timeEnd,auditorium:c.auditorium,occurrence:{key:c.key,date:c.date,revision:c.revision,status:"moved",reason:c.reason,originalDate:c.date}});
   }
   return lessons.sort((a,b)=>a.timeStart.localeCompare(b.timeStart));
 }

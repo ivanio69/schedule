@@ -19,7 +19,9 @@ change.targetDate = "2026-09-15";
 assert.equal(getOccurrences(schedule,"2026-09-09").length,0);
 assert.equal(getLessonsForWeek(schedule,1,2).length,1);
 change.kind = "cancel";
-assert.equal(getLessonsForWeek(schedule,1,2).length,0);
+const cancelled = getLessonsForWeek(schedule,1,2);
+assert.equal(cancelled.length,1);
+assert.equal(cancelled[0].occurrence?.status,"cancelled");
 assert.equal(getOccurrences(schedule,"2026-09-14").length,1);
 schedule.days[0].table[0].weeks = [];
 assert.equal(getOccurrences(schedule,"2026-09-07").length,0);
@@ -37,3 +39,9 @@ assert.deepEqual(getLessonsForWeek(chinaSchedule,0,1,{},false).map(item=>item.id
 assert.deepEqual(getLessonsForWeek(chinaSchedule,0,1,{"Подгруппа 1":"2"},true).map(item=>item.id),["common","group-one","china-only"]);
 assert.equal(filterScheduleByChinaMode(chinaSchedule,false).days[0].table.some(item=>item.id==="china-only"),false);
 assert.equal(filterScheduleByChinaMode(chinaSchedule,true).days[0].table.some(item=>item.id==="china-only"),true);
+
+const movedStatusSchedule: ScheduleData = { semesterStart:[2026,8,7], days:[{table:[lesson]},...Array.from({length:5},()=>({table:[]}))], changes:[{key:"history",date:"2026-09-07",lesson,kind:"move",targetDate:"2026-09-08",timeStart:"12:00",timeEnd:"13:00",auditorium:"5",reason:"Замена аудитории",revision:2}] };
+const movedOccurrence=getOccurrences(movedStatusSchedule,"2026-09-08")[0];
+assert.equal(movedOccurrence.occurrence?.status,"moved");
+assert.equal(movedOccurrence.occurrence?.reason,"Замена аудитории");
+assert.equal(movedOccurrence.occurrence?.originalDate,"2026-09-07");
