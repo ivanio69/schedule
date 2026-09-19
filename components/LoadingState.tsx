@@ -1,5 +1,6 @@
 "use client";
 
+import AmbientBackground from "./AmbientBackground";
 import { useLayoutEffect, useRef } from "react";
 
 type LoadingStateProps = {
@@ -25,14 +26,6 @@ export default function LoadingState({
     const node = rootRef.current;
     if (!node) return;
 
-    const random = (min: number, max: number) => Math.round(min + Math.random() * (max - min));
-    node.style.setProperty("--loading-x1", `${random(38, 64)}%`);
-    node.style.setProperty("--loading-y1", `${random(-4, 10)}%`);
-    node.style.setProperty("--loading-x2", `${random(-8, 16)}%`);
-    node.style.setProperty("--loading-y2", `${random(14, 38)}%`);
-    node.style.setProperty("--loading-x3", `${random(42, 68)}%`);
-    node.style.setProperty("--loading-y3", `${random(2, 22)}%`);
-
     return () => {
       if (typeof document === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       const ghost = node.cloneNode(true) as HTMLDivElement;
@@ -47,6 +40,7 @@ export default function LoadingState({
   }, [screen]);
 
   return <div ref={rootRef} className={classes} role="status" aria-live="polite" aria-busy="true">
+    {screen && <AmbientBackground />}
     <span className="app-loading-spinner" aria-hidden="true"/>
     <div className="app-loading-copy">
       <strong>{label}</strong>

@@ -1,24 +1,12 @@
 "use client";
 
-import { useEffect, useLayoutEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { APPEARANCE_STORAGE_KEY, normalizeAppearance } from "@/lib/appearance";
 import { applyAppearance, persistAppearance, readStoredAppearance } from "@/lib/appearance-client";
 
 const PERSON_KEY = "schedule_person_id";
 
 export default function AppearanceProvider() {
-  const pathname = usePathname();
-
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    const random = (min: number, max: number) => Math.round(min + Math.random() * (max - min));
-    root.style.setProperty("--app-bg-x1", `${random(32, 68)}%`);
-    root.style.setProperty("--app-bg-y1", `${random(-8, 16)}%`);
-    root.style.setProperty("--app-bg-x2", `${random(-8, 22)}%`);
-    root.style.setProperty("--app-bg-y2", `${random(12, 42)}%`);
-  }, [pathname]);
-
   useEffect(() => {
     let stopped = false;
 

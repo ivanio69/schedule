@@ -286,64 +286,25 @@ body .seminars-client .seminar-filters button[aria-pressed="true"]:hover{
   }
 }
 
-/* Viewport-fixed app background: independent of document height. */
-body{position:relative;isolation:isolate;background:var(--bg)!important}
-body::before{
-  content:"";
-  position:fixed;
-  inset:0;
-  z-index:-1;
-  pointer-events:none;
-  background:
-    radial-gradient(ellipse 78% 42% at 50% 50%,color-mix(in srgb,var(--accent) 20%,transparent),transparent 70%),
-    radial-gradient(ellipse 48% 30% at 50% 50%,color-mix(in srgb,var(--accent) 7%,transparent),transparent 72%);
-  background-size:138% 132%,128% 124%;
-  background-position:var(--app-bg-x1,50%) var(--app-bg-y1,0%),var(--app-bg-x2,0%) var(--app-bg-y2,22%);
-  background-repeat:no-repeat,no-repeat;
-  will-change:background-position,background-size;
+/* Persistent viewport background: random spots move independently on every route. */
+html body { position:relative; isolation:isolate; background:var(--bg)!important; animation:none!important; }
+.ambient-background { position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none; --spot-strength:13%; --neutral-strength:6%; }
+html[data-theme="light"] .ambient-background { --spot-strength:8%; --neutral-strength:3.5%; }
+.ambient-background > span {
+  position:absolute; border-radius:50%;
+  background:radial-gradient(ellipse,color-mix(in srgb,var(--accent) var(--spot-strength),transparent),transparent 70%);
+  transform:translate(-50%,-50%);
+  animation:ambient-float 32s ease-in-out infinite;
 }
-html[data-accent="default"] body::before{
-  background-image:
-    radial-gradient(ellipse 78% 42% at 50% 50%,rgba(255,255,255,.07),transparent 70%),
-    radial-gradient(ellipse 48% 30% at 50% 50%,rgba(255,255,255,.018),transparent 72%);
+html[data-accent="default"] .ambient-background > span {
+  background:radial-gradient(ellipse,color-mix(in srgb,var(--text) var(--neutral-strength),transparent),transparent 70%);
 }
-html[data-theme="light"] body::before{
-  background-image:
-    radial-gradient(ellipse 78% 42% at 50% 50%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 70%),
-    radial-gradient(ellipse 48% 30% at 50% 50%,color-mix(in srgb,var(--accent) 4%,transparent),transparent 72%);
+body .app-loading-state.is-screen > .ambient-background { position:absolute; --spot-strength:38%; --neutral-strength:18%; }
+html[data-theme="light"] .app-loading-state.is-screen > .ambient-background { --spot-strength:22%; --neutral-strength:10%; }
+body .app-loading-state.is-screen::before, body .app-loading-state.is-screen::after { display:none; }
+@keyframes ambient-float {
+  0%,100% { transform:translate(-50%,-50%) scale(1); }
+  33% { transform:translate(calc(-50% + var(--drift-x)),calc(-50% + var(--drift-y))) scale(1.08); }
+  66% { transform:translate(calc(-50% + var(--drift-x2)),calc(-50% + var(--drift-y2))) scale(.94); }
 }
-html[data-theme="light"][data-accent="default"] body::before{
-  background-image:
-    radial-gradient(ellipse 78% 42% at 50% 50%,rgba(0,0,0,.035),transparent 70%),
-    radial-gradient(ellipse 48% 30% at 50% 50%,rgba(0,0,0,.012),transparent 72%);
-}
-html[data-theme="light"] body,
-html[data-accent="default"] body,
-html[data-theme="light"][data-accent="default"] body,
-body:has(.dashboard-v2:not(.dashboard-choose)),
-html[data-accent="default"] body:has(.dashboard-v2:not(.dashboard-choose)),
-html[data-theme="light"] body:has(.dashboard-v2:not(.dashboard-choose)),
-html[data-theme="light"][data-accent="default"] body:has(.dashboard-v2:not(.dashboard-choose)){
-  background:var(--bg)!important;
-  animation:none!important;
-}
-body:has(.dashboard-v2:not(.dashboard-choose))::before{
-  animation:dashboard-viewport-background-drift 13s cubic-bezier(.45,.05,.55,.95) infinite alternate;
-}
-@keyframes dashboard-viewport-background-drift{
-  0%{
-    background-position:var(--app-bg-x1,50%) var(--app-bg-y1,0%),var(--app-bg-x2,0%) var(--app-bg-y2,22%);
-    background-size:138% 132%,128% 124%;
-  }
-  45%{
-    background-position:calc(var(--app-bg-x1,50%) + 9%) calc(var(--app-bg-y1,0%) + 5%),calc(var(--app-bg-x2,0%) + 7%) calc(var(--app-bg-y2,22%) + 8%);
-    background-size:145% 138%,134% 130%;
-  }
-  100%{
-    background-position:calc(var(--app-bg-x1,50%) - 8%) calc(var(--app-bg-y1,0%) + 12%),calc(var(--app-bg-x2,0%) + 4%) calc(var(--app-bg-y2,22%) - 6%);
-    background-size:151% 144%,139% 136%;
-  }
-}
-@media(prefers-reduced-motion:reduce){
-  body:has(.dashboard-v2:not(.dashboard-choose))::before{animation:none}
-}
+@media(prefers-reduced-motion:reduce) { .ambient-background > span { animation:none; } }
