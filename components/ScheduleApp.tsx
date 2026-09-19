@@ -9,6 +9,7 @@ import { ScheduleCard } from "@/components/ScheduleCard";
 import { IndividualLessonCard, type ScheduleIndividualLesson } from "@/components/IndividualLessonCard";
 import type { Person } from "@/lib/people";
 import { getRehearsalAudienceNames } from "@/lib/rehearsals";
+import LoadingState from "@/components/LoadingState";
 
 type View = "schedule" | "settings";
 type Preferences = Record<string, GroupPreference>;
@@ -220,7 +221,7 @@ export default function ScheduleApp() {
     if (response.ok) { setRehearsals(items => items.filter(item => item.id !== id)); setDetails(null); }
   };
 
-  if (loading || !schedule) return <main className="schedule-shell"><div className="empty-state"><span className="empty-state__icon">…</span><h2>Загрузка расписания</h2><p>Подключаемся к базе данных.</p></div></main>;
+  if (loading || !schedule) return <LoadingState screen label="Загружаем расписание" detail="Получаем недели, пары и репетиции."/>;
 
   const entries = [
     ...lessons.map(item => ({ type: "lesson" as const, time: item.timeStart, item })),
