@@ -11,6 +11,8 @@ type Person = { id: string; name: string };
 type Editor = { listId: string; topicId: string; revision: number; ids: string[] };
 export default function Seminars({ admin = false }: { admin?: boolean }) {
   const reducedMotion = useReducedMotion();
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "free" | "mine">("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [lists, setLists] = useState<SeminarList[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
@@ -75,7 +77,15 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
     } catch (e) { setNotice(e instanceof Error ? e.message : "Не удалось сохранить. Проверь подключение к сети"); return false; }
     finally { setBusy(false); }
   }
-  const groups = [...new Set(lists.map(list => list.subject))].sort((a,b) => a.localeCompare(b,"ru"));
+  const search = query.trim().toLocaleLowerCase("ru");
+  const matches = (list: SeminarList, topic: SeminarTopic) => admin || (
+    (!search || `${list.subject} ${list.title} ${topic.title} ${(topic.studentNames ?? []).join(" ")}`.toLocaleLowerCase("ru").includes(search)) &&
+    (filter === "all" || (filter === "free" ? topic.studentIds.length < list.capacity : !!personId && topic.studentIds.includes(personId)))
+  );
+  const visibleLists = lists.filter(list => list.topics.some(topic => matches(list, topic)));
+  const filtering = !admin && (!!search || filter !== "all");
+  const isOpen = (id: string) => admin || filtering || expanded.has(id);
+  const groups = [...new Set(visibleLists.map(list => list.subject))].sort((a,b) => a.localeCompare(b,"ru"));
   function edit(list: SeminarList, topic: SeminarTopic) {
     setEditor({ listId: list.id, topicId: topic.id, revision: list.revision, ids: [...topic.studentIds] });
   }
@@ -113,8 +123,14 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
     </form>}
     {loading ? <LoadingState screen={!admin} compact={admin} label="Загружаем семинары" detail={admin ? "Получаем темы и участников." : "Получаем актуальные темы и записи."}/> : !lists.length && !error ? <div className="seminar-empty"><h2>Тем пока нет</h2><p>{admin ? "Добавь первый список семинаров выше." : "Здесь появятся списки, которые добавит администратор."}</p></div> : null}
     {!admin && !loading && !personId && <p className="seminar-message"><Link href="/">Выбери своё имя</Link>, чтобы забить тему.</p>}
-    {groups.map(group => <section key={group} className="seminar-subject"><h2>{group}</h2>{lists.filter(l => l.subject === group).map(list => { const listIsMine = !admin && list.topics.some(topic => topic.studentIds.includes(personId ?? "")); return <article key={list.id} className={`seminar-list${listIsMine ? " seminar-list-mine" : ""}`}>
-      <header className="seminar-list-header"><h3>{admin ? <span className="seminar-summary"><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span><button type="button" disabled={busy || listEditor !== null} onClick={() => { setEditor(null); setListEditor({ ...list, topics: list.topics.map(topic => ({ ...topic })) }); }} aria-label={`Редактировать семинар ${list.title}`}>Изменить</button><button type="button" className="seminar-delete admin-danger" disabled={busy} onClick={() => void remove(list)} aria-label={`Удалить семинар ${list.title}`}>Удалить</button></span> : <button className="seminar-summary" aria-expanded={expanded.has(list.id)} aria-controls={`seminar-topics-${list.id}`} onClick={() => setExpanded(current => { const next = new Set(current); if (next.has(list.id)) next.delete(list.id); else next.add(list.id); return next; })}><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span>{listIsMine && <span className="seminar-mine-badge">Мой семинар</span>}<span className="seminar-summary-count">{list.topics.filter(t => t.studentIds.length < list.capacity).length} свободно</span><svg className={expanded.has(list.id) ? "is-open" : ""} viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></button>}</h3></header>
+    {!admin && !loading && lists.length > 0 && <div className="seminar-tools">
+      <label className="seminar-search"><span>Найти тему</span><input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Предмет, тема или участник" /></label>
+      <div className="seminar-filters" role="group" aria-label="Показать темы">{([['all', 'Все'], ['free', 'Свободные'], ['mine', 'Мои']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div>
+      <p role="status">Найдено тем: {visibleLists.reduce((total, list) => total + list.topics.filter(topic => matches(list, topic)).length, 0)}</p>
+    </div>}
+    {!admin && !loading && lists.length > 0 && !visibleLists.length && <div className="seminar-empty"><h2>{filter === "mine" && !search ? "Пока нет твоих тем" : "Ничего не найдено"}</h2><p>Попробуй другой запрос или посмотри все темы.</p><button type="button" onClick={() => { setQuery(""); setFilter("all"); }}>Показать все темы</button></div>}
+    {groups.map(group => <section key={group} className="seminar-subject"><h2>{group}</h2>{visibleLists.filter(l => l.subject === group).map(list => { const listIsMine = !admin && list.topics.some(topic => topic.studentIds.includes(personId ?? "")); return <article key={list.id} className={`seminar-list${listIsMine ? " seminar-list-mine" : ""}`}>
+      <header className="seminar-list-header"><h3>{admin ? <span className="seminar-summary"><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span><button type="button" disabled={busy || listEditor !== null} onClick={() => { setEditor(null); setListEditor({ ...list, topics: list.topics.map(topic => ({ ...topic })) }); }} aria-label={`Редактировать семинар ${list.title}`}>Изменить</button><button type="button" className="seminar-delete admin-danger" disabled={busy} onClick={() => void remove(list)} aria-label={`Удалить семинар ${list.title}`}>Удалить</button></span> : <button className="seminar-summary" disabled={filtering} aria-expanded={isOpen(list.id)} aria-controls={`seminar-topics-${list.id}`} onClick={() => setExpanded(current => { const next = new Set(current); if (next.has(list.id)) next.delete(list.id); else next.add(list.id); return next; })}><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span>{listIsMine && <span className="seminar-mine-badge">Мой семинар</span>}<span className="seminar-summary-count">{list.topics.filter(t => t.studentIds.length < list.capacity).length} свободно</span><svg className={isOpen(list.id) ? "is-open" : ""} viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></button>}</h3></header>
       {admin && listEditor?.id === list.id && <form className="seminar-list-edit" onSubmit={async e => {
         e.preventDefault();
         if (await mutate("PATCH", { listId: listEditor.id, revision: listEditor.revision, subject: listEditor.subject, title: listEditor.title, capacity: listEditor.capacity, topics: listEditor.topics.map(topic => ({ ...(list.topics.some(existing => existing.id === topic.id) ? { id: topic.id } : {}), title: topic.title })) }, "Семинар обновлён")) setListEditor(null);
@@ -135,7 +151,8 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
           <div className="seminar-editor-actions"><button type="button" onClick={() => setListEditor(null)}>Отмена</button><button type="submit" className="seminar-primary">{busy ? "Сохранение…" : "Сохранить изменения"}</button></div>
         </fieldset>
       </form>}
-      <motion.div id={`seminar-topics-${list.id}`} initial={false} animate={{ height: admin || expanded.has(list.id) ? "auto" : 0, opacity: admin || expanded.has(list.id) ? 1 : 0 }} transition={{ duration: reducedMotion ? 0 : .26, ease: [.22, 1, .36, 1] }} inert={!admin && !expanded.has(list.id)} aria-hidden={!admin && !expanded.has(list.id)} className="seminar-collapse"><ol>{list.topics.map((topic, index) => {
+      <motion.div id={`seminar-topics-${list.id}`} initial={false} animate={{ height: admin || isOpen(list.id) ? "auto" : 0, opacity: admin || isOpen(list.id) ? 1 : 0 }} transition={{ duration: reducedMotion ? 0 : .26, ease: [.22, 1, .36, 1] }} inert={!admin && !isOpen(list.id)} aria-hidden={!admin && !isOpen(list.id)} className="seminar-collapse"><ol>{list.topics.map((topic, index) => {
+        if (!matches(list, topic)) return null;
         const mine = !admin && topic.studentIds.includes(personId ?? "");
         const full = topic.studentIds.length >= list.capacity;
         const editing = editor?.listId === list.id && editor.topicId === topic.id;

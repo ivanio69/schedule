@@ -18,7 +18,7 @@ export default function Dashboard() {
  useEffect(()=>{ const saved=localStorage.getItem("schedule_person_id"),today=dateKey(new Date()); Promise.all([fetch("/api/people",{cache:"no-store"}).then(r=>r.json()),fetch(`/api/schedule?date=${today}`,{cache:"no-store"}).then(r=>r.json())]).then(([p,s])=>{const list=p.people??[];setPeople(list);const chosen=list.find((x:Person)=>x.id===saved)??null;setPerson(chosen);setSchedule(s.schedule??null);setRehearsals(s.rehearsals??[]);if(s.schedule)setPreferences(readPreferences(s.schedule));if(chosen)void loadIndividuals(chosen.id);}).finally(()=>setLoading(false)); },[]);
  useEffect(()=>{const t=setInterval(()=>setNow(new Date()),10000);return()=>clearInterval(t)},[]);
  useEffect(()=>{const onStorage=()=>{if(schedule)setPreferences(readPreferences(schedule));};window.addEventListener("storage",onStorage);return()=>window.removeEventListener("storage",onStorage)},[schedule]);
- const selectPerson=(p:Person)=>{setPerson(p);localStorage.setItem("schedule_person_id",p.id);setShowPicker(false);void loadIndividuals(p.id)};
+ const selectPerson=(p:Person)=>{setPerson(p);localStorage.setItem("schedule_person_id",p.id);window.dispatchEvent(new Event("schedule-auth-change"));setShowPicker(false);void loadIndividuals(p.id)};
  const today=todayIndex(),week=schedule?getCurrentWeek(schedule,now):1,todayDate=today>=0?currentDateForDay(today):now,todayKey=dateKey(todayDate);
  const groupLessons=schedule&&today>=0?getLessonsForWeek(schedule,today,week,preferences):[];
  const todayIndividuals=individuals.filter(x=>x.date===todayKey),todayRehearsals=rehearsals.filter(x=>x.date===todayKey);

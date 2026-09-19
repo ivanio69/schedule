@@ -36,16 +36,16 @@
 .seminar-subject > h2 { margin: 0 0 10px; font-size: 13px; overflow-wrap: anywhere; }
 .seminar-list { margin-top: 10px; transition: border-color .18s ease; }
 .seminar-list:hover { border-color: #3b3b42; }
-.seminar-list-mine { border-color: rgba(154,230,180,.55); box-shadow: 0 0 0 1px rgba(154,230,180,.08), 0 14px 40px rgba(40,120,75,.12); }
-.seminar-list-mine:hover { border-color: rgba(154,230,180,.75); }
-.seminar-list-mine .seminar-summary { background: linear-gradient(135deg,rgba(154,230,180,.13),rgba(255,255,255,.015)); }
+.seminar-list-mine { border-color: color-mix(in srgb,var(--seminar) 55%,var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb,var(--seminar) 8%,transparent), 0 14px 40px color-mix(in srgb,var(--seminar) 12%,transparent); }
+.seminar-list-mine:hover { border-color: color-mix(in srgb,var(--seminar) 75%,var(--border)); }
+.seminar-list-mine .seminar-summary { background: linear-gradient(135deg,var(--seminar-bg),color-mix(in srgb,var(--surface) 98%,var(--text) 2%)); }
 .seminar-list-header h3 { margin: 0; }
 .seminars .seminar-summary { display: flex; align-items: center; gap: 12px; width: 100%; padding: 18px; border: 0; border-radius: 0; background: linear-gradient(135deg, rgba(255,255,255,.035), rgba(255,255,255,.01)); color: var(--text); text-align: left; }
 .seminar-summary-text { display: grid; flex: 1; min-width: 0; gap: 5px; }
 .seminar-summary-text strong { font-size: 15px; font-weight: 750; letter-spacing: -.015em; line-height: 1.35; overflow-wrap: anywhere; }
 .seminar-summary-text small { font-weight: 500; }
 .seminar-summary-count { flex-shrink: 0; border: 1px solid #303036; border-radius: 999px; padding: 4px 8px; color: var(--muted); font-size: 10px; font-weight: 650; }
-.seminar-mine-badge { flex-shrink: 0; padding: 5px 8px; border-radius: 999px; color: #b5f0cd; background: rgba(154,230,180,.14); font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.seminar-mine-badge { flex-shrink: 0; padding: 5px 8px; border-radius: 999px; color: var(--seminar); background: color-mix(in srgb,var(--seminar) 14%,transparent); font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .seminar-summary svg { flex-shrink: 0; width: 18px; height: 18px; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform .26s ease; }
 .seminar-summary svg.is-open { transform: rotate(180deg); }
 .seminars .seminar-delete { flex-shrink: 0; color: #ff9b9b; background: transparent; }
@@ -61,8 +61,8 @@
 .seminar-number { color: #777780; font-size: 10px; font-variant-numeric: tabular-nums; align-self: start; padding-top: 4px; }
 .seminar-capacity { color: var(--muted); font-size: 10px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .seminar-mine .seminar-topic-info small { display: inline-block; margin-top: 6px; color: var(--text); font-size: 10px; }
-.seminar-list li.seminar-mine { background: rgba(154,230,180,.09); box-shadow: inset 3px 0 #9ae6b4; }
-.seminar-list li.seminar-mine:hover { background: rgba(154,230,180,.13); }
+.seminar-list li.seminar-mine { background: color-mix(in srgb,var(--seminar) 9%,var(--surface)); box-shadow: inset 3px 0 var(--seminar); }
+.seminar-list li.seminar-mine:hover { background: color-mix(in srgb,var(--seminar) 13%,var(--surface)); }
 .seminar-editor { display: grid; gap: 14px; margin: 0 18px 18px 52px; padding: 16px; border: 1px solid #303036; border-radius: 12px; background: var(--surface-hover); }
 .seminar-editor p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .seminar-editor-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
@@ -106,3 +106,12 @@
   .seminar-edit-topic > button { justify-self: start; }
   .seminars-admin .seminar-summary-text { flex-basis: 100%; }
 }
+.seminar-tools { display: flex; align-items: end; flex-wrap: wrap; gap: 14px; margin: 24px 0; padding: 18px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); }
+.seminar-search { flex: 1 1 240px; display: grid; gap: 8px; font-size: 12px; font-weight: 600; }
+.seminar-search input { width: 100%; min-height: 44px; }
+.seminar-filters { display: flex; gap: 5px; padding: 4px; border-radius: 14px; background: var(--bg); }
+.seminars .seminar-filters button { min-height: 40px; border: 0; border-radius: 10px; background: transparent; }
+.seminars .seminar-filters button[aria-pressed="true"], .seminars .seminar-filters button[aria-pressed="true"]:hover:not(:disabled) { background: var(--accent); color: var(--accent-text); }
+.seminar-tools > p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; }
+.seminars .seminar-summary:disabled { opacity: 1; cursor: default; }
+.seminar-tools :focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }

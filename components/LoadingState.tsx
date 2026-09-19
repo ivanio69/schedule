@@ -23,8 +23,10 @@ export default function LoadingState({
   useLayoutEffect(() => {
     if (!screen) return;
     const node = rootRef.current;
+    if (!node) return;
+
     return () => {
-      if (!node || typeof document === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      if (typeof document === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       const ghost = node.cloneNode(true) as HTMLDivElement;
       ghost.removeAttribute("role");
       ghost.removeAttribute("aria-live");
