@@ -121,15 +121,15 @@ export function getOccurrences(schedule: ScheduleData, date: string): Lesson[] {
   const changes = schedule.changes ?? [];
   const lessons = (schedule.days[day]?.table ?? [])
     .filter(l=>!l.weeks.length || l.weeks.includes(week))
-    .flatMap(l=>{
-      const key=lessonKey(l);
-      const change=changes.find(c=>c.date===date&&c.key===key);
-      if (!change) return [{...l,occurrence:{key,date,revision:0}}];
-      if (change.kind==="move") return [];
-      return [{...l,occurrence:{key,date,revision:change.revision,status:"cancelled" as const,reason:change.reason}}];
-    });
+    .filter(l=>!changes.some(c=>c.date===date&&c.key===lessonKey(l)))
+    .map(l=>({...l,occurrence:{key:lessonKey(l),date,revision:0}}));
   for (const c of changes) {
-    if (c.kind==="move" && c.targetDate===date) lessons.push({...c.lesson,timeStart:c.timeStart,timeEnd:c.timeEnd,auditorium:c.auditorium,occurrence:{key:c.key,date:c.date,revision:c.revision,status:"moved",reason:c.reason,originalDate:c.date}});
+    if (c.targetDate!==date) continue;
+    if (c.kind==="move") {
+      lessons.push({...c.lesson,timeStart:c.timeStart,timeEnd:c.timeEnd,auditorium:c.auditorium,occurrence:{key:c.key,date:c.date,revision:c.revision,status:"moved",reason:c.reason,originalDate:c.date}});
+    } else {
+      lessons.push({...c.lesson,timeStart:c.timeStart,timeEnd:c.timeEnd,auditorium:c.auditorium,occurrence:{key:c.key,date:c.date,revision:c.revision,status:"cancelled",reason:c.reason,originalDate:c.date}});
+    }
   }
   return lessons.sort((a,b)=>a.timeStart.localeCompare(b.timeStart));
 }
