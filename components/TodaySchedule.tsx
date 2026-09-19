@@ -47,15 +47,9 @@ export default function TodaySchedule() {
         const data = await response.json() as { schedule?: ScheduleData };
         if (stopped || !data.schedule) return;
         schedule = data.schedule;
-        window.setTimeout(() => {
-          if (stopped) return;
-          const today = new Date().getDay();
-          if (today !== 0) {
-            const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>(".day-tabs button"));
-            buttons[today - 1]?.click();
-          }
-          sync();
-        }, 80);
+        requestAnimationFrame(() => {
+          if (!stopped) sync();
+        });
       } catch {}
     };
     void load();

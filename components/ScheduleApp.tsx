@@ -63,7 +63,7 @@ export default function ScheduleApp() {
   const [rehearsalError, setRehearsalError] = useState("");
   const [rehearsalEditing, setRehearsalEditing] = useState(false);
   const [rehearsalDate, setRehearsalDate] = useState("");
-  const didInitializeWeek = useRef(false);
+  const didInitializeSelection = useRef(false);
 
   const totalWeeks = useMemo(() => schedule ? getTotalWeeks(schedule) : 1, [schedule]);
   const currentWeek = useMemo(() => schedule ? getCurrentWeek(schedule) : 1, [schedule]);
@@ -81,9 +81,12 @@ export default function ScheduleApp() {
         const data = await response.json() as { schedule: ScheduleData; rehearsals: Rehearsal[] };
         setSchedule(data.schedule);
         setRehearsals(data.rehearsals ?? []);
-        if (!didInitializeWeek.current) {
-          didInitializeWeek.current = true;
-          setWeek(getCurrentWeek(data.schedule));
+        if (!didInitializeSelection.current) {
+          didInitializeSelection.current = true;
+          const now = new Date();
+          const todayIndex = (now.getDay() + 6) % 7;
+          setWeek(getCurrentWeek(data.schedule, now));
+          setDay(todayIndex < DAY_NAMES.length ? todayIndex : 0);
         }
         setPreferences(readPreferences(getSubgroupSubjects(data.schedule)));
       } catch { setRehearsals([]); } finally { setLoading(false); }
