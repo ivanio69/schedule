@@ -284,63 +284,93 @@ body .seminars-client .seminar-filters button[aria-pressed="true"]:hover{
   }
 }
 
-/* Persistent viewport background: random spots become the loading spinner. */
+/* Persistent viewport background: the same six spots morph using layout coordinates, not transforms. */
 html body { position:relative; isolation:isolate; background:var(--bg)!important; animation:none!important; }
 .ambient-background {
-  position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none;
-  opacity:.34; transition:opacity .55s ease;
-  --spot-strength:38%; --neutral-strength:18%;
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  overflow:hidden;
+  pointer-events:none;
+  opacity:.34;
+  transition:opacity .42s ease;
+  --spot-strength:38%;
+  --neutral-strength:18%;
 }
 html[data-theme="light"] .ambient-background { --spot-strength:22%; --neutral-strength:10%; }
-.ambient-background > span {
-  position:absolute; left:0; top:0;
+
+.ambient-spots {
+  position:absolute;
+  inset:0;
+}
+.ambient-spots > span {
+  position:absolute;
+  left:var(--ambient-left);
+  top:var(--ambient-top);
+  transform:none!important;
   transition:
-    transform .72s cubic-bezier(.22,1,.36,1),
-    width .72s cubic-bezier(.22,1,.36,1),
-    height .72s cubic-bezier(.22,1,.36,1);
-  will-change:transform,width,height;
+    left .46s cubic-bezier(.22,1,.36,1),
+    top .46s cubic-bezier(.22,1,.36,1),
+    width .34s cubic-bezier(.22,1,.36,1),
+    height .34s cubic-bezier(.22,1,.36,1);
 }
-.ambient-background > span > i {
-  display:block; width:100%; height:100%; border-radius:50%;
-  animation-duration:inherit; animation-delay:inherit;
-  background:radial-gradient(ellipse,color-mix(in srgb,var(--accent) var(--spot-strength),transparent),transparent 70%);
+.ambient-spots > span > i {
+  display:block;
+  width:100%;
+  height:100%;
+  border-radius:50%;
   transform:translate(-50%,-50%);
-  animation-name:ambient-float; animation-timing-function:ease-in-out; animation-iteration-count:infinite;
+  background:radial-gradient(ellipse,color-mix(in srgb,var(--accent) var(--spot-strength),transparent),transparent 70%);
+  animation:ambient-float var(--ambient-duration) ease-in-out var(--ambient-delay) infinite;
 }
-html[data-accent="default"] .ambient-background > span > i {
+html[data-accent="default"] .ambient-spots > span > i {
   background:radial-gradient(ellipse,color-mix(in srgb,var(--text) var(--neutral-strength),transparent),transparent 70%);
 }
+
 .ambient-background[data-loading="true"] {
   opacity:1;
-  transform-origin:50% 50%;
-  animation:ambient-loading-orbit 1.1s linear infinite;
+  transform:none!important;
+  animation:none!important;
 }
-.ambient-background[data-loading="true"] > span {
-  width:clamp(24px,5.2vmin,46px)!important;
-  height:clamp(24px,5.2vmin,46px)!important;
-  transform:translate(calc(50vw + var(--loading-ring-x)),calc(50vh + var(--loading-ring-y)))!important;
+.ambient-background[data-loading="true"] .ambient-spots > span {
+  left:calc(50% + var(--ring-x));
+  top:calc(50% + var(--ring-y));
+  width:28px!important;
+  height:28px!important;
+  transform:none!important;
 }
-.ambient-background[data-loading="true"] > span > i {
+.ambient-background[data-loading="true"] .ambient-spots > span > i {
   background:radial-gradient(circle,color-mix(in srgb,var(--accent) 84%,transparent) 0%,color-mix(in srgb,var(--accent) 44%,transparent) 42%,transparent 74%);
-  filter:blur(.6px);
-  animation:ambient-loading-pulse .82s ease-in-out var(--loading-ring-delay) infinite alternate;
+  filter:blur(.5px);
+  animation:ambient-loading-chase .72s ease-in-out var(--ring-delay) infinite;
 }
-html[data-accent="default"] .ambient-background[data-loading="true"] > span > i {
+html[data-accent="default"] .ambient-background[data-loading="true"] .ambient-spots > span > i {
   background:radial-gradient(circle,color-mix(in srgb,var(--text) 78%,transparent) 0%,color-mix(in srgb,var(--text) 34%,transparent) 42%,transparent 74%);
 }
+
 body:has(.app-loading-state.is-screen) :is(.app-page-transition, .app-navigation) { visibility:hidden; }
 body .app-loading-state.is-screen { visibility:visible; }
+
 @keyframes ambient-float {
   0%,100% { transform:translate(-50%,-50%) scale(1); }
   33% { transform:translate(calc(-50% + var(--drift-x)),calc(-50% + var(--drift-y))) scale(1.08); }
   66% { transform:translate(calc(-50% + var(--drift-x2)),calc(-50% + var(--drift-y2))) scale(.94); }
 }
-@keyframes ambient-loading-orbit { to { transform:rotate(360deg); } }
-@keyframes ambient-loading-pulse {
-  from { opacity:.48; transform:translate(-50%,-50%) scale(.72); }
-  to { opacity:1; transform:translate(-50%,-50%) scale(1.16); }
+@keyframes ambient-loading-chase {
+  0%,100% { opacity:.28; transform:translate(-50%,-50%) scale(.78); }
+  45% { opacity:1; transform:translate(-50%,-50%) scale(1.14); }
+}
+@media(max-width:600px) {
+  .ambient-background[data-loading="true"] .ambient-spots > span {
+    width:26px!important;
+    height:26px!important;
+  }
 }
 @media(prefers-reduced-motion:reduce) {
-  .ambient-background, .ambient-background > span, .ambient-background > span > i { transition:none; animation:none!important; }
-  .ambient-background[data-loading="true"] > span > i { opacity:.82; transform:translate(-50%,-50%); }
+  .ambient-spots > span,
+  .ambient-spots > span > i { transition:none; animation:none!important; }
+  .ambient-background[data-loading="true"] .ambient-spots > span > i {
+    opacity:.82;
+    transform:translate(-50%,-50%);
+  }
 }
