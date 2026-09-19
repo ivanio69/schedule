@@ -12,7 +12,7 @@ html[data-theme="light"]{
   --success:#287c53;--danger:#bd4050;--shadow-card:0 5px 20px rgba(20,20,24,.08);
 }
 
-html[data-accent="default"]{--accent:var(--neutral-accent);--accent-text:var(--neutral-accent-text)}
+html[data-accent="default"],html[data-accent="neutral"]{--accent:var(--neutral-accent);--accent-text:var(--neutral-accent-text)}
 html[data-accent="mint"]{--accent:#79d9b0;--accent-text:#10271e}
 html[data-accent="blue"]{--accent:#76aef8;--accent-text:#10213a}
 html[data-accent="violet"]{--accent:#aa8df5;--accent-text:#24183d}
@@ -44,7 +44,7 @@ html[data-theme="light"]{
   --muted-strong:color-mix(in srgb,var(--base-muted-strong) 95%,var(--accent) 5%);
 }
 
-html[data-rehearsal-accent="default"]{--rehearsal:#f0a45d;--rehearsal-text:#301a08}
+html[data-rehearsal-accent="default"]{--rehearsal:#f0a45d;--rehearsal-text:#301a08}\nhtml[data-rehearsal-accent="neutral"]{--rehearsal:var(--neutral-accent);--rehearsal-text:var(--neutral-accent-text)}
 html[data-rehearsal-accent="mint"]{--rehearsal:#79d9b0;--rehearsal-text:#10271e}
 html[data-rehearsal-accent="blue"]{--rehearsal:#76aef8;--rehearsal-text:#10213a}
 html[data-rehearsal-accent="violet"]{--rehearsal:#aa8df5;--rehearsal-text:#24183d}
@@ -52,7 +52,7 @@ html[data-rehearsal-accent="amber"]{--rehearsal:#edb761;--rehearsal-text:#30210a
 html[data-rehearsal-accent="rose"]{--rehearsal:#ed8ca1;--rehearsal-text:#38151d}
 html{--rehearsal-bg:color-mix(in srgb,var(--rehearsal) 11%,transparent)}
 
-html[data-individual-accent="default"]{--individual:#ef6a6a;--individual-text:#351010}
+html[data-individual-accent="default"]{--individual:#ef6a6a;--individual-text:#351010}\nhtml[data-individual-accent="neutral"]{--individual:var(--neutral-accent);--individual-text:var(--neutral-accent-text)}
 html[data-individual-accent="mint"]{--individual:#79d9b0;--individual-text:#10271e}
 html[data-individual-accent="blue"]{--individual:#76aef8;--individual-text:#10213a}
 html[data-individual-accent="violet"]{--individual:#aa8df5;--individual-text:#24183d}
@@ -60,7 +60,7 @@ html[data-individual-accent="amber"]{--individual:#edb761;--individual-text:#302
 html[data-individual-accent="rose"]{--individual:#ed8ca1;--individual-text:#38151d}
 html{--individual-bg:color-mix(in srgb,var(--individual) 11%,transparent)}
 
-html[data-seminar-accent="default"]{--seminar:#9b83f4;--seminar-text:#24163d}
+html[data-seminar-accent="default"]{--seminar:#9b83f4;--seminar-text:#24163d}\nhtml[data-seminar-accent="neutral"]{--seminar:var(--neutral-accent);--seminar-text:var(--neutral-accent-text)}
 html[data-seminar-accent="mint"]{--seminar:#79d9b0;--seminar-text:#10271e}
 html[data-seminar-accent="blue"]{--seminar:#76aef8;--seminar-text:#10213a}
 html[data-seminar-accent="violet"]{--seminar:#aa8df5;--seminar-text:#24183d}
