@@ -291,20 +291,29 @@ html body { position:relative; isolation:isolate; background:var(--bg)!important
 .ambient-background { position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none; --spot-strength:13%; --neutral-strength:6%; }
 html[data-theme="light"] .ambient-background { --spot-strength:8%; --neutral-strength:3.5%; }
 .ambient-background > span {
-  position:absolute; border-radius:50%;
+  position:absolute; left:0; top:0; transition:transform .75s cubic-bezier(.22,1,.36,1);
+}
+.ambient-background > span > i {
+  display:block; width:100%; height:100%; border-radius:50%;
+  animation-duration:inherit; animation-delay:inherit;
   background:radial-gradient(ellipse,color-mix(in srgb,var(--accent) var(--spot-strength),transparent),transparent 70%);
   transform:translate(-50%,-50%);
-  animation:ambient-float 32s ease-in-out infinite;
+  animation-name:ambient-float; animation-timing-function:ease-in-out; animation-iteration-count:infinite;
 }
-html[data-accent="default"] .ambient-background > span {
+html[data-accent="default"] .ambient-background > span > i {
   background:radial-gradient(ellipse,color-mix(in srgb,var(--text) var(--neutral-strength),transparent),transparent 70%);
 }
-body .app-loading-state.is-screen > .ambient-background { position:absolute; --spot-strength:38%; --neutral-strength:18%; }
-html[data-theme="light"] .app-loading-state.is-screen > .ambient-background { --spot-strength:22%; --neutral-strength:10%; }
+/* Brighten the same layer; loading overlays never own a second background. */
+.ambient-background { opacity:.34; transition:opacity .6s ease; --spot-strength:38%; --neutral-strength:18%; }
+html[data-theme="light"] .ambient-background { --spot-strength:22%; --neutral-strength:10%; }
+.ambient-background[data-loading="true"] { opacity:1; }
+body .app-loading-state.is-screen { background:transparent; }
 body .app-loading-state.is-screen::before, body .app-loading-state.is-screen::after { display:none; }
+body:has(.app-loading-state.is-screen:not(.app-loading-ghost)) :is(.app-page-transition, .app-navigation) { visibility:hidden; }
+body .app-loading-state.is-screen { visibility:visible; }
 @keyframes ambient-float {
   0%,100% { transform:translate(-50%,-50%) scale(1); }
   33% { transform:translate(calc(-50% + var(--drift-x)),calc(-50% + var(--drift-y))) scale(1.08); }
   66% { transform:translate(calc(-50% + var(--drift-x2)),calc(-50% + var(--drift-y2))) scale(.94); }
 }
-@media(prefers-reduced-motion:reduce) { .ambient-background > span { animation:none; } }
+@media(prefers-reduced-motion:reduce) { .ambient-background > span > i { animation:none; } .ambient-background, .ambient-background > span { transition:none; } }

@@ -1,6 +1,5 @@
 "use client";
 
-import AmbientBackground from "./AmbientBackground";
 import { useLayoutEffect, useRef } from "react";
 
 type LoadingStateProps = {
@@ -40,7 +39,6 @@ export default function LoadingState({
   }, [screen]);
 
   return <div ref={rootRef} className={classes} role="status" aria-live="polite" aria-busy="true">
-    {screen && <AmbientBackground />}
     <span className="app-loading-spinner" aria-hidden="true"/>
     <div className="app-loading-copy">
       <strong>{label}</strong>
