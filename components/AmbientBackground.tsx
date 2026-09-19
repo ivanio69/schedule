@@ -24,6 +24,7 @@ export default function AmbientBackground() {
         "--drift-x2": `${random(-25, 25)}vw`,
         "--drift-y2": `${random(-25, 25)}vh`,
         "--loading-ring-angle": `${index * 60 - 90}deg`,
+        "--loading-ring-angle-end": `${index * 60 + 270}deg`,
         "--loading-ring-delay": `${-index * 0.09}s`,
       } as CSSProperties)));
     });

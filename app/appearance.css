@@ -293,11 +293,14 @@ html body { position:relative; isolation:isolate; background:var(--bg)!important
 }
 html[data-theme="light"] .ambient-background { --spot-strength:22%; --neutral-strength:10%; }
 .ambient-background > span {
-  position:absolute; left:50%; top:50%;
+  position:absolute;
+  left:calc(50% + var(--ambient-x));
+  top:calc(50% + var(--ambient-y));
   transform-origin:0 0;
-  transform:translate(var(--ambient-x),var(--ambient-y));
+  transform:none;
   transition:
-    transform .24s cubic-bezier(.22,1,.36,1),
+    left .24s cubic-bezier(.22,1,.36,1),
+    top .24s cubic-bezier(.22,1,.36,1),
     width .2s cubic-bezier(.22,1,.36,1),
     height .2s cubic-bezier(.22,1,.36,1);
   will-change:transform,width,height;
@@ -315,6 +318,8 @@ html[data-accent="neutral"] .ambient-background > span > i {
 }
 .ambient-background[data-loading="true"] { opacity:1; }
 .ambient-background[data-loading="true"] > span {
+  left:50%;
+  top:50%;
   width:36px!important;
   height:36px!important;
   transform:rotate(var(--loading-ring-angle)) translateX(var(--loading-ring-radius));
@@ -341,7 +346,7 @@ body .app-loading-state.is-screen { visibility:visible; }
 }
 @keyframes ambient-ring-orbit {
   from { transform:rotate(var(--loading-ring-angle)) translateX(var(--loading-ring-radius)); }
-  to { transform:rotate(calc(var(--loading-ring-angle) + 360deg)) translateX(var(--loading-ring-radius)); }
+  to { transform:rotate(var(--loading-ring-angle-end)) translateX(var(--loading-ring-radius)); }
 }
 @keyframes ambient-loading-pulse {
   from { opacity:.48; transform:translate(-50%,-50%) scale(.72); }
