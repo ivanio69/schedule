@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
-const RING_POINTS = [
-  [0, -34],
-  [29.45, -17],
-  [29.45, 17],
-  [0, 34],
-  [-29.45, 17],
-  [-29.45, -17],
+const LOADING_POINTS = [
+  [-55, 0],
+  [-33, 0],
+  [-11, 0],
+  [11, 0],
+  [33, 0],
+  [55, 0],
 ] as const;
 
 export default function AmbientBackground() {
@@ -24,7 +24,7 @@ export default function AmbientBackground() {
     };
 
     const frame = requestAnimationFrame(() => {
-      setSpots(RING_POINTS.map(([ringX, ringY], index) => ({
+      setSpots(LOADING_POINTS.map(([ringX, ringY], index) => ({
         "--ambient-left": `${50 + random(-46, 46)}%`,
         "--ambient-top": `${50 + random(-46, 46)}%`,
         "--ring-x": `${ringX}px`,

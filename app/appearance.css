@@ -342,7 +342,7 @@ html[data-accent="default"] .ambient-spots > span > i {
 .ambient-background[data-loading="true"] .ambient-spots > span > i {
   background:radial-gradient(circle,color-mix(in srgb,var(--accent) 84%,transparent) 0%,color-mix(in srgb,var(--accent) 44%,transparent) 42%,transparent 74%);
   filter:blur(.5px);
-  animation:ambient-loading-chase .72s ease-in-out var(--ring-delay) infinite;
+  animation:ambient-loading-dots .78s ease-in-out var(--ring-delay) infinite;
 }
 html[data-accent="default"] .ambient-background[data-loading="true"] .ambient-spots > span > i {
   background:radial-gradient(circle,color-mix(in srgb,var(--text) 78%,transparent) 0%,color-mix(in srgb,var(--text) 34%,transparent) 42%,transparent 74%);
@@ -356,9 +356,10 @@ body .app-loading-state.is-screen { visibility:visible; }
   33% { transform:translate(calc(-50% + var(--drift-x)),calc(-50% + var(--drift-y))) scale(1.08); }
   66% { transform:translate(calc(-50% + var(--drift-x2)),calc(-50% + var(--drift-y2))) scale(.94); }
 }
-@keyframes ambient-loading-chase {
-  0%,100% { opacity:.28; transform:translate(-50%,-50%) scale(.78); }
-  45% { opacity:1; transform:translate(-50%,-50%) scale(1.14); }
+@keyframes ambient-loading-dots {
+  0%,100% { opacity:.28; transform:translate(-50%,-50%) translateY(0) scale(.82); }
+  35% { opacity:1; transform:translate(-50%,-50%) translateY(-9px) scale(1.12); }
+  55% { opacity:.72; transform:translate(-50%,-50%) translateY(0) scale(.96); }
 }
 @media(max-width:600px) {
   .ambient-background[data-loading="true"] .ambient-spots > span {
