@@ -71,11 +71,26 @@ export function getSubgroupSubjects(schedule: ScheduleData) {
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 }
 
+export function lessonMatchesChinaMode(lesson: Lesson, chinaMode = false) {
+  const hasChina = lesson.group.includes("china");
+  if (chinaMode) return hasChina;
+  const hasRegularGroup = lesson.group.some(group => typeof group === "number");
+  return !hasChina || hasRegularGroup;
+}
+
+export function filterScheduleByChinaMode(schedule: ScheduleData, chinaMode = false): ScheduleData {
+  return {
+    ...schedule,
+    days: schedule.days.map(day => ({ ...day, table: day.table.filter(lesson => lessonMatchesChinaMode(lesson, chinaMode)) })),
+    changes: schedule.changes?.filter(change => lessonMatchesChinaMode(change.lesson, chinaMode)),
+  };
+}
+
 export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, preferences: Record<string, GroupPreference> = {}, chinaMode = false) {
   const date = getScheduleDate(schedule, week, dayIndex);
   return getOccurrences(schedule, date).filter(lesson => {
-    if (chinaMode && !lesson.group.includes("china")) return false;
-    if (!chinaMode && lesson.group.includes("china")) return false;
+    if (!lessonMatchesChinaMode(lesson, chinaMode)) return false;
+    if (chinaMode) return true;
     const preference = preferences[lesson.class] ?? "both";
     return preference === "both" || !lesson.group.length || lesson.group.includes(Number(preference));
   });
