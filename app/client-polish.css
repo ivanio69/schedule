@@ -1,7 +1,7 @@
 /* Client-only finish; shared tokens and admin surfaces stay in their own files. */
 body .app-navigation.app-navigation {
   width: min(520px, calc(100% - 24px)); padding: 6px; gap: 4px;
-  border-radius: 24px; box-shadow: 0 12px 40px #0006, inset 0 1px #ffffff08;
+  border:0; border-radius: 24px; box-shadow: 0 12px 40px #0006, inset 0 1px #ffffff08;
 }
 body .app-navigation.app-navigation a {
   flex-direction: column; gap: 5px; width: auto; min-width: 0;
@@ -94,7 +94,7 @@ body :is(.dashboard-section-head h2, .seminar-subject > h2, .student-slot-subjec
   font-size: 18px; font-weight: 600; letter-spacing: -.025em; margin-bottom: 16px;
 }
 body :is(.seminar-topic-info, .dashboard-event-content, .student-slot-info, .schedule-card__body) { min-width: 0; overflow-wrap: anywhere; }
-body .app-navigation.app-navigation { background: #151b1ded !important; border-color: #8ab5a638 !important; backdrop-filter: blur(20px); }
+body .app-navigation.app-navigation { background: var(--surface) !important; border: 0 !important; backdrop-filter: blur(20px); }
 body .app-navigation.app-navigation a { color: var(--muted); transition: background-color .18s, color .18s; }
 body .app-navigation.app-navigation a svg { width: 21px; height: 21px; stroke-width: 1.65; }
 body .app-navigation.app-navigation a.is-active { color: var(--accent-text); background: var(--accent); box-shadow: none; }

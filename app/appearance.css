@@ -76,7 +76,8 @@ html[data-theme="light"] body{
     var(--bg)!important;
 }
 html[data-theme="light"] :where(.dashboard-v2,.schedule-shell,.seminars,.student-slots,.settings-page,.rehearsal-editor-page,.admin-shell){color:var(--text)!important}
-html[data-theme="light"] :where(.day-tabs,.bottom-nav,.app-navigation,.admin-modebar){background:rgba(255,255,255,.88)!important;border-color:var(--border)!important}
+html[data-theme="light"] :where(.day-tabs,.bottom-nav,.admin-modebar){background:rgba(255,255,255,.88)!important;border-color:var(--border)!important}
+html[data-theme="light"] .app-navigation{background:rgba(255,255,255,.88)!important;border:0!important}
 html[data-theme="light"] :where(.schedule-card,.dashboard-stats article,.dashboard-event-v2,.settings-page-row,.seminar-list,.student-slots-list,.student-slots-mine article,.admin-card,.rehearsal-card,.details-modal,.notification-center-panel,.rehearsal-block-editor,.rehearsal-editor-card){
   background:var(--surface)!important;border-color:var(--border)!important;color:var(--text)!important;
 }
@@ -161,13 +162,13 @@ body{
   background-color:var(--surface-hover)!important;
   border-color:var(--border-strong)!important;
 }
-:where(.day-tabs,.bottom-nav,.app-navigation,.admin-modebar,.settings-page-switch,.seminar-filters){
+:where(.day-tabs,.bottom-nav,.admin-modebar,.settings-page-switch,.seminar-filters){
   background:color-mix(in srgb,var(--surface) 88%,transparent)!important;
   border-color:var(--border)!important;
 }
 body .app-navigation.app-navigation{
   background:color-mix(in srgb,var(--surface) 91%,transparent)!important;
-  border-color:color-mix(in srgb,var(--accent) 28%,var(--border))!important;
+  border:0!important;
   box-shadow:0 12px 40px color-mix(in srgb,var(--bg) 76%,transparent),inset 0 1px color-mix(in srgb,var(--text) 8%,transparent)!important;
 }
 :where(.admin-input,.seminars input,.seminars select,.seminars textarea,.settings-page input,.settings-page textarea,.rehearsal-editor-page input,.rehearsal-editor-page textarea,.details-modal textarea){
