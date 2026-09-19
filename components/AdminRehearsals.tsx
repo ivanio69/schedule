@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Person } from "@/lib/people";
 import type { Rehearsal } from "@/lib/schedule";
 import AdminHeading from "@/components/AdminHeading";
+import LoadingState from "@/components/LoadingState";
 
 const today = () => {
   const d = new Date();
@@ -23,13 +24,17 @@ export default function AdminRehearsals() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [peopleLoading, setPeopleLoading] = useState(true);
 
   const load = async () => {
+    setLoading(true);
     const response = await fetch(`/api/admin/rehearsals?date=${encodeURIComponent(date)}`, { cache: "no-store" });
     if (response.status === 401) { location.href = "/admin"; return; }
     const data = await response.json();
     if (response.ok) setItems(data.rehearsals ?? []);
     else setMessage(data.error ?? "Ошибка загрузки");
+    setLoading(false);
   };
 
   useEffect(() => { void load(); }, [date]);
@@ -39,7 +44,7 @@ export default function AdminRehearsals() {
       const list = (await response.json()).people ?? [];
       setPeople(list);
       setParticipants(list.map((person: Person) => person.name));
-    });
+    }).finally(() => setPeopleLoading(false));
   }, []);
 
   const toggleParticipant = (name: string) => setParticipants(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name]);
@@ -102,6 +107,8 @@ export default function AdminRehearsals() {
   };
 
   const globalItems = items.filter(item => item.isGlobal);
+
+  if (loading || peopleLoading) return <LoadingState compact label="Загружаем репетиции" detail="Получаем события и участников группы."/>;
 
   return <>
     <AdminHeading

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { IndividualSlot } from "@/lib/individual-slots";
 import type { ScheduleData } from "@/lib/schedule";
+import LoadingState from "@/components/LoadingState";
 
 type Slot = IndividualSlot & { studentNames?: string[] };
 const dateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -24,6 +25,7 @@ export default function BookedIndividualSlotsInSchedule() {
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const [personId, setPersonId] = useState("");
   const [date, setDate] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setPersonId(localStorage.getItem("schedule_person_id") ?? "");
@@ -45,13 +47,16 @@ export default function BookedIndividualSlotsInSchedule() {
 
   useEffect(() => {
     if (!date || !personId) return;
+    setLoading(true);
     fetch(`/api/individual-slots?from=${date}&to=${date}`, { cache: "no-store" })
       .then((r) => r.ok ? r.json() : null)
       .then((d) => setSlots((d?.slots ?? []).filter((s: Slot) => s.studentIds?.includes(personId))))
-      .catch(() => setSlots([]));
+      .catch(() => setSlots([]))
+      .finally(() => setLoading(false));
   }, [date, personId]);
 
   const content = useMemo(() => [...slots].sort((a, b) => a.timeStart.localeCompare(b.timeStart)), [slots]);
+  if (target && personId && loading) return createPortal(<LoadingState compact label="Загружаем индивидуальные" detail="Проверяем записи на выбранную дату."/>, target);
   if (!target || !personId || !content.length) return null;
   return createPortal(
     <div className="booked-individuals-in-table" aria-label="Мои индивидуальные занятия">
