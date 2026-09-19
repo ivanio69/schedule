@@ -12,6 +12,14 @@ export type AppChangelogEntry = {
 
 export const APP_CHANGELOG: AppChangelogEntry[] = [
   {
+    version: "2.11.1",
+    date: "19 сентября 2026",
+    title: "UI/UX хотфикс",
+    items: [
+      "Убрана лишняя техническая подпись из центра уведомлений.",
+    ],
+  },
+  {
     version: "2.11.0",
     date: "18 сентября 2026",
     title: "Центр уведомлений и версии",

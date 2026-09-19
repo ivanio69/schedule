@@ -16,7 +16,7 @@ const major = Number(match[1]);
 const minor = Number(match[2]);
 const hotfix = Number(match[3]);
 if (major < 2) fail("major version must be at least 2");
-if (!Number.isInteger(version.dev) || version.dev < 1) fail("dev must be a positive integer");
+if (!Number.isInteger(version.dev) || version.dev < 0) fail("dev must be a non-negative integer");
 if (!Number.isInteger(version.pr) || version.pr < 1) fail("pr must be a positive integer");
 if (!Number.isInteger(version.majorBasePr) || version.majorBasePr < 1) fail("majorBasePr must be a positive integer");
 if (!["minor", "major", "hotfix"].includes(version.channel)) fail("channel must be minor, major or hotfix");
@@ -29,6 +29,7 @@ if (process.env.GITHUB_EVENT_PATH && fs.existsSync(process.env.GITHUB_EVENT_PATH
 }
 const prNumber = event?.pull_request?.number;
 if (prNumber) {
+  if (version.dev < 1) fail("PR builds require dev >= 1");
   if (version.pr !== prNumber) fail(`version.json pr is ${version.pr}, current PR is ${prNumber}`);
   if (version.channel === "minor") {
     const expectedMinor = prNumber - version.majorBasePr;

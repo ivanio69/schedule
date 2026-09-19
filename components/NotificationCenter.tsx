@@ -81,7 +81,7 @@ export default function NotificationCenter({ personId }: { personId: string }) {
             <div>
               <span>ЦЕНТР УВЕДОМЛЕНИЙ</span>
               <h2 id="notification-center-title">Что нового</h2>
-              <p>Версия v{APP_VERSION} · changelog приходит только сюда, без push.</p>
+              <p>Версия v{APP_VERSION}</p>
             </div>
             <button type="button" onClick={closeCenter} aria-label="Закрыть">×</button>
           </header>
