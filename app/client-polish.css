@@ -18,14 +18,14 @@ body .app-navigation.app-navigation.is-compact { border-radius: 22px; }
 body .dashboard-v2 .dashboard-focus {
   position: relative; overflow: hidden; padding: clamp(24px, 4vw, 36px);
   border-radius: 28px; margin-top: 28px;
-  background: radial-gradient(ellipse at 100% 0%, #b5f0cd20, transparent 65%), linear-gradient(120deg, #182b25, #141b20) !important;
-  border: 1px solid #b5f0cd40 !important; box-shadow: 0 18px 55px #0003 !important;
+  background: radial-gradient(ellipse at 100% 0%, var(--accent-soft), transparent 65%), linear-gradient(120deg, var(--surface-raised), var(--surface)) !important;
+  border: 1px solid color-mix(in srgb,var(--accent) 30%,var(--border)) !important; box-shadow: 0 18px 55px color-mix(in srgb,var(--bg) 72%,transparent) !important;
 }
 body .dashboard-focus h2 { max-width: 720px; font-size: clamp(25px, 4vw, 38px); line-height: 1.15; letter-spacing: -.035em; text-wrap: balance; }
 body .dashboard-focus > p { color: #bcd0c5; font-size: 14px; line-height: 1.6; }
 body .dashboard-focus-top { margin-bottom: 20px; }
 body .dashboard-focus-top > span { color: #d2f3e0; font-size: 11px; letter-spacing: .08em; }
-body .dashboard-focus-top em { padding: 5px 9px; border-radius: 999px; border: 1px solid #b5f0cd30; background: #b5f0cd0c; }
+body .dashboard-focus-top em { padding: 5px 9px; border-radius: 999px; border: 1px solid color-mix(in srgb,var(--accent) 24%,var(--border)); background: var(--accent-soft); }
 body .dashboard-stats { gap: 10px; margin-top: 14px; }
 body .dashboard-stats article { border-radius: 18px; padding: 20px; box-shadow: none; }
 body .dashboard-stats article > span { color: var(--muted); font-size: 11px; }
@@ -37,7 +37,7 @@ body .dashboard-event-time { padding: 10px 0; font-variant-numeric: tabular-nums
 body .dashboard-event-content h3 { font-size: 15px; line-height: 1.4; }
 body .dashboard-event-content > span { letter-spacing: .09em; font-size: 9px; }
 body .dashboard-event-v2.past { opacity: .8; }
-body .dashboard-seminar-card { padding: 20px; background: linear-gradient(140deg, #b5f0cd0b, var(--surface)) !important; }
+body .dashboard-seminar-card { padding: 20px; background: linear-gradient(140deg, var(--seminar-bg), var(--surface)) !important; }
 body .dashboard-seminar-card strong { font-size: 15px; line-height: 1.5; }
 body .dashboard-section-head > a { color: var(--accent); font-size: 12px; }
 
@@ -68,7 +68,7 @@ body .dashboard-choose .dashboard-people button { min-height: 68px; border-radiu
 body .dashboard-choose .dashboard-people button:focus-visible { border-color: var(--accent); }
 
 @media (hover: hover) {
-  body :is(.dashboard-seminar-card, .dashboard-people button):hover { box-shadow: inset 0 0 0 1px #b5f0cd30; }
+  body :is(.dashboard-seminar-card, .dashboard-people button):hover { box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--accent) 24%,var(--border)); }
 }
 @media (max-width: 600px) {
   body .dashboard-focus h2 { font-size: 27px; }
@@ -98,7 +98,7 @@ body .app-navigation.app-navigation { background: #151b1ded !important; border-c
 body .app-navigation.app-navigation a { color: var(--muted); transition: background-color .18s, color .18s; }
 body .app-navigation.app-navigation a svg { width: 21px; height: 21px; stroke-width: 1.65; }
 body .app-navigation.app-navigation a.is-active { color: var(--accent-text); background: var(--accent); box-shadow: none; }
-body .dashboard-v2 .dashboard-focus { background: radial-gradient(ellipse at 100% 0, #a4dfbe1c, transparent 65%), #192a25 !important; box-shadow: inset 0 1px #ffffff09 !important; }
+body .dashboard-v2 .dashboard-focus { background: radial-gradient(ellipse at 100% 0,var(--accent-soft),transparent 65%),var(--surface-raised) !important; box-shadow: inset 0 1px #ffffff09 !important; }
 body .dashboard-focus h2 { font-weight: 600; line-height: 1.2; }
 body .dashboard-stats article > strong { font-weight: 600; letter-spacing: -.035em; }
 body .dashboard-stats article > span { font-size: 12px; }
@@ -125,20 +125,20 @@ body .seminars-client .seminar-filters { background: var(--bg); }
 body .seminars-client .seminar-filters button { color: var(--muted-strong); font-weight: 600; }
 body .seminars-client .seminar-filters button[aria-pressed="true"], body .seminars-client .seminar-filters button[aria-pressed="true"]:hover { background: var(--accent); color: var(--accent-text); }
 body .seminars-client .seminar-list { background: var(--surface); box-shadow: none; }
-body .seminars-client .seminar-list-mine { border-color: #8ac4a951 !important; background: var(--surface); }
+body .seminars-client .seminar-list-mine { border-color: color-mix(in srgb,var(--seminar) 38%,var(--border)) !important; background: var(--surface); }
 body .seminars-client .seminar-summary { background: transparent; }
 body .seminars-client .seminar-summary-text strong { font-weight: 600; line-height: 1.45; }
 body .seminars-client .seminar-summary-text small { color: var(--muted); line-height: 1.6; }
 body .seminars-client .seminar-mine-badge { color: var(--seminar); background: color-mix(in srgb, var(--seminar) 12%, transparent); }
 body .seminars-client .seminar-topic-info h4 { font-size: 15px; font-weight: 550; line-height: 1.55; }
 body .seminars-client .seminar-topic-info p { color: var(--muted); font-size: 13px; line-height: 1.6; }
-body .seminars-client .seminar-mine { background: #b8ebd407; box-shadow: inset 3px 0 var(--accent); }
+body .seminars-client .seminar-mine { background: color-mix(in srgb,var(--seminar) 5%,var(--surface)); box-shadow: inset 3px 0 var(--seminar); }
 
 /* Bookings and settings: grouped rows and clear, comfortably sized controls. */
 body .student-slots .student-slots-list { box-shadow: none; }
 body .student-slots :is(.student-slots-mine small, .student-slot-date span, .student-slot-info span, .student-slot-info small, .student-slot-full) { color: var(--muted); font-size: 12px; line-height: 1.6; }
 body .student-slots .student-slot-date strong { font-size: 14px; font-variant-numeric: tabular-nums; }
-body .student-slots .student-slots-mine article { padding: 20px; background: var(--surface); border-color: #8ac4a951; border-radius: 18px; }
+body .student-slots .student-slots-mine article { padding: 20px; background: var(--surface); border-color: color-mix(in srgb,var(--individual) 38%,var(--border)); border-radius: 18px; }
 body .student-slots > header > strong { flex-shrink: 0; width: 48px; height: 48px; background: var(--accent-soft); color: var(--accent); border-color: transparent; border-radius: 16px; }
 body .settings-page .settings-page-list { gap: 0; border: 1px solid var(--border); border-radius: 20px; overflow: hidden; margin-top: 16px; }
 body .settings-page .settings-page-row { padding: 22px; border: 0; border-radius: 0; animation: none; }
