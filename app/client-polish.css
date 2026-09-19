@@ -218,3 +218,17 @@ body .dashboard-change-reason{
   font-size:10px;
   line-height:1.45;
 }
+
+/* Icon-only navigation keeps the stable labelled layout geometry without visible captions. */
+body .app-navigation.navigation-labelled.navigation-icons-only a{
+  height:54px!important;
+  gap:0!important;
+  padding:0!important;
+}
+body .app-navigation.navigation-labelled.navigation-icons-only a .app-navigation-label{
+  display:none!important;
+}
+body .app-navigation.navigation-labelled.navigation-icons-only a svg{
+  width:23px!important;
+  height:23px!important;
+}

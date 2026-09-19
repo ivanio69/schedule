@@ -24,12 +24,13 @@ export default function AppNavigation(){
  const authenticated=useSyncExternalStore(subscribe,getSnapshot,getServerSnapshot);
  useEffect(()=>{document.body.classList.toggle("has-app-navigation",authenticated&&!pathname.startsWith("/admin"));return()=>document.body.classList.remove("has-app-navigation")},[authenticated,pathname]);
  if(pathname.startsWith("/admin") || !authenticated) return null;
- return <nav className="app-navigation" aria-label="Основные разделы">
+ return <nav className="app-navigation navigation-labelled navigation-icons-only" aria-label="Основные разделы">
    {items.map(({href,label,icon}) => {
      const active=pathname===href || (href!=="/" && pathname.startsWith(href+"/"));
      return <Link key={href} className={active?"is-active":""} href={href}
        aria-current={active?"page":undefined} aria-label={label} title={label}>
        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">{icon}</svg>
+       <span className="app-navigation-label" aria-hidden="true">{label}</span>
      </Link>;
    })}
  </nav>;
