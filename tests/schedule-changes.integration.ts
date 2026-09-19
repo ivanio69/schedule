@@ -59,7 +59,9 @@ async function main() {
     assert.equal(getOccurrences(await getSchedule(),"2026-09-09").length,0);
     const cancelled = await POST(req({...input,revision:2,kind:"cancel"}));
     assert.equal(cancelled.status,200);
-    assert.equal(getOccurrences(await getSchedule(),"2026-09-10").length,0);
+    const cancelledMoved = getOccurrences(await getSchedule(),"2026-09-10");
+    assert.equal(cancelledMoved.length,1);
+    assert.equal(cancelledMoved[0].occurrence?.status,"cancelled");
     assert.equal((await POST(req({...input,revision:2,kind:"cancel"}))).status,409);
     assert.equal(deliveries.length,6);
     delete process.env.VAPID_PRIVATE_KEY;
@@ -67,7 +69,9 @@ async function main() {
     const unavailable = await (await POST(req({...next,kind:"cancel",reason:""}))).json();
     assert.equal(unavailable.ok,true);
     assert.ok(unavailable.warning);
-    assert.equal(getOccurrences(await getSchedule(),"2026-09-14").length,0);
+    const cancelledDirect = getOccurrences(await getSchedule(),"2026-09-14");
+    assert.equal(cancelledDirect.length,1);
+    assert.equal(cancelledDirect[0].occurrence?.status,"cancelled");
     const allWeeks = {...schedule,days:[{table:[{...lesson,weeks:[]}]}]};
     assert.equal(getLessonsForWeek(allWeeks,0,1).length,1);
     console.log("Schedule changes: auth, validation, conflicts, concurrent retries, move, re-move, cancellation, template identity, subgroup filtering and mocked all-device push passed.");

@@ -10,7 +10,7 @@ export type Lesson = {
   timeEnd: string;
   group: Group[];
   weeks: number[];
-  occurrence?: { key: string; date: string; revision: number };
+  occurrence?: { key: string; date: string; revision: number; status?: "cancelled" | "moved"; reason?: string; originalDate?: string };
 };
 
 export type RehearsalParticipantMode = "rehearsal" | "blocks";
@@ -71,10 +71,26 @@ export function getSubgroupSubjects(schedule: ScheduleData) {
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 }
 
+export function lessonMatchesChinaMode(lesson: Lesson, chinaMode = false) {
+  const hasChina = lesson.group.includes("china");
+  if (chinaMode) return hasChina;
+  const hasRegularGroup = lesson.group.some(group => typeof group === "number");
+  return !hasChina || hasRegularGroup;
+}
+
+export function filterScheduleByChinaMode(schedule: ScheduleData, chinaMode = false): ScheduleData {
+  return {
+    ...schedule,
+    days: schedule.days.map(day => ({ ...day, table: day.table.filter(lesson => lessonMatchesChinaMode(lesson, chinaMode)) })),
+    changes: schedule.changes?.filter(change => lessonMatchesChinaMode(change.lesson, chinaMode)),
+  };
+}
+
 export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week: number, preferences: Record<string, GroupPreference> = {}, chinaMode = false) {
   const date = getScheduleDate(schedule, week, dayIndex);
   return getOccurrences(schedule, date).filter(lesson => {
-    if (chinaMode && !lesson.group.includes("china")) return false;
+    if (!lessonMatchesChinaMode(lesson, chinaMode)) return false;
+    if (chinaMode) return true;
     const preference = preferences[lesson.class] ?? "both";
     return preference === "both" || !lesson.group.length || lesson.group.includes(Number(preference));
   });
@@ -103,11 +119,17 @@ export function getOccurrences(schedule: ScheduleData, date: string): Lesson[] {
   if (!validScheduleDate(schedule,date)) return [];
   const {week,day} = datePosition(schedule,date);
   const changes = schedule.changes ?? [];
-  const lessons = (schedule.days[day]?.table ?? []).filter(l=>!l.weeks.length || l.weeks.includes(week))
-    .filter(l=>!changes.some(c=>c.date===date && c.key===lessonKey(l)))
-    .map(l=>({...l, occurrence:{key:lessonKey(l),date,revision:0}}));
+  const lessons = (schedule.days[day]?.table ?? [])
+    .filter(l=>!l.weeks.length || l.weeks.includes(week))
+    .filter(l=>!changes.some(c=>c.date===date&&c.key===lessonKey(l)))
+    .map(l=>({...l,occurrence:{key:lessonKey(l),date,revision:0}}));
   for (const c of changes) {
-    if (c.kind==="move" && c.targetDate===date) lessons.push({...c.lesson,timeStart:c.timeStart,timeEnd:c.timeEnd,auditorium:c.auditorium,occurrence:{key:c.key,date:c.date,revision:c.revision}});
+    if (c.targetDate!==date) continue;
+    if (c.kind==="move") {
+      lessons.push({...c.lesson,timeStart:c.timeStart,timeEnd:c.timeEnd,auditorium:c.auditorium,occurrence:{key:c.key,date:c.date,revision:c.revision,status:"moved",reason:c.reason,originalDate:c.date}});
+    } else {
+      lessons.push({...c.lesson,timeStart:c.timeStart,timeEnd:c.timeEnd,auditorium:c.auditorium,occurrence:{key:c.key,date:c.date,revision:c.revision,status:"cancelled",reason:c.reason,originalDate:c.date}});
+    }
   }
   return lessons.sort((a,b)=>a.timeStart.localeCompare(b.timeStart));
 }
