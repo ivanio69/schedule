@@ -20,16 +20,20 @@ import "./push-notifications.css";
 import "./design-system.css";
 import "./admin-workspace.css";
 import "./client-polish.css";
+import "./appearance.css";
 import AppNavigation from "@/components/AppNavigation";
 import OfflineBanner from "@/components/OfflineBanner";
 import PushPrompt from "@/components/PushPrompt";
+import AppearanceProvider from "@/components/AppearanceProvider";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin", "cyrillic"] });
+const appearanceBootScript = `(()=>{try{const raw=localStorage.getItem("schedule_appearance");if(!raw)return;const value=JSON.parse(raw);const root=document.documentElement;const accents=["default","mint","blue","violet","amber","rose"];root.dataset.theme=value.theme==="light"?"light":"dark";root.dataset.accent=accents.includes(value.appAccent)?value.appAccent:"default";root.dataset.rehearsalAccent=accents.includes(value.rehearsalAccent)?value.rehearsalAccent:"default";root.dataset.individualAccent=accents.includes(value.individualAccent)?value.individualAccent:"default";root.dataset.seminarAccent=accents.includes(value.seminarAccent)?value.seminarAccent:"default"}catch{}})();`;
+
 export const metadata: Metadata = {
   title: "Расписание 214Р",
   description: "Расписание занятий группы 214Р",
   manifest: "/manifest.webmanifest",
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru" className={geist.variable} data-theme="dark"><body><OfflineBanner /><PushPrompt /><AppNavigation /><div className="app-page-transition">{children}</div></body></html>;
+  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><AppearanceProvider /><OfflineBanner /><PushPrompt /><AppNavigation /><div className="app-page-transition">{children}</div></body></html>;
 }
