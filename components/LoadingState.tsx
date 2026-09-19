@@ -1,3 +1,7 @@
+"use client";
+
+import { useLayoutEffect, useRef } from "react";
+
 type LoadingStateProps = {
   label?: string;
   detail?: string;
@@ -13,8 +17,26 @@ export default function LoadingState({
   compact = false,
   className = "",
 }: LoadingStateProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const classes = ["app-loading-state", screen ? "is-screen" : "", compact ? "is-compact" : "", className].filter(Boolean).join(" ");
-  return <div className={classes} role="status" aria-live="polite" aria-busy="true">
+
+  useLayoutEffect(() => {
+    if (!screen) return;
+    const node = rootRef.current;
+    return () => {
+      if (!node || typeof document === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const ghost = node.cloneNode(true) as HTMLDivElement;
+      ghost.removeAttribute("role");
+      ghost.removeAttribute("aria-live");
+      ghost.removeAttribute("aria-busy");
+      ghost.setAttribute("aria-hidden", "true");
+      ghost.classList.add("is-leaving", "app-loading-ghost");
+      document.body.appendChild(ghost);
+      window.setTimeout(() => ghost.remove(), 260);
+    };
+  }, [screen]);
+
+  return <div ref={rootRef} className={classes} role="status" aria-live="polite" aria-busy="true">
     <span className="app-loading-spinner" aria-hidden="true"/>
     <div className="app-loading-copy">
       <strong>{label}</strong>

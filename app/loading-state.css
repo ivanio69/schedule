@@ -1,9 +1,14 @@
-.app-loading-state{display:grid;place-content:center;justify-items:center;gap:12px;min-height:260px;padding:28px 18px;color:var(--text);text-align:center}
+.app-loading-state{display:grid;place-content:center;justify-items:center;gap:12px;min-height:260px;padding:28px 18px;color:var(--text);text-align:center;animation:app-loading-enter .3s cubic-bezier(.22,1,.36,1) both;will-change:opacity,transform,filter}
 .app-loading-state.is-screen{position:fixed;inset:0;z-index:900;width:100vw;height:100dvh;min-height:0;padding:0 20px;background:var(--bg)}
 .app-loading-state.is-compact{min-height:140px;padding:24px 12px}
+.app-loading-state.is-leaving{pointer-events:none;z-index:2100;animation:app-loading-leave .24s cubic-bezier(.4,0,1,1) both}
+.app-loading-ghost{position:fixed!important;inset:0!important}
 .app-loading-spinner{width:26px;height:26px;border:2px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:app-loading-spin .75s linear infinite}
-.app-loading-copy{display:grid;justify-items:center;gap:4px;max-width:340px}
+.app-loading-copy{display:grid;justify-items:center;gap:4px;max-width:340px;animation:app-loading-copy-enter .32s .04s cubic-bezier(.22,1,.36,1) both}
 .app-loading-copy strong{font-size:13px;font-weight:750;letter-spacing:-.01em}
 .app-loading-copy small{color:var(--muted);font-size:11px;line-height:1.45}
 @keyframes app-loading-spin{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){.app-loading-spinner{animation:none}}
+@keyframes app-loading-enter{from{opacity:0;transform:scale(.985);filter:blur(3px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes app-loading-copy-enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@keyframes app-loading-leave{from{opacity:1;transform:none;filter:blur(0)}to{opacity:0;transform:scale(1.012);filter:blur(4px)}}
+@media(prefers-reduced-motion:reduce){.app-loading-state,.app-loading-spinner,.app-loading-copy{animation:none}.app-loading-state.is-leaving{display:none}}
