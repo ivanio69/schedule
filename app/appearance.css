@@ -44,7 +44,8 @@ html[data-theme="light"]{
   --muted-strong:color-mix(in srgb,var(--base-muted-strong) 95%,var(--accent) 5%);
 }
 
-html[data-rehearsal-accent="default"]{--rehearsal:#f0a45d;--rehearsal-text:#301a08}\nhtml[data-rehearsal-accent="neutral"]{--rehearsal:var(--neutral-accent);--rehearsal-text:var(--neutral-accent-text)}
+html[data-rehearsal-accent="default"]{--rehearsal:#f0a45d;--rehearsal-text:#301a08}
+html[data-rehearsal-accent="neutral"]{--rehearsal:var(--neutral-accent);--rehearsal-text:var(--neutral-accent-text)}
 html[data-rehearsal-accent="mint"]{--rehearsal:#79d9b0;--rehearsal-text:#10271e}
 html[data-rehearsal-accent="blue"]{--rehearsal:#76aef8;--rehearsal-text:#10213a}
 html[data-rehearsal-accent="violet"]{--rehearsal:#aa8df5;--rehearsal-text:#24183d}
@@ -52,7 +53,8 @@ html[data-rehearsal-accent="amber"]{--rehearsal:#edb761;--rehearsal-text:#30210a
 html[data-rehearsal-accent="rose"]{--rehearsal:#ed8ca1;--rehearsal-text:#38151d}
 html{--rehearsal-bg:color-mix(in srgb,var(--rehearsal) 11%,transparent)}
 
-html[data-individual-accent="default"]{--individual:#ef6a6a;--individual-text:#351010}\nhtml[data-individual-accent="neutral"]{--individual:var(--neutral-accent);--individual-text:var(--neutral-accent-text)}
+html[data-individual-accent="default"]{--individual:#ef6a6a;--individual-text:#351010}
+html[data-individual-accent="neutral"]{--individual:var(--neutral-accent);--individual-text:var(--neutral-accent-text)}
 html[data-individual-accent="mint"]{--individual:#79d9b0;--individual-text:#10271e}
 html[data-individual-accent="blue"]{--individual:#76aef8;--individual-text:#10213a}
 html[data-individual-accent="violet"]{--individual:#aa8df5;--individual-text:#24183d}
@@ -60,7 +62,8 @@ html[data-individual-accent="amber"]{--individual:#edb761;--individual-text:#302
 html[data-individual-accent="rose"]{--individual:#ed8ca1;--individual-text:#38151d}
 html{--individual-bg:color-mix(in srgb,var(--individual) 11%,transparent)}
 
-html[data-seminar-accent="default"]{--seminar:#9b83f4;--seminar-text:#24163d}\nhtml[data-seminar-accent="neutral"]{--seminar:var(--neutral-accent);--seminar-text:var(--neutral-accent-text)}
+html[data-seminar-accent="default"]{--seminar:#9b83f4;--seminar-text:#24163d}
+html[data-seminar-accent="neutral"]{--seminar:var(--neutral-accent);--seminar-text:var(--neutral-accent-text)}
 html[data-seminar-accent="mint"]{--seminar:#79d9b0;--seminar-text:#10271e}
 html[data-seminar-accent="blue"]{--seminar:#76aef8;--seminar-text:#10213a}
 html[data-seminar-accent="violet"]{--seminar:#aa8df5;--seminar-text:#24183d}
@@ -132,10 +135,6 @@ html[data-theme="light"] .notification-center-overlay{background:rgba(224,231,22
 .settings-color-preset:hover{border-color:var(--border-strong)}
 .settings-color-preset.is-active{border-color:var(--text);box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--text)}
 .settings-color-preset span{width:16px;height:16px;border-radius:50%;background:var(--swatch,var(--neutral-accent));box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
-.settings-color-preset.is-default-preset span{background:var(--default-swatch,var(--neutral-accent))}
-.settings-color-preset.is-default-rehearsal span{--default-swatch:#f0a45d}
-.settings-color-preset.is-default-individual span{--default-swatch:#ef6a6a}
-.settings-color-preset.is-default-seminar span{--default-swatch:#9b83f4}
 .settings-page-row--colors{align-items:center}
 @media(max-width:600px){
   .settings-page-row--colors{align-items:flex-start!important}
