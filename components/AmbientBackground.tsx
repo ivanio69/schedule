@@ -35,8 +35,6 @@ export default function AmbientBackground() {
     const viewport = () => {
       const visual = window.visualViewport;
       return {
-        left: visual?.offsetLeft ?? 0,
-        top: visual?.offsetTop ?? 0,
         width: visual?.width ?? window.innerWidth,
         height: visual?.height ?? window.innerHeight,
       };
@@ -47,12 +45,8 @@ export default function AmbientBackground() {
       if (!root || !loading) return;
 
       const view = viewport();
-      root.style.left = `${view.left}px`;
-      root.style.top = `${view.top}px`;
-      root.style.width = `${view.width}px`;
-      root.style.height = `${view.height}px`;
-      root.style.right = "auto";
-      root.style.bottom = "auto";
+      const centerX = view.width / 2;
+      const centerY = view.height / 2;
 
       const elapsed = Math.max(0, timestamp - orbitStartedAt);
       const phase = reducedMotion.matches || elapsed <= FORM_MS
@@ -62,8 +56,8 @@ export default function AmbientBackground() {
 
       Array.from(root.children).forEach((node, index) => {
         const angle = phase + (Math.PI * 2 * index) / SPOT_COUNT - Math.PI / 2;
-        const x = Math.cos(angle) * radius;
-        const y = Math.sin(angle) * radius;
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
         (node as HTMLElement).style.transform = `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)`;
       });
 
@@ -83,7 +77,6 @@ export default function AmbientBackground() {
       const root = rootRef.current;
       if (!root) return;
       delete root.dataset.orbiting;
-      for (const property of ["left", "top", "width", "height", "right", "bottom"]) root.style.removeProperty(property);
       for (const spot of root.children) {
         (spot as HTMLElement).style.transform = `translate(${random(-50, 50)}vw, ${random(-50, 50)}dvh)`;
       }
