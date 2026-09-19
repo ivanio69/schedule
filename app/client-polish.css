@@ -193,3 +193,28 @@ body .dashboard-focus.is-current .dashboard-progress{margin-top:12px}
   body .dashboard-focus-top{margin-bottom:8px}
   body .dashboard-focus.is-current .dashboard-focus-top{margin-bottom:10px}
 }
+
+/* Cancelled and moved lessons stay visible but cannot look active. */
+body .dashboard-event-v2.is-cancelled{
+  opacity:.68;
+  border-color:color-mix(in srgb,#ef6a6a 34%,var(--border))!important;
+  background:color-mix(in srgb,#ef6a6a 4%,var(--surface))!important;
+}
+body .dashboard-event-v2.is-cancelled :is(.dashboard-event-time,.dashboard-event-content h3,.dashboard-event-content p){
+  text-decoration:line-through;
+  text-decoration-thickness:1.5px;
+  text-decoration-color:color-mix(in srgb,#ef6a6a 72%,currentColor);
+}
+body .dashboard-event-v2.is-cancelled .dashboard-event-content>span{color:#ef8f8f!important}
+body .dashboard-event-v2.is-moved{
+  border-color:color-mix(in srgb,var(--accent) 40%,var(--border))!important;
+  background:color-mix(in srgb,var(--accent) 5%,var(--surface))!important;
+}
+body .dashboard-event-v2.is-moved .dashboard-event-content>span{color:color-mix(in srgb,var(--accent) 82%,var(--text))!important}
+body .dashboard-change-reason{
+  display:block;
+  margin-top:6px;
+  color:var(--muted-strong);
+  font-size:10px;
+  line-height:1.45;
+}

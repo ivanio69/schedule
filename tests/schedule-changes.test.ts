@@ -27,8 +27,6 @@ schedule.days[0].table[0].weeks = [];
 assert.equal(getOccurrences(schedule,"2026-09-07").length,0);
 const allWeeks: ScheduleData = {...schedule,changes:[]};
 assert.equal(getLessonsForWeek(allWeeks,0,1).length,1);
-console.log("Schedule occurrence tests passed.");
-
 const chinaCommon: Lesson = { id:"common", class:"Общая", professor:"", auditorium:"", timeStart:"09:00", timeEnd:"10:00", group:[1,2,"china"], weeks:[1] };
 const chinaGroupOne: Lesson = { id:"group-one", class:"Подгруппа 1", professor:"", auditorium:"", timeStart:"10:00", timeEnd:"11:00", group:[1,"china"], weeks:[1] };
 const chinaOnly: Lesson = { id:"china-only", class:"Русский язык", professor:"", auditorium:"", timeStart:"11:00", timeEnd:"12:00", group:["china"], weeks:[1] };
@@ -45,3 +43,5 @@ const movedOccurrence=getOccurrences(movedStatusSchedule,"2026-09-08")[0];
 assert.equal(movedOccurrence.occurrence?.status,"moved");
 assert.equal(movedOccurrence.occurrence?.reason,"Замена аудитории");
 assert.equal(movedOccurrence.occurrence?.originalDate,"2026-09-07");
+
+console.log("Schedule occurrence tests passed.");
