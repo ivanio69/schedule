@@ -295,6 +295,7 @@ html[data-theme="light"] .ambient-background { --spot-strength:22%; --neutral-st
 .ambient-background > span {
   position:absolute; left:50%; top:50%;
   transform-origin:0 0;
+  transform:translate(var(--ambient-x),var(--ambient-y));
   transition:
     transform .24s cubic-bezier(.22,1,.36,1),
     width .2s cubic-bezier(.22,1,.36,1),
@@ -316,7 +317,7 @@ html[data-accent="neutral"] .ambient-background > span > i {
 .ambient-background[data-loading="true"] > span {
   width:36px!important;
   height:36px!important;
-  transform:rotate(var(--loading-ring-angle)) translateX(var(--loading-ring-radius))!important;
+  transform:rotate(var(--loading-ring-angle)) translateX(var(--loading-ring-radius));
 }
 .ambient-background[data-loading="true"][data-orbiting="true"] > span {
   transition:width .2s ease,height .2s ease;

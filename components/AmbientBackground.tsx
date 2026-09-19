@@ -13,7 +13,8 @@ export default function AmbientBackground() {
     const random = (min: number, max: number) => min + Math.random() * (max - min);
     const frame = requestAnimationFrame(() => {
       setSpots(Array.from({ length: SPOT_COUNT }, (_, index) => ({
-        transform: `translate(${random(-50, 50)}vw, ${random(-50, 50)}dvh)`,
+        "--ambient-x": `${random(-50, 50)}vw`,
+        "--ambient-y": `${random(-50, 50)}dvh`,
         width: `${random(45, 85)}vmax`,
         height: `${random(35, 65)}vmax`,
         animationDuration: `${random(24, 44)}s`,
