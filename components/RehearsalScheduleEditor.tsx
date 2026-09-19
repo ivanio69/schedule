@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import LoadingState from "@/components/LoadingState";
 import type { Person } from "@/lib/people";
 import type { Rehearsal, RehearsalBlock, RehearsalParticipantMode } from "@/lib/schedule";
 import { getRehearsalBounds } from "@/lib/rehearsals";
@@ -150,7 +151,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
     }
   };
 
-  if (loading) return <main className="rehearsal-editor-page"><div className="rehearsal-editor-loading">Загрузка репетиции…</div></main>;
+  if (loading) return <LoadingState screen label="Загружаем репетицию" detail="Получаем график, блоки и участников."/>;
 
   return <main className={`rehearsal-editor-page${admin ? " is-admin" : ""}`}>
     <header className="rehearsal-editor-head">

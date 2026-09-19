@@ -1,6 +1,7 @@
 "use client";
 
 import AdminHeading from "@/components/AdminHeading";
+import LoadingState from "@/components/LoadingState";
 import { useEffect, useMemo, useState } from "react";
 import type { IndividualSlot } from "@/lib/individual-slots";
 
@@ -22,7 +23,7 @@ export default function AdminIndividualSlots() {
   const remove = async (id: string) => { if (!confirm("Удалить слот?")) return; await fetch(`/api/admin/individual-slots?id=${encodeURIComponent(id)}`, { method: "DELETE" }); await load(); };
   const visible = useMemo(() => slots.filter(s => filter === "all" || (filter === "free" ? usedSeats(s) < (s.capacity ?? 1) : usedSeats(s) > 0)), [slots, filter]);
   const groups = useMemo(() => { const map = new Map<string, SlotView[]>(); for (const s of visible) { const a = map.get(s.subject) ?? []; a.push(s); map.set(s.subject, a); } return [...map.entries()]; }, [visible]);
-  if (loading) return <section className="slots-admin"><div className="slots-spinner"/><p>Загрузка слотов…</p></section>;
+  if (loading) return <LoadingState compact label="Загружаем индивидуальные слоты" detail="Получаем занятия, места и записи."/>;
   return <section className="slots-admin"><AdminHeading title="Индивидуальные" description="Управляй занятиями и записями студентов." actions={<button className="admin-primary" onClick={() => { setEditId(""); setForm(blank()); }}>Добавить занятие</button>}/>
     <section className="slots-toolbar"><div><strong>{slots.length}</strong><span>слотов</span></div><div><strong>{slots.filter(s => usedSeats(s) < (s.capacity ?? 1)).length}</strong><span>свободно</span></div><div><strong>{slots.reduce((n, s) => n + usedSeats(s), 0)}</strong><span>записей</span></div><nav>{[["all", "Все"], ["free", "Свободные"], ["taken", "Занятые"]].map(([x, l]) => <button key={x} className={filter === x ? "active" : ""} onClick={() => setFilter(x)}>{l}</button>)}</nav></section>
     {message && <p className="slots-message">{message}</p>}

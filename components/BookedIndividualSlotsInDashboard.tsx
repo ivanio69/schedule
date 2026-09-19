@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { IndividualSlot } from "@/lib/individual-slots";
+import LoadingState from "@/components/LoadingState";
 
 type Slot = IndividualSlot & { studentNames?: string[] };
 const dateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -10,10 +11,12 @@ export default function BookedIndividualSlotsInDashboard() {
   const [personId, setPersonId] = useState("");
   const [slots, setSlots] = useState<Slot[]>([]);
   const [target, setTarget] = useState<HTMLElement | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const id = localStorage.getItem("schedule_person_id") ?? "";
     setPersonId(id);
+    if (!id) setReady(true);
     const find = () => setTarget(document.querySelector<HTMLElement>(".dashboard-timeline"));
     find();
     const observer = new MutationObserver(find);
@@ -29,10 +32,12 @@ export default function BookedIndividualSlotsInDashboard() {
     fetch(`/api/individual-slots?from=${dateKey(today)}&to=${dateKey(to)}`, { cache: "no-store" })
       .then((r) => r.ok ? r.json() : null)
       .then((d) => setSlots((d?.slots ?? []).filter((s: Slot) => s.studentIds?.includes(personId))))
-      .catch(() => setSlots([]));
+      .catch(() => setSlots([]))
+      .finally(() => setReady(true));
   }, [personId]);
 
-  const items = useMemo(() => slots.sort((a, b) => a.timeStart.localeCompare(b.timeStart)), [slots]);
+  const items = useMemo(() => [...slots].sort((a, b) => a.timeStart.localeCompare(b.timeStart)), [slots]);
+  if (target && personId && !ready) return createPortal(<LoadingState compact label="Загружаем индивидуальные" detail="Проверяем твои записи."/>, target);
   if (!target || !personId || !items.length) return null;
   return createPortal(
     <section className="dashboard-booked-individuals" aria-label="Мои индивидуальные занятия">
