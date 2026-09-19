@@ -1,95 +1,141 @@
 .schedule-loading-state {
-  display: grid;
-  place-items: center;
-  min-height: 250px;
-  padding: 14px 0;
+  display:grid;
+  place-content:center;
+  justify-items:center;
+  gap:10px;
+  min-height:250px;
+  padding:14px 0;
 }
 
 .schedule-loading-skeleton {
-  width: 24px;
-  height: 24px;
-  min-height: 0;
-  border: 2px solid var(--border);
-  border-top-color: var(--text);
-  border-radius: 50%;
-  background: transparent;
-  animation: schedule-spinner .75s linear infinite;
+  width:24px;
+  height:24px;
+  min-height:0;
+  border:2px solid var(--border);
+  border-top-color:var(--text);
+  border-radius:50%;
+  background:transparent;
+  animation:schedule-spinner .75s linear infinite;
 }
 
 .schedule-loading-spinner {
-  width: 22px;
-  height: 22px;
-  margin: 0 auto 2px;
-  border: 2px solid var(--border);
-  border-top-color: var(--text);
-  border-radius: 50%;
-  animation: schedule-spinner .75s linear infinite;
+  width:22px;
+  height:22px;
+  margin:0 auto 2px;
+  border:2px solid var(--border);
+  border-top-color:var(--text);
+  border-radius:50%;
+  animation:schedule-spinner .75s linear infinite;
 }
 
-.schedule-loading-label {
-  margin: 0 0 4px;
-  color: var(--muted);
-  font-size: 11px;
-  text-align: center;
+.schedule-loading-label,
+.dashboard-loading-state > p,
+.student-slots-loading-label,
+.slots-admin > .slots-spinner + p {
+  margin:0;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+  text-align:center;
 }
 
-.dashboard-v2 > .dashboard-empty {
-  display: grid;
-  place-items: center;
-  min-height: 360px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  color: transparent;
-  background: transparent;
+.dashboard-loading-state {
+  width:100%;
+  min-height:calc(100dvh - 96px);
+  padding:0;
 }
 
-.dashboard-v2 > .dashboard-empty::after {
-  content: "";
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--border);
-  border-top-color: var(--text);
-  border-radius: 50%;
-  animation: schedule-spinner .75s linear infinite;
+.dashboard-v2.dashboard-loading-state {
+  display:grid;
+  place-content:center;
+  justify-items:center;
+  gap:10px;
 }
 
 .schedule-shell > .empty-state {
-  display: grid;
-  place-items: center;
-  min-height: 390px;
-  padding: 28px 0;
-  border: 0;
-  background: transparent;
+  display:grid;
+  place-content:center;
+  justify-items:center;
+  gap:7px;
+  min-height:390px;
+  padding:28px 0;
+  border:0;
+  background:transparent;
 }
 
 .schedule-shell > .empty-state::before,
 .schedule-shell > .empty-state::after {
-  display: none;
+  display:none;
 }
 
 .schedule-shell > .empty-state .empty-state__icon {
-  width: 22px;
-  height: 22px;
-  margin: 0 auto;
-  border: 2px solid var(--border);
-  border-top-color: var(--text);
-  border-radius: 50%;
-  color: transparent;
-  background: transparent;
-  animation: schedule-spinner .75s linear infinite;
+  width:22px;
+  height:22px;
+  margin:0 0 5px;
+  border:2px solid var(--border);
+  border-top-color:var(--text);
+  border-radius:50%;
+  color:transparent;
+  background:transparent;
+  animation:schedule-spinner .75s linear infinite;
 }
 
-.schedule-shell > .empty-state h2,
-.schedule-shell > .empty-state p { display: none; }
+.schedule-shell > .empty-state h2 {
+  display:block;
+  margin:0;
+  color:var(--text);
+  font-size:14px;
+  font-weight:700;
+}
+
+.schedule-shell > .empty-state p {
+  display:block;
+  margin:0;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+  text-align:center;
+}
+
+.student-slots-loading {
+  min-height:420px!important;
+  display:grid!important;
+  place-content:center!important;
+  justify-items:center;
+  gap:10px;
+}
+
+.student-slots-loading .student-slots-spinner {
+  margin:0;
+}
+
+.slots-admin:has(> .slots-spinner) {
+  min-height:calc(100dvh - 100px);
+  display:grid;
+  place-content:center;
+  justify-items:center;
+  gap:10px;
+  padding-top:0;
+  padding-bottom:0;
+}
+
+.slots-admin > .slots-spinner {
+  width:24px;
+  height:24px;
+  border:2px solid var(--border);
+  border-top-color:var(--text);
+  border-radius:50%;
+  animation:schedule-spinner .75s linear infinite;
+}
 
 @keyframes schedule-spinner {
-  to { transform: rotate(360deg); }
+  to { transform:rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .schedule-loading-skeleton,
   .schedule-loading-spinner,
-  .dashboard-v2 > .dashboard-empty::after,
-  .schedule-shell > .empty-state .empty-state__icon { animation: none; }
+  .schedule-shell > .empty-state .empty-state__icon,
+  .student-slots-spinner,
+  .slots-admin > .slots-spinner { animation:none; }
 }
