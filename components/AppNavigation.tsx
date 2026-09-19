@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,21 +11,19 @@ const items = [
  { href: "/settings", label: "Настройки", shortLabel: "Настройки", icon: <><path d="M4 7h3m4 0h9M4 17h9m4 0h3"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></> },
 ];
 
+const subscribe = (notify: () => void) => {
+ window.addEventListener("storage", notify);
+ window.addEventListener("schedule-auth-change", notify);
+ return () => {window.removeEventListener("storage", notify);window.removeEventListener("schedule-auth-change", notify);};
+};
+const getSnapshot = () => Boolean(localStorage.getItem("schedule_person_id"));
+const getServerSnapshot = () => false;
+
 export default function AppNavigation(){
  const pathname=usePathname();
- const [authenticated,setAuthenticated]=useState(false);
- const [mounted,setMounted]=useState(false);
- useEffect(()=>{
-  setMounted(true);
-  const sync=()=>setAuthenticated(Boolean(localStorage.getItem("schedule_person_id")));
-  sync();
-  window.addEventListener("storage",sync);
-  window.addEventListener("schedule-auth-change",sync);
-  const authPoll=window.setInterval(sync,300);
-  return()=>{window.removeEventListener("storage",sync);window.removeEventListener("schedule-auth-change",sync);window.clearInterval(authPoll)};
- },[]);
- useEffect(()=>{document.body.classList.toggle("has-app-navigation",mounted&&authenticated&&!pathname.startsWith("/admin"));return()=>document.body.classList.remove("has-app-navigation")},[mounted,authenticated,pathname]);
- if(pathname.startsWith("/admin") || !mounted || !authenticated) return null;
+ const authenticated=useSyncExternalStore(subscribe,getSnapshot,getServerSnapshot);
+ useEffect(()=>{document.body.classList.toggle("has-app-navigation",authenticated&&!pathname.startsWith("/admin"));return()=>document.body.classList.remove("has-app-navigation")},[authenticated,pathname]);
+ if(pathname.startsWith("/admin") || !authenticated) return null;
  return <nav className="app-navigation navigation-labelled" aria-label="Основные разделы">
    {items.map(({href,label,shortLabel,icon}) => {
      const active=pathname===href || (href!=="/" && pathname.startsWith(href+"/"));
