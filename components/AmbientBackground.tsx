@@ -3,12 +3,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 const LOADING_POINTS = [
-  [-55, 0],
-  [-33, 0],
-  [-11, 0],
-  [11, 0],
-  [33, 0],
-  [55, 0],
+  [-44, 0],
+  [-22, 0],
+  [0, 0],
+  [22, 0],
+  [44, 0],
 ] as const;
 
 export default function AmbientBackground() {
