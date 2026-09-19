@@ -86,7 +86,7 @@ html[data-theme="light"] :where(.admin-input,.seminars input,.seminars select,.s
 }
 html[data-theme="light"] :where(.dashboard-kicker,.eyebrow,.week-caption,.settings-page .muted,.settings-page-status,.dashboard-event-content p,.dashboard-event-time small,.seminar-summary small,.seminar-topic-info p,.student-slots span,.student-slots small,.admin-muted){color:var(--muted)!important}
 html[data-theme="light"] .notification-center-overlay{background:rgba(224,231,228,.76)!important}
-html[data-theme="light"] .app-loading-state.is-screen{background:var(--bg)!important}
+html[data-theme="light"] .app-loading-state.is-screen{background-color:var(--bg)!important}
 
 .day-tabs button.is-active,.bottom-nav button.is-active,.app-navigation a.is-active,.preference-switch button.is-active,
 .settings-page-switch button.is-active,.admin-modebar button.is-active,.admin-chip-row button.is-active,.admin-week-grid button.is-active{
@@ -184,7 +184,7 @@ body .app-navigation.app-navigation{
 :where(.notification-center-overlay,.details-backdrop,.dashboard-overlay,.slots-overlay){
   background:color-mix(in srgb,var(--bg) 72%,transparent)!important;
 }
-.app-loading-state.is-screen{background:var(--bg)!important}
+.app-loading-state.is-screen{background-color:var(--bg)!important}
 .offline-banner{background:var(--surface-raised)!important;border-color:var(--border)!important;color:var(--text)!important}
 ::selection{background:var(--accent);color:var(--accent-text)}
 .monday-green{--monday:var(--accent)!important;--monday-soft:var(--muted-strong)!important;--monday-deep:var(--bg)!important;color:var(--text)!important;text-shadow:none!important}
