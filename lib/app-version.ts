@@ -12,6 +12,14 @@ export type AppChangelogEntry = {
 
 export const APP_CHANGELOG: AppChangelogEntry[] = [
   {
+    version: "3.1.0",
+    date: "19 сентября 2026",
+    title: "Китайский режим",
+    items: [
+      "Китайские пары скрыты из расписания и блока «завтра», пока китайский режим выключен.",
+    ],
+  },
+  {
     version: "3.0.0",
     date: "19 сентября 2026",
     title: "Темы и персонализация",

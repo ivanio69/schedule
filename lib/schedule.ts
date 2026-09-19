@@ -75,6 +75,7 @@ export function getLessonsForWeek(schedule: ScheduleData, dayIndex: number, week
   const date = getScheduleDate(schedule, week, dayIndex);
   return getOccurrences(schedule, date).filter(lesson => {
     if (chinaMode && !lesson.group.includes("china")) return false;
+    if (!chinaMode && lesson.group.includes("china")) return false;
     const preference = preferences[lesson.class] ?? "both";
     return preference === "both" || !lesson.group.length || lesson.group.includes(Number(preference));
   });
