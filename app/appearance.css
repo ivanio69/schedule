@@ -265,3 +265,23 @@ html[data-theme="light"][data-accent="default"] body:has(.dashboard-v2:not(.dash
 @media(prefers-reduced-motion:reduce){
   body:has(.dashboard-v2:not(.dashboard-choose)){animation:none}
 }
+
+/* Seminar filters must visibly reflect aria-pressed after generic button theme overrides. */
+body .seminars-client .seminar-filters button{
+  background:transparent!important;
+  border:0!important;
+  color:var(--muted-strong)!important;
+  box-shadow:none!important;
+}
+body .seminars-client .seminar-filters button[aria-pressed="true"],
+body .seminars-client .seminar-filters button[aria-pressed="true"]:hover{
+  background:var(--accent)!important;
+  color:var(--accent-text)!important;
+  box-shadow:inset 0 1px color-mix(in srgb,var(--text) 16%,transparent),0 4px 12px color-mix(in srgb,var(--accent) 18%,transparent)!important;
+}
+@media(hover:hover){
+  body .seminars-client .seminar-filters button:not([aria-pressed="true"]):hover{
+    background:var(--surface-hover)!important;
+    color:var(--text)!important;
+  }
+}
