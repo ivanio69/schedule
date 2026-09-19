@@ -7,15 +7,21 @@
     radial-gradient(ellipse 82% 46% at 50% -14%,color-mix(in srgb,var(--accent) 46%,transparent),transparent 72%),
     radial-gradient(ellipse 54% 34% at 2% 30%,color-mix(in srgb,var(--accent) 18%,transparent),transparent 72%),
     var(--bg);
+  background-size:138% 132%,128% 124%,auto;
+  background-position:50% 0%,0% 22%,0 0;
+  background-repeat:no-repeat,no-repeat,repeat;
   opacity:0;
   transform:scale(1.025);
-  animation:app-loading-background-enter .68s cubic-bezier(.22,1,.36,1) .04s forwards,app-loading-background-breathe 5.8s ease-in-out .72s infinite alternate;
+  animation:app-loading-background-enter .68s cubic-bezier(.22,1,.36,1) .04s forwards,app-loading-background-float 7.8s cubic-bezier(.45,.05,.55,.95) .72s infinite alternate;
 }
 .app-loading-state.is-screen::after{
   z-index:-1;
   background:radial-gradient(ellipse 42% 24% at 54% 10%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 76%);
+  background-size:132% 126%;
+  background-position:58% 7%;
+  background-repeat:no-repeat;
   opacity:0;
-  animation:app-loading-glow-enter .82s ease .12s forwards,app-loading-glow-breathe 4.8s ease-in-out .94s infinite alternate;
+  animation:app-loading-glow-enter .82s ease .12s forwards,app-loading-glow-float 6.2s ease-in-out .94s infinite alternate;
 }
 html[data-accent="default"] .app-loading-state.is-screen::before{
   background:
@@ -53,8 +59,17 @@ html[data-theme="light"][data-accent="default"] .app-loading-state.is-screen::be
 @keyframes app-loading-leave{from{opacity:1}to{opacity:0}}
 @keyframes app-loading-background-enter{from{opacity:0;transform:scale(1.025)}to{opacity:1;transform:scale(1)}}
 @keyframes app-loading-glow-enter{from{opacity:0;transform:translateY(-2%) scale(.96)}to{opacity:.9;transform:none}}
-@keyframes app-loading-background-breathe{from{transform:scale(1)}to{transform:scale(1.035) translateY(1.5%)}}
-@keyframes app-loading-glow-breathe{from{opacity:.55;transform:translateY(-1%)}to{opacity:1;transform:translateY(2%)}}
+@keyframes app-loading-background-float{
+  0%{background-position:50% 0%,0% 22%,0 0;transform:scale(1)}
+  35%{background-position:61% 4%,8% 30%,0 0;transform:scale(1.018)}
+  68%{background-position:43% 9%,3% 38%,0 0;transform:scale(1.03)}
+  100%{background-position:57% 13%,12% 18%,0 0;transform:scale(1.012)}
+}
+@keyframes app-loading-glow-float{
+  0%{background-position:58% 7%;opacity:.58;transform:scale(1)}
+  50%{background-position:43% 18%;opacity:.9;transform:scale(1.08)}
+  100%{background-position:65% 28%;opacity:.72;transform:scale(1.03)}
+}
 @keyframes app-loading-background-leave{from{opacity:1}to{opacity:0}}
 @media(prefers-reduced-motion:reduce){
   .app-loading-state,.app-loading-spinner,.app-loading-copy,.app-loading-state.is-screen::before,.app-loading-state.is-screen::after{animation:none}
