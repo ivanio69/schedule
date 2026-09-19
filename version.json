@@ -1,7 +1,7 @@
 {
-  "release": "2.13.0",
-  "dev": 16,
+  "release": "3.0.0",
+  "dev": 19,
   "pr": 37,
-  "majorBasePr": 24,
-  "channel": "minor"
+  "majorBasePr": 37,
+  "channel": "major"
 }
