@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import type { IndividualSlot } from "@/lib/individual-slots";
 import type { ScheduleData } from "@/lib/schedule";
 import LoadingState from "@/components/LoadingState";
+import PersonalEventNote from "@/components/PersonalEventNote";
 
 type Slot = IndividualSlot & { studentNames?: string[] };
 const dateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -66,6 +67,7 @@ export default function BookedIndividualSlotsInSchedule() {
           <div className="schedule-card__title-row"><h3>{slot.subject}</h3><span className="booked-individual-slot-badge">ИНДИВ.</span></div>
           <p>{slot.professor}{slot.auditorium ? ` · ${slot.auditorium}` : ""}</p>
           {slot.note && <small>{slot.note}</small>}
+          <PersonalEventNote noteKey={`individual-slot:${slot.id}`}/>
         </div>
       </article>)}
     </div>, target

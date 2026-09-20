@@ -1,5 +1,6 @@
 import { getRehearsalAudienceNames } from "@/lib/rehearsals";
 import type { Rehearsal } from "@/lib/schedule";
+import PersonalEventNote from "@/components/PersonalEventNote";
 
 export function RehearsalCard({ rehearsal, own, conflictWith = [], onDelete, onClick }: { rehearsal: Rehearsal; own: boolean; conflictWith?: string[]; onDelete?: () => void; onClick?: () => void }) {
   const audience = getRehearsalAudienceNames(rehearsal).length;
@@ -18,6 +19,7 @@ export function RehearsalCard({ rehearsal, own, conflictWith = [], onDelete, onC
           {blocks > 0 && <><span aria-hidden="true">·</span><span>{blocks} {blocks === 1 ? "блок" : "блоков"}</span></>}
           <span aria-hidden="true">·</span><span>{rehearsal.isGlobal ? `общая · приглашено ${audience}` : `${audience} участн.`}</span>
         </div>
+        <PersonalEventNote noteKey={`rehearsal:${rehearsal.id}`}/>
       </div>
     </article>
   );

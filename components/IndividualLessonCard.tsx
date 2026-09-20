@@ -1,4 +1,5 @@
 import type { IndividualLesson } from "@/lib/people";
+import PersonalEventNote from "@/components/PersonalEventNote";
 
 export type ScheduleIndividualLesson = IndividualLesson & { personName: string };
 
@@ -10,6 +11,7 @@ export function IndividualLessonCard({ lesson, conflictWith = [], onClick }: { l
         <div className="schedule-card__title-row"><div className="schedule-card__title"><span className="card-kind-badge card-kind-badge--individual">ИНДИВ</span>{conflictWith.length>0&&<span className="card-kind-badge card-kind-badge--conflict" title={`Пересекается с: ${conflictWith.join(", ")}`}>КОНФЛИКТ</span>}<h2>{lesson.subject}</h2></div></div>
         <div className="schedule-card__meta"><span>{lesson.personName}</span><span aria-hidden="true">·</span><span>{lesson.professor}</span><span aria-hidden="true">·</span><span>ауд. {lesson.auditorium}</span></div>
         {lesson.note && <p className="individual-lesson-card__note">{lesson.note}</p>}
+        <PersonalEventNote noteKey={`individual:${lesson.id}`}/>
       </div>
       <style jsx global>{`.individual-lesson-card{border-left:2px solid #f0f0f0}.individual-lesson-card__note{margin:10px 0 0;color:#8f8f98;font-size:11px;line-height:1.45}`}</style>
     </article>
