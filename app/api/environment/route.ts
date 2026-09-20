@@ -44,7 +44,7 @@ function githubHeaders() {
 async function latestOpenDevelopmentPull() {
   const response = await fetch(
     `https://api.github.com/repos/${GITHUB_REPO}/pulls?state=open&sort=created&direction=desc&per_page=30`,
-    { headers: githubHeaders(), next: { revalidate: 60 } },
+    { headers: githubHeaders(), next: { revalidate: 8 } },
   );
   if (!response.ok) return null;
 
@@ -59,11 +59,25 @@ async function latestOpenDevelopmentPull() {
     .sort((a, b) => b.number - a.number)[0] ?? null;
 }
 
+async function developmentPullByNumber(number: number) {
+  if (!Number.isFinite(number) || number < 1) return null;
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO}/pulls/${number}`,
+      { headers: githubHeaders(), next: { revalidate: 5 } },
+    );
+    if (!response.ok) return null;
+    return await response.json() as GitHubPull;
+  } catch {
+    return null;
+  }
+}
+
 async function versionForBranch(branch: string) {
   try {
     const response = await fetch(
       `https://api.github.com/repos/${GITHUB_REPO}/contents/version.json?ref=${encodeURIComponent(branch)}`,
-      { headers: githubHeaders(), next: { revalidate: 30 } },
+      { headers: githubHeaders(), next: { revalidate: 5 } },
     );
     if (!response.ok) return null;
     const payload = await response.json() as { content?: string; encoding?: string };
@@ -102,13 +116,13 @@ export async function GET(request: Request) {
   const isPreview = process.env.VERCEL_ENV === "preview" || Boolean(gitRef && gitRef !== "main");
   const proxiedDev = !isPreview && cookieValue(request, "schedule_environment") === "dev";
   const proxiedPr = Number(cookieValue(request, "schedule_dev_pr") ?? "") || null;
-  const proxiedVersion = cookieValue(request, "schedule_dev_version");
 
   const stableUrl = absoluteVercelUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL)
     ?? (process.env.VERCEL_ENV === "production" ? absoluteVercelUrl(process.env.VERCEL_URL) : null)
     ?? requestOrigin;
 
   let dev: { pr: number; branch: string; url: string; version: string } | null = null;
+  let activeDevVersion: string | null = null;
 
   if (isPreview) {
     const currentPreviewUrl = absoluteVercelUrl(process.env.VERCEL_BRANCH_URL ?? process.env.VERCEL_URL);
@@ -121,14 +135,28 @@ export async function GET(request: Request) {
       };
     }
   } else {
-    const pull = await latestOpenDevelopmentPull();
+    const [pull, activePull] = await Promise.all([
+      latestOpenDevelopmentPull(),
+      proxiedDev && proxiedPr ? developmentPullByNumber(proxiedPr) : Promise.resolve(null),
+    ]);
+
     const branch = pull?.head?.ref;
-    if (pull && branch) {
+    const activeBranch = activePull?.head?.ref;
+
+    const [latestVersion, currentVersion] = await Promise.all([
+      branch ? versionForBranch(branch) : Promise.resolve(null),
+      activeBranch ? versionForBranch(activeBranch) : Promise.resolve(null),
+    ]);
+
+    if (pull && branch && latestVersion) {
       const url = branchPreviewUrl(branch);
-      const version = await versionForBranch(branch);
-      if (version && await previewExists(url)) {
-        dev = { pr: pull.number, branch, url, version };
+      if (await previewExists(url)) {
+        dev = { pr: pull.number, branch, url, version: latestVersion };
       }
+    }
+
+    if (proxiedDev && proxiedPr && activeBranch && currentVersion) {
+      activeDevVersion = currentVersion;
     }
   }
 
@@ -136,13 +164,13 @@ export async function GET(request: Request) {
     {
       current: isPreview || proxiedDev ? "dev" : "stable",
       currentPr: isPreview ? versionInfo.pr : proxiedPr,
-      currentVersion: isPreview ? `${versionInfo.release}.dev${versionInfo.dev}` : proxiedVersion,
+      currentVersion: isPreview ? `${versionInfo.release}.dev${versionInfo.dev}` : activeDevVersion,
       stable: { url: stableUrl },
       dev,
     },
     {
       headers: {
-        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+        "Cache-Control": "private, no-store, max-age=0",
       },
     },
   );

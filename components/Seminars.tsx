@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import AdminHeading from "@/components/AdminHeading";
 import LoadingState from "@/components/LoadingState";
+import AsyncContentTransition from "@/components/AsyncContentTransition";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SeminarList, SeminarTopic } from "@/lib/seminars";
 
@@ -121,14 +122,15 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
       <label>Темы — каждая с новой строки<textarea required rows={5} value={topics} onChange={e => setTopics(e.target.value)} placeholder={"Первая тема\nВторая тема\nТретья тема"} /></label>
       <div className="seminar-create-footer"><small>До 200 тем. Лимит действует на каждую тему списка.</small><button disabled={busy} className="seminar-primary" type="submit">{busy ? "Сохранение…" : "Создать список"}</button></div>
     </form>}
-    {loading ? <LoadingState screen={!admin} compact={admin} label="Загружаем семинары" detail={admin ? "Получаем темы и участников." : "Получаем актуальные темы и записи."}/> : !lists.length && !error ? <div className="seminar-empty"><h2>Тем пока нет</h2><p>{admin ? "Добавь первый список семинаров выше." : "Здесь появятся списки, которые добавит администратор."}</p></div> : null}
-    {!admin && !loading && !personId && <p className="seminar-message"><Link href="/">Выбери своё имя</Link>, чтобы забить тему.</p>}
-    {!admin && !loading && lists.length > 0 && <div className="seminar-tools">
+    <AsyncContentTransition loading={loading} loadingNode={<LoadingState screen={!admin} compact={admin} label="Загружаем семинары" detail={admin ? "Получаем темы и участников." : "Получаем актуальные темы и записи."}/>} className="seminars-loaded-content">
+    {!lists.length && !error ? <div className="seminar-empty"><h2>Тем пока нет</h2><p>{admin ? "Добавь первый список семинаров выше." : "Здесь появятся списки, которые добавит администратор."}</p></div> : null}
+    {!admin && !personId && <p className="seminar-message"><Link href="/">Выбери своё имя</Link>, чтобы забить тему.</p>}
+    {!admin && lists.length > 0 && <div className="seminar-tools">
       <label className="seminar-search"><span>Найти тему</span><input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Предмет, тема или участник" /></label>
       <div className="seminar-filters" role="group" aria-label="Показать темы">{([['all', 'Все'], ['free', 'Свободные'], ['mine', 'Мои']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div>
       <p role="status">Найдено тем: {visibleLists.reduce((total, list) => total + list.topics.filter(topic => matches(list, topic)).length, 0)}</p>
     </div>}
-    {!admin && !loading && lists.length > 0 && !visibleLists.length && <div className="seminar-empty"><h2>{filter === "mine" && !search ? "Пока нет твоих тем" : "Ничего не найдено"}</h2><p>Попробуй другой запрос или посмотри все темы.</p><button type="button" onClick={() => { setQuery(""); setFilter("all"); }}>Показать все темы</button></div>}
+    {!admin && lists.length > 0 && !visibleLists.length && <div className="seminar-empty"><h2>{filter === "mine" && !search ? "Пока нет твоих тем" : "Ничего не найдено"}</h2><p>Попробуй другой запрос или посмотри все темы.</p><button type="button" onClick={() => { setQuery(""); setFilter("all"); }}>Показать все темы</button></div>}
     {groups.map(group => <section key={group} className="seminar-subject"><h2>{group}</h2>{visibleLists.filter(l => l.subject === group).map(list => { const listIsMine = !admin && list.topics.some(topic => topic.studentIds.includes(personId ?? "")); return <article key={list.id} className={`seminar-list${listIsMine ? " seminar-list-mine" : ""}`}>
       <header className="seminar-list-header"><h3>{admin ? <span className="seminar-summary"><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span><button type="button" disabled={busy || listEditor !== null} onClick={() => { setEditor(null); setListEditor({ ...list, topics: list.topics.map(topic => ({ ...topic })) }); }} aria-label={`Редактировать семинар ${list.title}`}>Изменить</button><button type="button" className="seminar-delete admin-danger" disabled={busy} onClick={() => void remove(list)} aria-label={`Удалить семинар ${list.title}`}>Удалить</button></span> : <button className="seminar-summary" disabled={filtering} aria-expanded={isOpen(list.id)} aria-controls={`seminar-topics-${list.id}`} onClick={() => setExpanded(current => { const next = new Set(current); if (next.has(list.id)) next.delete(list.id); else next.add(list.id); return next; })}><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span>{listIsMine && <span className="seminar-mine-badge">Мой семинар</span>}<span className="seminar-summary-count">{list.topics.filter(t => t.studentIds.length < list.capacity).length} свободно</span><svg className={isOpen(list.id) ? "is-open" : ""} viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></button>}</h3></header>
       {admin && listEditor?.id === list.id && <form className="seminar-list-edit" onSubmit={async e => {
@@ -166,5 +168,6 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
         </li>;
       })}</ol></motion.div>
     </article>})}</section>)}
+    </AsyncContentTransition>
   </section>;
 }

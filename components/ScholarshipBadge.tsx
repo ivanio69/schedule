@@ -26,19 +26,23 @@ export function ScholarshipBadge({ date }: { date?: Date | string }) {
   useEffect(() => {
     setVisible(isScholarshipDate(parseDate(date)));
 
-    const findTarget = () => setTarget(document.querySelector<HTMLElement>(".dashboard-stats"));
+    const findTarget = () => setTarget(document.querySelector<HTMLElement>(".dashboard-scholarship-slot"));
     findTarget();
     const observer = new MutationObserver(findTarget);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [date]);
 
-  if (!visible || !target) return null;
+  if (!target) return null;
 
   return createPortal(
-    <div className="scholarship-badge" role="status">
-      <span aria-hidden="true">₽</span>
-      <strong>Сегодня стипендия</strong>
+    <div className={`scholarship-slot-wrap dashboard-scholarship-wrap${visible ? " is-visible" : ""}`} aria-hidden={!visible}>
+      <div className="scholarship-slot-inner">
+        <div className="scholarship-badge" role={visible ? "status" : undefined}>
+          <span aria-hidden="true">₽</span>
+          <strong>Сегодня стипендия</strong>
+        </div>
+      </div>
     </div>,
     target,
   );

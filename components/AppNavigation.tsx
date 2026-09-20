@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useSyncExternalStore } from "react";
+
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -18,17 +19,62 @@ const subscribe = (notify: () => void) => {
 };
 const getSnapshot = () => Boolean(localStorage.getItem("schedule_person_id"));
 const getServerSnapshot = () => false;
+const ADMIN_EXIT_MS = 220;
 
 export default function AppNavigation(){
  const pathname=usePathname();
  const authenticated=useSyncExternalStore(subscribe,getSnapshot,getServerSnapshot);
- useEffect(()=>{document.body.classList.toggle("has-app-navigation",authenticated&&!pathname.startsWith("/admin"));return()=>document.body.classList.remove("has-app-navigation")},[authenticated,pathname]);
- if(pathname.startsWith("/admin") || !authenticated) return null;
- return <nav className="app-navigation navigation-labelled navigation-icons-only" aria-label="Основные разделы">
+ const inAdmin=pathname.startsWith("/admin");
+ const [rendered,setRendered]=useState(false);
+ const [leavingAdmin,setLeavingAdmin]=useState(false);
+ const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
+
+ useEffect(()=>{
+   if(timer.current){clearTimeout(timer.current);timer.current=null;}
+
+   if(!authenticated){
+     setRendered(false);
+     setLeavingAdmin(false);
+     document.body.classList.remove("has-app-navigation");
+     return;
+   }
+
+   if(!inAdmin){
+     // App routes never put the navigation through an enter/exit state.
+     // It stays mounted and fully visible while only the page content animates.
+     setRendered(true);
+     setLeavingAdmin(false);
+     document.body.classList.add("has-app-navigation");
+     return;
+   }
+
+   document.body.classList.remove("has-app-navigation");
+   if(rendered){
+     setLeavingAdmin(true);
+     timer.current=setTimeout(()=>{
+       setRendered(false);
+       setLeavingAdmin(false);
+       timer.current=null;
+     },ADMIN_EXIT_MS);
+   }
+
+   return()=>{
+     if(timer.current){clearTimeout(timer.current);timer.current=null;}
+   };
+ // rendered is intentionally not a dependency: changing mount state must not
+ // restart this effect and cancel the admin exit timer.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[authenticated,inAdmin]);
+
+ useEffect(()=>()=>document.body.classList.remove("has-app-navigation"),[]);
+
+ if(!rendered) return null;
+
+ return <nav className={`app-navigation navigation-labelled navigation-icons-only ${leavingAdmin?"is-exiting":"is-visible"}`} aria-label="Основные разделы" aria-hidden={leavingAdmin}>
    {items.map(({href,label,icon}) => {
      const active=pathname===href || (href!=="/" && pathname.startsWith(href+"/"));
      return <Link key={href} className={active?"is-active":""} href={href}
-       aria-current={active?"page":undefined} aria-label={label} title={label}>
+       aria-current={active?"page":undefined} aria-label={label} title={label} tabIndex={leavingAdmin?-1:undefined}>
        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">{icon}</svg>
        <span className="app-navigation-label" aria-hidden="true">{label}</span>
      </Link>;

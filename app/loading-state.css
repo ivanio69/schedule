@@ -13,3 +13,14 @@
   background:transparent;
 }
 .app-loading-state.is-compact{min-height:56px}
+
+.app-loading-state{
+  opacity:1;
+  transition:opacity .2s ease,transform .24s cubic-bezier(.22,1,.36,1),filter .2s ease;
+}
+.app-loading-state.is-screen{
+  z-index:900;
+}
+body .app-navigation.navigation-labelled{
+  z-index:1000;
+}

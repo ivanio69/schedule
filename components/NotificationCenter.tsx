@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
 import { APP_CHANGELOG, APP_VERSION } from "@/lib/app-version";
 
@@ -17,7 +18,9 @@ function readStoredVersions(key: string) {
 
 export default function NotificationCenter({ personId }: { personId: string }) {
   const [open, setOpen] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const [ready, setReady] = useState(false);
+  const reducedMotion = useReducedMotion();
   const [readVersions, setReadVersions] = useState<string[]>([]);
   const storageKey = `${READ_KEY_PREFIX}:${personId}`;
 
@@ -31,7 +34,7 @@ export default function NotificationCenter({ personId }: { personId: string }) {
   }, [personId, storageKey]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open && !exiting) return;
     const previousOverflow = document.body.style.overflow;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeCenter();
@@ -43,7 +46,7 @@ export default function NotificationCenter({ personId }: { personId: string }) {
       window.removeEventListener("keydown", onKeyDown);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, exiting]);
 
   const readSet = useMemo(() => new Set(readVersions), [readVersions]);
   const unreadCount = ready ? APP_CHANGELOG.filter(entry => !readSet.has(entry.version)).length : 0;
@@ -56,6 +59,12 @@ export default function NotificationCenter({ personId }: { personId: string }) {
 
   const closeCenter = () => {
     markAllRead();
+    if (reducedMotion) {
+      setOpen(false);
+      setExiting(false);
+      return;
+    }
+    setExiting(true);
     setOpen(false);
   };
 
@@ -74,35 +83,65 @@ export default function NotificationCenter({ personId }: { personId: string }) {
       {unreadCount > 0 && <b>{unreadCount > 9 ? "9+" : unreadCount}</b>}
     </button>
 
-    {open && typeof document !== "undefined" && createPortal(
-      <div className="notification-center-overlay" onMouseDown={closeCenter}>
-        <section className="notification-center-panel" role="dialog" aria-modal="true" aria-labelledby="notification-center-title" onMouseDown={event => event.stopPropagation()}>
-          <header>
-            <div>
-              <span>ЦЕНТР УВЕДОМЛЕНИЙ</span>
-              <h2 id="notification-center-title">Что нового</h2>
-              <p>Версия v{APP_VERSION}</p>
+    {typeof document !== "undefined" && createPortal(
+      <AnimatePresence onExitComplete={() => setExiting(false)}>
+        {open && <motion.div
+          key="notification-center"
+          className="notification-center-overlay"
+          onMouseDown={closeCenter}
+          initial={reducedMotion ? false : { opacity: 0, backdropFilter: "blur(0px)" }}
+          animate={{ opacity: 1, backdropFilter: "blur(12px)" }}
+          exit={reducedMotion ? undefined : { opacity: 0, backdropFilter: "blur(0px)" }}
+          transition={{ duration: reducedMotion ? 0 : .18, ease: "easeOut" }}
+        >
+          <motion.section
+            className="notification-center-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="notification-center-title"
+            onMouseDown={event => event.stopPropagation()}
+            initial={reducedMotion ? false : { opacity: 0, y: 18, scale: .975, filter: "blur(5px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={reducedMotion ? undefined : { opacity: 0, y: 12, scale: .985, filter: "blur(5px)" }}
+            transition={{ duration: reducedMotion ? 0 : .22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <header>
+              <div>
+                <span>ЦЕНТР УВЕДОМЛЕНИЙ</span>
+                <h2 id="notification-center-title">Что нового</h2>
+                <p>Версия v{APP_VERSION}</p>
+              </div>
+              <button type="button" onClick={closeCenter} aria-label="Закрыть">×</button>
+            </header>
+            <div className="notification-center-list">
+              {APP_CHANGELOG.map((entry, index) => {
+                const unread = !readSet.has(entry.version);
+                return <motion.article
+                  key={entry.version}
+                  className={unread ? "is-unread" : ""}
+                  initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: reducedMotion ? 0 : .2,
+                    delay: reducedMotion ? 0 : Math.min(index * .035, .18),
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                >
+                  <div className="notification-center-version">
+                    <span>v{entry.version}</span>
+                    <small>{entry.date}</small>
+                    {unread && <b>НОВОЕ</b>}
+                  </div>
+                  <h3>{entry.title}</h3>
+                  <ul>{entry.items.map(item => <li key={item}>{item}</li>)}</ul>
+                  {index === 0 && APP_VERSION.includes(".dev") && <em>Предрелизная сборка</em>}
+                </motion.article>;
+              })}
             </div>
-            <button type="button" onClick={closeCenter} aria-label="Закрыть">×</button>
-          </header>
-          <div className="notification-center-list">
-            {APP_CHANGELOG.map((entry, index) => {
-              const unread = !readSet.has(entry.version);
-              return <article key={entry.version} className={unread ? "is-unread" : ""}>
-                <div className="notification-center-version">
-                  <span>v{entry.version}</span>
-                  <small>{entry.date}</small>
-                  {unread && <b>НОВОЕ</b>}
-                </div>
-                <h3>{entry.title}</h3>
-                <ul>{entry.items.map(item => <li key={item}>{item}</li>)}</ul>
-                {index === 0 && APP_VERSION.includes(".dev") && <em>Предрелизная сборка</em>}
-              </article>;
-            })}
-          </div>
-          <footer><button type="button" onClick={closeCenter}>Готово</button></footer>
-        </section>
-      </div>,
+            <footer><button type="button" onClick={closeCenter}>Готово</button></footer>
+          </motion.section>
+        </motion.div>}
+      </AnimatePresence>,
       document.body
     )}
 
@@ -111,8 +150,8 @@ export default function NotificationCenter({ personId }: { personId: string }) {
       .notification-center-trigger:hover{background:var(--surface-hover);border-color:var(--border-strong);transform:translateY(-1px)}
       .notification-center-trigger svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
       .notification-center-trigger b{position:absolute;top:-5px;right:-5px;display:grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border:2px solid var(--surface);border-radius:999px;color:var(--accent-text);background:var(--accent);font-size:9px;line-height:1}
-      .notification-center-overlay{position:fixed;inset:0;z-index:2200;display:grid;place-items:center;width:100vw;height:100dvh;padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));overflow:hidden;background:rgba(0,0,0,.78);backdrop-filter:blur(12px);overscroll-behavior:contain;isolation:isolate}
-      .notification-center-panel{position:relative;display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(100%,620px);max-height:min(760px,calc(100dvh - 40px));min-height:0;overflow:hidden;border:1px solid var(--border);border-radius:24px;color:var(--text);background:var(--surface);box-shadow:0 30px 100px rgba(0,0,0,.72),0 0 0 1px rgba(255,255,255,.025)}
+      .notification-center-overlay{position:fixed;inset:0;z-index:2200;display:grid;place-items:center;width:100vw;height:100dvh;padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));overflow:hidden;background:rgba(0,0,0,.78);overscroll-behavior:contain;isolation:isolate}
+      .notification-center-panel{position:relative;transform-origin:50% 55%;will-change:transform,opacity,filter;display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(100%,620px);max-height:min(760px,calc(100dvh - 40px));min-height:0;overflow:hidden;border:1px solid var(--border);border-radius:24px;color:var(--text);background:var(--surface);box-shadow:0 30px 100px rgba(0,0,0,.72),0 0 0 1px rgba(255,255,255,.025)}
       .notification-center-panel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;min-width:0;padding:22px 22px 18px;border-bottom:1px solid var(--border);background:var(--surface)}
       .notification-center-panel>header span{color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.12em}
       .notification-center-panel>header h2{margin:7px 0 5px;font-size:26px;letter-spacing:-.035em}
@@ -135,7 +174,7 @@ export default function NotificationCenter({ personId }: { personId: string }) {
       .monday-green .notification-center-trigger b{border-color:#07170d;color:#07170d;background:var(--monday)}
       @media(max-width:640px){
         .notification-center-overlay{place-items:end center;padding:max(10px,env(safe-area-inset-top)) 0 0}
-        .notification-center-panel{width:100%;max-height:calc(100dvh - max(10px,env(safe-area-inset-top)));border-left:0;border-right:0;border-bottom:0;border-radius:24px 24px 0 0}
+        .notification-center-panel{width:100%;transform-origin:50% 100%;max-height:calc(100dvh - max(10px,env(safe-area-inset-top)));border-left:0;border-right:0;border-bottom:0;border-radius:24px 24px 0 0}
         .notification-center-panel>header{padding:20px 18px 16px}
         .notification-center-list{padding:10px 10px 14px}
         .notification-center-panel>footer{padding:12px 14px calc(12px + env(safe-area-inset-bottom))}

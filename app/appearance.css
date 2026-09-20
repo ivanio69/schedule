@@ -384,7 +384,8 @@ html[data-accent="default"] .ambient-background[data-loading="true"] .ambient-sp
   background:radial-gradient(circle,color-mix(in srgb,var(--text) 78%,transparent) 0%,color-mix(in srgb,var(--text) 34%,transparent) 42%,transparent 74%);
 }
 
-body:has(.app-loading-state.is-screen) :is(.app-page-transition, .app-navigation) { visibility:hidden; }
+body:has(.app-loading-state.is-screen) .app-page-transition { visibility:hidden; }
+body:has(.app-loading-state.is-screen) .app-navigation { visibility:visible; }
 body .app-loading-state.is-screen { visibility:visible; }
 
 @keyframes ambient-float {
