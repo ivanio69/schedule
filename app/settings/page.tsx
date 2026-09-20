@@ -61,7 +61,7 @@ export default function SettingsPage() {
       const current = await fetch(`/api/profile/settings?personId=${encodeURIComponent(personId)}`, { cache: "no-store" }).then(r => r.ok ? r.json() : { notes: {} });
       const response = await fetch("/api/profile/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ personId, preferences: next, notes: current.notes ?? {} }) });
       if (!response.ok) throw new Error();
-      setStatus("Цвета сохранены в облаке");
+      setStatus("Сохранено в облаке");
     } catch { setStatus("Не удалось сохранить в облако"); }
   };
 
@@ -76,7 +76,7 @@ export default function SettingsPage() {
     try{
       const response=await fetch("/api/profile/settings",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({personId,appearance:next})});
       if(!response.ok)throw new Error();
-      setStatus("Сохранено в облаке");
+      setStatus("Цвета сохранены в облаке");
     }catch{
       setAppearance(previous);
       persistAppearance(previous);
