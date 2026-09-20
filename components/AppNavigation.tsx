@@ -19,51 +19,74 @@ const subscribe = (notify: () => void) => {
 };
 const getSnapshot = () => Boolean(localStorage.getItem("schedule_person_id"));
 const getServerSnapshot = () => false;
-const EXIT_MS = 260;
+const ADMIN_EXIT_MS = 220;
 
 export default function AppNavigation(){
  const pathname=usePathname();
  const authenticated=useSyncExternalStore(subscribe,getSnapshot,getServerSnapshot);
- const shouldShow=authenticated&&!pathname.startsWith("/admin");
- const [mounted,setMounted]=useState(shouldShow);
- const [visible,setVisible]=useState(false);
- const hideTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+ const inAdmin=pathname.startsWith("/admin");
+ const [mounted,setMounted]=useState(false);
+ const [entering,setEntering]=useState(false);
+ const [leavingAdmin,setLeavingAdmin]=useState(false);
+ const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
+ const frame=useRef<number|null>(null);
 
  useEffect(()=>{
-   if(hideTimer.current){clearTimeout(hideTimer.current);hideTimer.current=null;}
+   if(timer.current){clearTimeout(timer.current);timer.current=null;}
+   if(frame.current!==null){cancelAnimationFrame(frame.current);frame.current=null;}
 
-   if(shouldShow){
-     setMounted(true);
-     const frame=requestAnimationFrame(()=>setVisible(true));
-     document.body.classList.add("has-app-navigation");
-     return()=>cancelAnimationFrame(frame);
+   if(!authenticated){
+     setMounted(false);
+     setEntering(false);
+     setLeavingAdmin(false);
+     document.body.classList.remove("has-app-navigation");
+     return;
    }
 
-   setVisible(false);
+   if(!inAdmin){
+     document.body.classList.add("has-app-navigation");
+     setLeavingAdmin(false);
+
+     if(!mounted){
+       setEntering(true);
+       setMounted(true);
+       frame.current=requestAnimationFrame(()=>{
+         setEntering(false);
+         frame.current=null;
+       });
+     }
+     return;
+   }
+
+   // Only /admin is allowed to hide the navigation. Regular app route changes
+   // keep this component mounted and fully visible.
+   document.body.classList.remove("has-app-navigation");
    if(mounted){
-     hideTimer.current=setTimeout(()=>{
+     setEntering(false);
+     setLeavingAdmin(true);
+     timer.current=setTimeout(()=>{
        setMounted(false);
-       document.body.classList.remove("has-app-navigation");
-       hideTimer.current=null;
-     },EXIT_MS);
-   }else{
-     document.body.classList.remove("has-app-navigation");
+       setLeavingAdmin(false);
+       timer.current=null;
+     },ADMIN_EXIT_MS);
    }
 
    return()=>{
-     if(hideTimer.current){clearTimeout(hideTimer.current);hideTimer.current=null;}
+     if(timer.current){clearTimeout(timer.current);timer.current=null;}
+     if(frame.current!==null){cancelAnimationFrame(frame.current);frame.current=null;}
    };
- },[mounted,shouldShow]);
+ },[authenticated,inAdmin,mounted]);
 
  useEffect(()=>()=>document.body.classList.remove("has-app-navigation"),[]);
 
  if(!mounted) return null;
 
- return <nav className={`app-navigation navigation-labelled navigation-icons-only ${visible?"is-visible":"is-exiting"}`} aria-label="Основные разделы" aria-hidden={!visible}>
+ const stateClass=leavingAdmin?"is-exiting":entering?"is-entering":"is-visible";
+ return <nav className={`app-navigation navigation-labelled navigation-icons-only ${stateClass}`} aria-label="Основные разделы" aria-hidden={leavingAdmin}>
    {items.map(({href,label,icon}) => {
      const active=pathname===href || (href!=="/" && pathname.startsWith(href+"/"));
      return <Link key={href} className={active?"is-active":""} href={href}
-       aria-current={active?"page":undefined} aria-label={label} title={label} tabIndex={visible?undefined:-1}>
+       aria-current={active?"page":undefined} aria-label={label} title={label} tabIndex={leavingAdmin?-1:undefined}>
        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">{icon}</svg>
        <span className="app-navigation-label" aria-hidden="true">{label}</span>
      </Link>;
