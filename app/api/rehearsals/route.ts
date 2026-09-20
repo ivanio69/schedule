@@ -101,7 +101,7 @@ async function notifyNames(names: string[], title: string, rehearsal: Rehearsal)
     await sendPush(participantIds, null, {
       title,
       body: `${rehearsal.subject} · ${rehearsal.date} · ${rehearsal.timeStart}–${rehearsal.timeEnd}${blockText}`,
-      url: "/schedule",
+      url: `/schedule?date=${encodeURIComponent(rehearsal.date)}&rehearsal=${encodeURIComponent(rehearsal.id)}`,
     });
   } catch (error) {
     console.error("Failed to notify rehearsal participants", error);
