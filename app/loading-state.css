@@ -21,6 +21,6 @@
 .app-loading-state.is-screen{
   z-index:900;
 }
-body:has(.app-loading-state.is-screen) .app-navigation{
+body .app-navigation.navigation-labelled{
   z-index:1000;
 }
