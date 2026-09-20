@@ -115,6 +115,13 @@ html[data-theme="light"] :where(.admin-input,.seminars input,.seminars select,.s
 html[data-theme="light"] :where(.dashboard-kicker,.eyebrow,.week-caption,.settings-page .muted,.settings-page-status,.dashboard-event-content p,.dashboard-event-time small,.seminar-summary small,.seminar-topic-info p,.student-slots span,.student-slots small,.admin-muted){color:var(--muted)!important}
 html[data-theme="light"] .notification-center-overlay{background:rgba(224,231,228,.76)!important}
 
+html[data-theme="light"] :where(.dashboard-people button,.dashboard-people button span,.dashboard-people button b,.student-slots>header>strong,.student-slots-message,.student-slots-empty-icon,.push-prompt,.notification-center-trigger,.notification-center-panel>header,.notification-center-panel>footer,.rehearsal-editor-footer){
+  color:var(--text)!important;background:var(--surface)!important;border-color:var(--border)!important;
+}
+html[data-theme="light"] :where(.dashboard-people button:hover,.student-slots-list article:hover,.notification-center-trigger:hover){background:var(--surface-hover)!important;border-color:var(--border-strong)!important}
+html[data-theme="light"] :where(.dashboard-people button b,.student-slots-message,.student-slots-mine small,.student-slot-date span,.student-slot-info span,.student-slot-info small,.student-slot-capacity,.student-slot-full,.student-slots-empty p,.push-prompt p,.push-prompt button:last-of-type,.notification-center-panel>header span,.notification-center-panel>header>button,.notification-center-list em){color:var(--muted)!important}
+html[data-theme="light"] .notification-center-list article.is-unread{background:color-mix(in srgb,var(--accent) 7%,var(--surface-raised))!important;border-color:var(--border-strong)!important}
+
 .day-tabs button.is-active,.bottom-nav button.is-active,.app-navigation a.is-active,.preference-switch button.is-active,
 .settings-page-switch button.is-active,.admin-modebar button.is-active,.admin-chip-row button.is-active,.admin-week-grid button.is-active{
   color:var(--accent-text)!important;background:var(--accent)!important;border-color:var(--accent)!important;
