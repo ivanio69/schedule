@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { APPEARANCE_STORAGE_KEY, normalizeAppearance } from "@/lib/appearance";
+import { APPEARANCE_STORAGE_KEY, DEFAULT_APPEARANCE, normalizeAppearance } from "@/lib/appearance";
 import { applyAppearance, persistAppearance, readStoredAppearance } from "@/lib/appearance-client";
 
 const PERSON_KEY = "schedule_person_id";
@@ -10,7 +10,11 @@ export default function AppearanceProvider() {
   useEffect(() => {
     let stopped = false;
 
-    const applyLocal = () => applyAppearance(readStoredAppearance());
+    let initialized = false;
+    const applyLocal = () => {
+      applyAppearance(readStoredAppearance(), { animate: initialized });
+      initialized = true;
+    };
     const syncProfile = async () => {
       const personId = localStorage.getItem(PERSON_KEY);
       if (!personId) return;
@@ -18,7 +22,7 @@ export default function AppearanceProvider() {
         const response = await fetch(`/api/profile/settings?personId=${encodeURIComponent(personId)}`, { cache: "no-store" });
         if (!response.ok || stopped) return;
         const data = await response.json();
-        if (data.appearance) persistAppearance(normalizeAppearance(data.appearance));
+        persistAppearance(normalizeAppearance(data.appearance ?? DEFAULT_APPEARANCE), { animate: true });
       } catch {}
     };
 
