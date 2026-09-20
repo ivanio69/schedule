@@ -25,6 +25,7 @@ export function applyAppearance(settings: AppearanceSettings, options: { animate
   }
 
   root.dataset.theme = settings.theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", settings.theme === "light" ? "#f5f5f6" : "#09090b");
   root.dataset.accent = settings.appAccent;
   root.dataset.rehearsalAccent = settings.rehearsalAccent;
   root.dataset.individualAccent = settings.individualAccent;
