@@ -7,7 +7,7 @@ import { getSubgroupSubjects, type GroupPreference, type ScheduleData } from "@/
 import { APP_VERSION } from "@/lib/app-version";
 import LoadingState from "@/components/LoadingState";
 import { ACCENT_OPTIONS, DEFAULT_APPEARANCE, normalizeAppearance, type AccentPreset, type AppearanceSettings } from "@/lib/appearance";
-import { persistAppearance, readStoredAppearance } from "@/lib/appearance-client";
+import { persistAppearance, readStoredAppearance, resetLocalAppearance } from "@/lib/appearance-client";
 
 const PERSON_KEY = "schedule_person_id";
 
@@ -61,7 +61,7 @@ export default function SettingsPage() {
       const current = await fetch(`/api/profile/settings?personId=${encodeURIComponent(personId)}`, { cache: "no-store" }).then(r => r.ok ? r.json() : { notes: {} });
       const response = await fetch("/api/profile/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ personId, preferences: next, notes: current.notes ?? {} }) });
       if (!response.ok) throw new Error();
-      setStatus("Сохранено в облаке");
+      setStatus("Цвета сохранены в облаке");
     } catch { setStatus("Не удалось сохранить в облако"); }
   };
 
@@ -100,6 +100,7 @@ export default function SettingsPage() {
 
   const logout = () => {
     localStorage.removeItem(PERSON_KEY);
+    resetLocalAppearance({ animate: true });
     window.dispatchEvent(new Event("schedule-auth-change"));
     window.location.href = "/";
   };

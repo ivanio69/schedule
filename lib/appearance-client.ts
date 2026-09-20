@@ -48,3 +48,12 @@ export function persistAppearance(value: AppearanceSettings, options: { animate?
   window.dispatchEvent(new CustomEvent("schedule-appearance-change", { detail: settings }));
   return settings;
 }
+
+export function resetLocalAppearance(options: { animate?: boolean } = {}) {
+  const settings = { ...DEFAULT_APPEARANCE };
+  if (typeof window === "undefined") return settings;
+  localStorage.removeItem(APPEARANCE_STORAGE_KEY);
+  applyAppearance(settings, options);
+  window.dispatchEvent(new CustomEvent("schedule-appearance-change", { detail: settings }));
+  return settings;
+}
