@@ -12,6 +12,15 @@ export type AppChangelogEntry = {
 
 export const APP_CHANGELOG: AppChangelogEntry[] = [
   {
+    version: "3.8.0",
+    date: "20 сентября 2026",
+    title: "Исправлена нумерация версий",
+    items: [
+      "Начиная с PR #46 новые minor-версии считаются от последнего опубликованного релиза, а не из номера PR.",
+      "Hotfix больше не создаёт пропуск в следующей minor-версии.",
+    ],
+  },
+  {
     version: "3.7.1",
     date: "20 сентября 2026",
     title: "Защита страниц без профиля",
