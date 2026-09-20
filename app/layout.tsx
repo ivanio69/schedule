@@ -35,9 +35,24 @@ const environmentTransferBootScript = `(()=>{try{const hash=location.hash.starts
 const appearanceBootScript = `(()=>{try{const root=document.documentElement;const raw=localStorage.getItem("schedule_appearance");if(!raw)return;const value=JSON.parse(raw);const accents=["default","mint","blue","violet","amber","rose"];root.dataset.theme=value.theme==="light"?"light":"dark";root.dataset.accent=accents.includes(value.appAccent)?value.appAccent:"default";root.dataset.rehearsalAccent=accents.includes(value.rehearsalAccent)?value.rehearsalAccent:"default";root.dataset.individualAccent=accents.includes(value.individualAccent)?value.individualAccent:"default";root.dataset.seminarAccent=accents.includes(value.seminarAccent)?value.seminarAccent:"default"}catch{}})();`;
 
 export const metadata: Metadata = {
+  applicationName: "Расписание 214Р",
   title: "Расписание 214Р",
   description: "Расписание занятий группы 214Р",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "214Р",
+    statusBarStyle: "default",
+  },
+  formatDetection: { telephone: false },
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="ru" className={geist.variable} data-theme="dark" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: environmentTransferBootScript }} /><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><AmbientBackground /><AppearanceProvider /><OfflineBanner /><DevEnvironmentBanner /><SelectedUserGuard><PushPrompt /><AppNavigation /><div className="app-page-transition">{children}</div></SelectedUserGuard><Analytics /></body></html>;

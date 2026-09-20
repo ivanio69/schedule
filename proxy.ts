@@ -35,8 +35,8 @@ export function proxy(request: NextRequest) {
     || pathname === "/sw.js"
     || pathname === "/manifest.webmanifest"
     || pathname === "/favicon.ico"
-    || pathname.startsWith("/icon")
-    || pathname.startsWith("/screenshots/")
+    || pathname === "/apple-touch-icon.png"
+    || pathname.startsWith("/icons/")
   ) {
     return NextResponse.next();
   }

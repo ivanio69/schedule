@@ -1,44 +1,55 @@
 {
+  "id": "/",
   "name": "Расписание 214Р",
   "short_name": "214Р",
   "description": "Расписание занятий группы 214Р",
+  "lang": "ru",
+  "dir": "ltr",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#09090b",
   "theme_color": "#09090b",
+  "categories": [
+    "education",
+    "productivity"
+  ],
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "/icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-192.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "screenshots": [
+  "shortcuts": [
     {
-      "src": "/screenshots/desktop.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Расписание 214Р на компьютере"
+      "name": "Сегодня",
+      "short_name": "Сегодня",
+      "url": "/"
     },
     {
-      "src": "/screenshots/mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "label": "Расписание 214Р на телефоне"
+      "name": "Расписание",
+      "short_name": "Расписание",
+      "url": "/schedule"
+    },
+    {
+      "name": "Семинары",
+      "short_name": "Семинары",
+      "url": "/seminars"
     }
   ]
 }
