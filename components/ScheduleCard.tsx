@@ -3,7 +3,7 @@ import type { Lesson } from "@/lib/schedule";
 
 const PERSON_KEY = "schedule_person_id";
 
-export function ScheduleCard({ lesson, onClick }: { lesson: Lesson; onClick?: () => void }) {
+export function ScheduleCard({ lesson, conflictWith = [], onClick }: { lesson: Lesson; conflictWith?: string[]; onClick?: () => void }) {
   const shared = lesson.group.filter(group => typeof group === "number").length === 2;
   const status = lesson.occurrence?.status;
   const cancelled = status === "cancelled";
@@ -46,10 +46,10 @@ export function ScheduleCard({ lesson, onClick }: { lesson: Lesson; onClick?: ()
 
   return (
     <>
-      <article className={`schedule-card${cancelled ? " schedule-card--cancelled" : ""}${moved ? " schedule-card--moved" : ""}`} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick} onKeyDown={(event) => { if (onClick && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onClick(); } }}>
+      <article className={`schedule-card${cancelled ? " schedule-card--cancelled" : ""}${moved ? " schedule-card--moved" : ""}${conflictWith.length ? " schedule-card--conflict" : ""}`} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick} onKeyDown={(event) => { if (onClick && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onClick(); } }}>
         <div className="schedule-card__time" aria-label={`Время: ${lesson.timeStart} — ${lesson.timeEnd}`}><span>{lesson.timeStart}</span><span>{lesson.timeEnd}</span></div>
         <div className="schedule-card__body">
-          <div className="schedule-card__title-row"><div className="schedule-card__title"><span className="card-kind-badge card-kind-badge--lesson">ПАРА</span>{cancelled&&<span className="card-kind-badge card-kind-badge--cancelled">ОТМЕНЕНА</span>}{moved&&<span className="card-kind-badge card-kind-badge--moved">ПЕРЕНЕСЕНА</span>}<h2>{lesson.class}</h2></div><span className={`group-badge ${shared ? "group-badge--shared" : ""}`}>{shared ? "Обе группы" : `${lesson.group[0]} подгруппа`}</span></div>
+          <div className="schedule-card__title-row"><div className="schedule-card__title"><span className="card-kind-badge card-kind-badge--lesson">ПАРА</span>{cancelled&&<span className="card-kind-badge card-kind-badge--cancelled">ОТМЕНЕНА</span>}{moved&&<span className="card-kind-badge card-kind-badge--moved">ПЕРЕНЕСЕНА</span>}{conflictWith.length>0&&<span className="card-kind-badge card-kind-badge--conflict" title={`Пересекается с: ${conflictWith.join(", ")}`}>КОНФЛИКТ</span>}<h2>{lesson.class}</h2></div><span className={`group-badge ${shared ? "group-badge--shared" : ""}`}>{shared ? "Обе группы" : `${lesson.group[0]} подгруппа`}</span></div>
           <div className="schedule-card__meta"><span>{lesson.professor}</span><span aria-hidden="true">·</span><span>ауд. {lesson.auditorium}</span></div>
           {(cancelled||moved)&&<div className={`schedule-card__change-note ${cancelled?"is-cancelled":"is-moved"}`}><strong>{cancelled?"Пара отменена":"Пара перенесена"}</strong><span>{lesson.occurrence?.reason?.trim()?`Причина: ${lesson.occurrence.reason}`:"Причина не указана"}</span>{moved&&lesson.occurrence?.originalDate&&<small>Изначально: {lesson.occurrence.originalDate.split("-").reverse().join(".")}</small>}</div>}
           {personId && (editing || note) && <div className="schedule-card__note" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>{editing ? <div className="schedule-card__note-editor"><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Личная заметка к паре…" maxLength={2000} autoFocus /><div className="schedule-card__note-actions"><button type="button" onClick={() => setEditing(false)}>Отмена</button><button type="button" disabled={saving} onClick={() => void saveNote()}>{saving ? "Сохраняю…" : "Сохранить"}</button></div></div> : <button type="button" className="schedule-card__note-text" onClick={() => setEditing(true)}>Заметка: {note}</button>}</div>}

@@ -2,12 +2,12 @@ import type { IndividualLesson } from "@/lib/people";
 
 export type ScheduleIndividualLesson = IndividualLesson & { personName: string };
 
-export function IndividualLessonCard({ lesson, onClick }: { lesson: ScheduleIndividualLesson; onClick?: () => void }) {
+export function IndividualLessonCard({ lesson, conflictWith = [], onClick }: { lesson: ScheduleIndividualLesson; conflictWith?: string[]; onClick?: () => void }) {
   return (
-    <article className="schedule-card individual-lesson-card" role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick} onKeyDown={(event) => { if (onClick && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onClick(); } }}>
+    <article className={`schedule-card individual-lesson-card${conflictWith.length ? " schedule-card--conflict" : ""}`} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick} onKeyDown={(event) => { if (onClick && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onClick(); } }}>
       <div className="schedule-card__time" aria-label={`Время: ${lesson.timeStart} — ${lesson.timeEnd}`}><span>{lesson.timeStart}</span><span>{lesson.timeEnd}</span></div>
       <div className="schedule-card__body">
-        <div className="schedule-card__title-row"><div className="schedule-card__title"><span className="card-kind-badge card-kind-badge--individual">ИНДИВ</span><h2>{lesson.subject}</h2></div></div>
+        <div className="schedule-card__title-row"><div className="schedule-card__title"><span className="card-kind-badge card-kind-badge--individual">ИНДИВ</span>{conflictWith.length>0&&<span className="card-kind-badge card-kind-badge--conflict" title={`Пересекается с: ${conflictWith.join(", ")}`}>КОНФЛИКТ</span>}<h2>{lesson.subject}</h2></div></div>
         <div className="schedule-card__meta"><span>{lesson.personName}</span><span aria-hidden="true">·</span><span>{lesson.professor}</span><span aria-hidden="true">·</span><span>ауд. {lesson.auditorium}</span></div>
         {lesson.note && <p className="individual-lesson-card__note">{lesson.note}</p>}
       </div>

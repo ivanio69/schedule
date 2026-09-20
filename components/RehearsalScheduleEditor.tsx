@@ -5,6 +5,7 @@ import LoadingState from "@/components/LoadingState";
 import type { Person } from "@/lib/people";
 import type { Rehearsal, RehearsalBlock, RehearsalParticipantMode } from "@/lib/schedule";
 import { getRehearsalBounds } from "@/lib/rehearsals";
+import type { ConflictRecord } from "@/lib/conflicts";
 
 type Props = {
   admin?: boolean;
@@ -36,6 +37,8 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
   const [loading, setLoading] = useState(Boolean(editId));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [conflicts, setConflicts] = useState<ConflictRecord[]>([]);
+  const [conflictsLoading, setConflictsLoading] = useState(false);
   const didSeedAdmin = useRef(false);
 
   const bounds = useMemo(() => getRehearsalBounds(blocks), [blocks]);
@@ -98,6 +101,53 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
   const updateBlock = (id: string, patch: Partial<RehearsalBlock>) => setBlocks(current => current.map(block => block.id === id ? { ...block, ...patch } : block));
   const addBlock = () => setBlocks(current => [...current, { ...blankBlock(crypto.randomUUID()), participants: !admin && creatorName ? [creatorName] : [] }]);
   const removeBlock = (id: string) => setBlocks(current => current.length === 1 ? current : current.filter(block => block.id !== id));
+
+  useEffect(() => {
+    const selectedNames = participantMode === "blocks"
+      ? unique(blocks.flatMap(block => block.participants))
+      : participants;
+    if (!date || !selectedNames.length || blocks.some(block => !block.timeStart || !block.timeEnd || block.timeStart >= block.timeEnd)) {
+      setConflicts([]);
+      setConflictsLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setConflictsLoading(true);
+      void fetch("/api/conflicts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          date,
+          timeStart: bounds.timeStart,
+          timeEnd: bounds.timeEnd,
+          participantMode,
+          participants: participantMode === "rehearsal" ? participants : [],
+          blocks: blocks.map(block => ({
+            id: block.id,
+            title: block.title,
+            timeStart: block.timeStart,
+            timeEnd: block.timeEnd,
+            participants: participantMode === "blocks" ? block.participants : [],
+          })),
+          excludeRehearsalId: editId || undefined,
+        }),
+      }).then(async response => {
+        if (!response.ok) throw new Error();
+        const data = await response.json() as { conflicts?: ConflictRecord[] };
+        setConflicts(data.conflicts ?? []);
+      }).catch(() => {
+        if (!controller.signal.aborted) setConflicts([]);
+      }).finally(() => {
+        if (!controller.signal.aborted) setConflictsLoading(false);
+      });
+    }, 260);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [date, bounds.timeStart, bounds.timeEnd, participantMode, participants, blocks, editId]);
 
   const changeMode = (mode: RehearsalParticipantMode) => {
     if (mode === participantMode) return;
@@ -193,6 +243,8 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
       </article>)}
     </section>
 
+    {conflictsLoading && <p className="rehearsal-conflict-status">Проверяем пересечения…</p>}
+    {conflicts.length > 0 && <section className="rehearsal-editor-conflicts"><div><p>КОНФЛИКТЫ</p><h2>{conflicts.length} {conflicts.length === 1 ? "пересечение" : "пересечений"}</h2><span>Сохранение не заблокировано — проверьте, намеренно ли совпадает время.</span></div><div className="rehearsal-editor-conflict-list">{conflicts.slice(0,12).map((conflict,index)=><article key={`${conflict.personId}-${conflict.existing.id}-${conflict.candidateBlockId ?? "all"}-${index}`}><strong>{conflict.personName}</strong><span>{conflict.candidateLabel} · {conflict.existing.timeStart}–{conflict.existing.timeEnd}</span><small>{conflict.existing.title}</small></article>)}</div>{conflicts.length>12&&<small className="rehearsal-editor-conflict-more">И ещё {conflicts.length-12}</small>}</section>}
     {error && <p className="rehearsal-editor-error">{error}</p>}
     <footer className="rehearsal-editor-footer"><button type="button" className="rehearsal-editor-cancel" onClick={() => history.back()}>Отмена</button><button type="button" className="rehearsal-editor-save" disabled={saving} onClick={() => void save()}>{saving ? "Сохраняю…" : editId ? "Сохранить изменения" : "Создать репетицию"}</button></footer>
   </main>;
