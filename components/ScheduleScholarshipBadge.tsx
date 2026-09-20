@@ -49,13 +49,16 @@ export default function ScheduleScholarshipBadge() {
   }, []);
 
   const payout = date ? ScholarshipDate({ date }) : null;
-  if (!slot || !payout) return null;
+  const visible = Boolean(payout);
+  if (!slot) return null;
 
   return createPortal(
-    <div className="schedule-scholarship-wrap">
-      <div className="scholarship-badge" role="status">
-        <span>₽</span>
-        <strong>В этот день стипендия</strong>
+    <div className={`scholarship-slot-wrap schedule-scholarship-wrap${visible ? " is-visible" : ""}`} aria-hidden={!visible}>
+      <div className="scholarship-slot-inner">
+        <div className="scholarship-badge" role={visible ? "status" : undefined}>
+          <span>₽</span>
+          <strong>В этот день стипендия</strong>
+        </div>
       </div>
     </div>,
     slot,

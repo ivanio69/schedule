@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useSwipeable } from "react-swipeable";
 import { DAY_NAMES, formatWeekRange, getCurrentWeek, getLessonsForWeek, getSubgroupSubjects, getTotalWeeks, type GroupPreference, type Lesson, type Rehearsal, type ScheduleData } from "@/lib/schedule";
@@ -114,6 +114,21 @@ export default function ScheduleApp() {
   }, [rehearsalOpen, rehearsalEditing, creatorName]);
 
   useEffect(() => { if (Object.keys(preferences).length) window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(preferences)); }, [preferences]);
+  useLayoutEffect(() => {
+    if (loading) return;
+    const toolbar = document.querySelector<HTMLElement>(".week-toolbar");
+    if (!toolbar) return;
+    // iOS Safari can defer painting this layer until the first scroll.
+    // Reading layout before the first frame and then settling the layer forces
+    // the week selector to be visible immediately without moving the page.
+    void toolbar.getBoundingClientRect();
+    toolbar.dataset.iosPaint = "ready";
+    const frame = requestAnimationFrame(() => {
+      toolbar.dataset.iosPaint = "settled";
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [loading]);
+
   useEffect(() => {
     if (!details) { setRehearsalEditing(false); return; }
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setDetails(null); };
