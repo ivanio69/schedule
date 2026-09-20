@@ -6,9 +6,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 
 const EXIT = {
   opacity: 0,
-  y: -7,
-  scale: 0.997,
-  filter: "blur(1.5px)",
+  y: -5,
+  scale: 0.995,
+  filter: "blur(4px)",
 };
 
 const VISIBLE = {
@@ -109,8 +109,8 @@ export default function AppPageTransition({ children }: { children: ReactNode })
         reduceMotion
           ? { duration: 0 }
           : leaving
-            ? { duration: 0.2, ease: [0.4, 0, 1, 1] }
-            : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }
+            ? { duration: 0.16, ease: [0.4, 0, 1, 1] }
+            : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }
       }
       onAnimationComplete={finishExit}
       aria-busy={leaving || undefined}
