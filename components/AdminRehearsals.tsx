@@ -20,6 +20,7 @@ export default function AdminRehearsals() {
   const [start, setStart] = useState("18:00");
   const [end, setEnd] = useState("20:00");
   const [notes, setNotes] = useState("");
+  const [tags, setTags] = useState("");
   const [participants, setParticipants] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -56,6 +57,7 @@ export default function AdminRehearsals() {
     setStart("18:00");
     setEnd("20:00");
     setNotes("");
+    setTags("");
     setParticipants(people.map(person => person.name));
   };
 
@@ -67,6 +69,7 @@ export default function AdminRehearsals() {
     setStart(item.timeStart);
     setEnd(item.timeEnd);
     setNotes(item.notes ?? "");
+    setTags((item.tags ?? []).join(", "));
     setParticipants(item.participants ?? []);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -85,6 +88,7 @@ export default function AdminRehearsals() {
         timeStart: start,
         timeEnd: end,
         notes,
+        tags: [...new Set(tags.split(/[,\n]/).map(tag => tag.trim().replace(/^#/, "").toLowerCase().slice(0, 24)).filter(Boolean))].slice(0, 8),
         participants,
         participantMode: "rehearsal",
         blocks: [],
@@ -122,6 +126,7 @@ export default function AdminRehearsals() {
         <label>Дата<input className="admin-input" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
         <label>Название<input className="admin-input" value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Например, общая репетиция показа"/></label>
         <label>Ответственный<input className="admin-input" value={responsible} onChange={e=>setResponsible(e.target.value)} placeholder="ФИО"/></label>
+        <label>Теги<input className="admin-input" value={tags} onChange={e=>setTags(e.target.value)} placeholder="прогон, сцена, костюмы"/></label>
       </div>
       <div className="admin-editor-row">
         <label>Начало<input className="admin-input" type="time" value={start} onChange={e=>setStart(e.target.value)}/></label>
@@ -141,7 +146,7 @@ export default function AdminRehearsals() {
         <strong className="admin-rehearsal-time">{item.timeStart}–{item.timeEnd}</strong>
         <div className="admin-rehearsal-copy">
           <strong>{item.subject}</strong>
-          <div className="admin-muted">Ответственный: {item.responsible} · {item.blocks?.length?`${item.blocks.length} блоков · `:""}{item.participantMode==="blocks"?"участники по блокам":`приглашено ${item.participants.length}`}</div>
+          <div className="admin-muted">Ответственный: {item.responsible} · {item.blocks?.length?`${item.blocks.length} блоков · `:""}{item.participantMode==="blocks"?"участники по блокам":`приглашено ${item.participants.length}`}{item.tags?.length?` · ${item.tags.map(tag=>`#${tag}`).join(" ")}`:""}</div>
           {item.notes&&<small className="admin-muted">{item.notes}</small>}
         </div>
         {item.blocks?.length?<a className="admin-secondary admin-rehearsal-edit-link" href={`/admin/rehearsals/new?edit=${encodeURIComponent(item.id)}`}>Изменить график</a>:<button className="admin-secondary admin-rehearsal-edit-link" onClick={()=>beginEdit(item)}>Изменить</button>}
