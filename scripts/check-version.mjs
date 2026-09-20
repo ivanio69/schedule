@@ -6,16 +6,22 @@ const fail = (message) => {
   process.exit(1);
 };
 
+const parseRelease = (release, label) => {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(release ?? "");
+  if (!match) fail(`${label} must use major.minor.hotfix`);
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    hotfix: Number(match[3]),
+  };
+};
+
 const version = JSON.parse(fs.readFileSync("version.json", "utf8"));
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
-const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version.release ?? "");
-if (!match) fail("release must use major.minor.hotfix");
+const current = parseRelease(version.release, "release");
 
-const major = Number(match[1]);
-const minor = Number(match[2]);
-const hotfix = Number(match[3]);
-if (major < 2) fail("major version must be at least 2");
+if (current.major < 2) fail("major version must be at least 2");
 if (!Number.isInteger(version.dev) || version.dev < 0) fail("dev must be a non-negative integer");
 if (!Number.isInteger(version.pr) || version.pr < 1) fail("pr must be a positive integer");
 if (!Number.isInteger(version.majorBasePr) || version.majorBasePr < 1) fail("majorBasePr must be a positive integer");
@@ -27,22 +33,57 @@ let event = null;
 if (process.env.GITHUB_EVENT_PATH && fs.existsSync(process.env.GITHUB_EVENT_PATH)) {
   event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
 }
+
 const prNumber = event?.pull_request?.number;
+const baseRef = process.env.GITHUB_BASE_REF;
+
 if (prNumber) {
   if (version.dev < 1) fail("PR builds require dev >= 1");
   if (version.pr !== prNumber) fail(`version.json pr is ${version.pr}, current PR is ${prNumber}`);
-  if (version.channel === "minor") {
-    const expectedMinor = prNumber - version.majorBasePr;
-    if (minor !== expectedMinor || hotfix !== 0) fail(`minor PR #${prNumber} must be ${major}.${expectedMinor}.0`);
-  }
-  if (version.channel === "major") {
-    if (minor !== 0 || hotfix !== 0 || version.majorBasePr !== prNumber) fail("major release must be X.0.0 and reset majorBasePr to this PR");
-  }
-  if (version.channel === "hotfix" && hotfix < 1) fail("hotfix channel requires a non-zero third number");
 }
 
-const baseRef = process.env.GITHUB_BASE_REF;
-if (baseRef) {
+if (prNumber && baseRef) {
+  let baseVersion;
+  try {
+    baseVersion = JSON.parse(
+      execFileSync("git", ["show", `origin/${baseRef}:version.json`], { encoding: "utf8" }),
+    );
+  } catch {
+    fail(`cannot read version.json from origin/${baseRef}`);
+  }
+
+  const base = parseRelease(baseVersion.release, "base release");
+
+  if (version.channel === "minor") {
+    const expected = `${base.major}.${base.minor + 1}.0`;
+    if (version.release !== expected) {
+      fail(`minor release from ${baseVersion.release} must be ${expected}`);
+    }
+    if (version.majorBasePr !== baseVersion.majorBasePr) {
+      fail("minor release must preserve majorBasePr");
+    }
+  }
+
+  if (version.channel === "hotfix") {
+    const expected = `${base.major}.${base.minor}.${base.hotfix + 1}`;
+    if (version.release !== expected) {
+      fail(`hotfix from ${baseVersion.release} must be ${expected}`);
+    }
+    if (version.majorBasePr !== baseVersion.majorBasePr) {
+      fail("hotfix release must preserve majorBasePr");
+    }
+  }
+
+  if (version.channel === "major") {
+    const expected = `${base.major + 1}.0.0`;
+    if (version.release !== expected) {
+      fail(`major release from ${baseVersion.release} must be ${expected}`);
+    }
+    if (version.majorBasePr !== prNumber) {
+      fail("major release must reset majorBasePr to this PR");
+    }
+  }
+
   const log = execFileSync("git", ["log", "--reverse", `origin/${baseRef}..HEAD`, "--format=%s"], { encoding: "utf8" }).trim();
   const commits = log ? log.split("\n") : [];
   if (commits.length !== version.dev) fail(`dev is ${version.dev}, but PR has ${commits.length} commits`);
