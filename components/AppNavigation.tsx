@@ -25,47 +25,34 @@ export default function AppNavigation(){
  const pathname=usePathname();
  const authenticated=useSyncExternalStore(subscribe,getSnapshot,getServerSnapshot);
  const inAdmin=pathname.startsWith("/admin");
- const [mounted,setMounted]=useState(false);
- const [entering,setEntering]=useState(false);
+ const [rendered,setRendered]=useState(false);
  const [leavingAdmin,setLeavingAdmin]=useState(false);
  const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
- const frame=useRef<number|null>(null);
 
  useEffect(()=>{
    if(timer.current){clearTimeout(timer.current);timer.current=null;}
-   if(frame.current!==null){cancelAnimationFrame(frame.current);frame.current=null;}
 
    if(!authenticated){
-     setMounted(false);
-     setEntering(false);
+     setRendered(false);
      setLeavingAdmin(false);
      document.body.classList.remove("has-app-navigation");
      return;
    }
 
    if(!inAdmin){
-     document.body.classList.add("has-app-navigation");
+     // App routes never put the navigation through an enter/exit state.
+     // It stays mounted and fully visible while only the page content animates.
+     setRendered(true);
      setLeavingAdmin(false);
-
-     if(!mounted){
-       setEntering(true);
-       setMounted(true);
-       frame.current=requestAnimationFrame(()=>{
-         setEntering(false);
-         frame.current=null;
-       });
-     }
+     document.body.classList.add("has-app-navigation");
      return;
    }
 
-   // Only /admin is allowed to hide the navigation. Regular app route changes
-   // keep this component mounted and fully visible.
    document.body.classList.remove("has-app-navigation");
-   if(mounted){
-     setEntering(false);
+   if(rendered){
      setLeavingAdmin(true);
      timer.current=setTimeout(()=>{
-       setMounted(false);
+       setRendered(false);
        setLeavingAdmin(false);
        timer.current=null;
      },ADMIN_EXIT_MS);
@@ -73,16 +60,17 @@ export default function AppNavigation(){
 
    return()=>{
      if(timer.current){clearTimeout(timer.current);timer.current=null;}
-     if(frame.current!==null){cancelAnimationFrame(frame.current);frame.current=null;}
    };
- },[authenticated,inAdmin,mounted]);
+ // rendered is intentionally not a dependency: changing mount state must not
+ // restart this effect and cancel the admin exit timer.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[authenticated,inAdmin]);
 
  useEffect(()=>()=>document.body.classList.remove("has-app-navigation"),[]);
 
- if(!mounted) return null;
+ if(!rendered) return null;
 
- const stateClass=leavingAdmin?"is-exiting":entering?"is-entering":"is-visible";
- return <nav className={`app-navigation navigation-labelled navigation-icons-only ${stateClass}`} aria-label="Основные разделы" aria-hidden={leavingAdmin}>
+ return <nav className={`app-navigation navigation-labelled navigation-icons-only ${leavingAdmin?"is-exiting":"is-visible"}`} aria-label="Основные разделы" aria-hidden={leavingAdmin}>
    {items.map(({href,label,icon}) => {
      const active=pathname===href || (href!=="/" && pathname.startsWith(href+"/"));
      return <Link key={href} className={active?"is-active":""} href={href}
