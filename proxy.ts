@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import versionInfo from "@/version.json";
 
 const ENV_COOKIE = "schedule_environment";
 const DEV_HOST_COOKIE = "schedule_dev_host";
@@ -43,8 +44,9 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const devPr = Number(request.cookies.get("schedule_dev_pr")?.value ?? "");
   const host = request.cookies.get(DEV_HOST_COOKIE)?.value;
-  if (!isAllowedPreviewHost(host)) {
+  if (!isAllowedPreviewHost(host) || !Number.isFinite(devPr) || devPr <= versionInfo.pr) {
     return clearDevCookies(NextResponse.next());
   }
 
