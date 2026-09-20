@@ -38,10 +38,6 @@ export default function SettingsPage() {
   useEffect(() => {
     const id = localStorage.getItem(PERSON_KEY) ?? "";
     setPersonId(id);
-    void fetch("/api/environment", { cache: "no-store" })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setEnvironmentInfo(data as EnvironmentInfo); })
-      .catch(() => {});
     void Promise.all([
       fetch("/api/schedule", { cache: "no-store" }).then(r => r.json()),
       fetch("/api/people", { cache: "no-store" }).then(r => r.json()),
@@ -64,6 +60,38 @@ export default function SettingsPage() {
       setShowAdminLink(currentPerson?.adminLink === true);
       setStatus(id ? "Настройки сохраняются в облаке" : "Выберите пользователя");
     }).catch(() => setStatus("Не удалось загрузить настройки")).finally(() => setInitialLoading(false));
+  }, []);
+
+  useEffect(() => {
+    let stopped = false;
+
+    const refreshEnvironment = async () => {
+      try {
+        const response = await fetch(`/api/environment?ts=${Date.now()}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json() as EnvironmentInfo;
+        if (!stopped) setEnvironmentInfo(data);
+      } catch {}
+    };
+
+    const onFocus = () => { void refreshEnvironment(); };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void refreshEnvironment();
+    };
+
+    void refreshEnvironment();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refreshEnvironment();
+    }, 8000);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   const setPreference = async (subject: string, value: GroupPreference) => {
@@ -147,7 +175,6 @@ export default function SettingsPage() {
     document.cookie = `schedule_environment=dev; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
     document.cookie = `schedule_dev_host=${preview.hostname}; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
     document.cookie = `schedule_dev_pr=${environmentInfo.dev.pr}; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
-    document.cookie = `schedule_dev_version=${encodeURIComponent(environmentInfo.dev.version)}; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
     window.location.reload();
   };
 
