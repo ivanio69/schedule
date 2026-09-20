@@ -6,6 +6,7 @@ import {formatWeekRange,getCurrentWeek,getLessonsForWeek,getOccurrences,getSubgr
 import type {SeminarList} from "@/lib/seminars";
 import NotificationCenter from "@/components/NotificationCenter";
 import LoadingState from "@/components/LoadingState";
+import DashboardAnnouncements from "@/components/DashboardAnnouncements";
 const PERSON_KEY="schedule_person_id";
 const mins=(v:string)=>{const [h,m]=v.split(":").map(Number);return h*60+m};
 const dateKey=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -43,6 +44,7 @@ export default function DashboardV2(){
 body:has(.dashboard-v2[data-no-pairs="true"]) .dashboard-rehearsals{display:none!important}
 @media(max-width:650px){.dashboard-v2{width:calc(100% - 20px);padding-top:22px}.dashboard-v2-head{align-items:flex-start}.dashboard-focus{padding:21px;border-radius:19px}.dashboard-stats{grid-template-columns:1fr 1fr}.dashboard-stats article:first-child{grid-column:1/-1}.dashboard-event-v2{grid-template-columns:58px minmax(0,1fr) auto;gap:9px;padding:13px}.dashboard-note{width:30px;height:30px;font-size:13px}.dashboard-seminar-grid{grid-template-columns:1fr}}`}</style>
  <header className="dashboard-v2-head"><div><p className="dashboard-kicker">214Р</p><h1>{nightText??`Привет, ${person.name.split(" ")[0]}.`}</h1><p>{new Intl.DateTimeFormat("ru-RU",{weekday:"long",day:"numeric",month:"long"}).format(now)}</p></div><NotificationCenter personId={person.id}/></header>
+ <DashboardAnnouncements personId={person.id}/>
  {(noPairs||current||next)&&<section className={`dashboard-focus${current?" is-current":""}`}><div className="dashboard-focus-top"><span>{current?"Сейчас идёт":noPairs?"Сегодня":gapText?"Окно":"Следующая пара"}</span>{current&&<em>{progress}%</em>}</div><h2>{current?.title??(gapText?gapText:next?.title)??"гуляем, товарищи"}</h2>{current?<><p>{current.subtitle} · {current.detail}</p><strong>{inBreak?`до конца перерыва · ${focusCountdown}`:`до конца · ${focusCountdown}`}</strong><div className={`dashboard-progress${breakFinished?" break-finished":""}`}><i style={{width:`${progress}%`}}/></div><div className="dashboard-progress-labels"><span>{current.start}</span><span>{current.end}</span></div></>:!noPairs&&next?<p>{gapText?`До следующего занятия ${countdown(next.start)} · ${next.title}`:`${next.subtitle} · ${next.detail}`}</p>:<p>Пар сегодня нет.</p>}</section>}
  {!noPairs&&showTomorrow&&<section className="dashboard-tomorrow"><div><span>ЗАВТРА</span><strong>{tomorrowEvents.length?tomorrowEvents[0].title:"завтра отдыхаем."}</strong><small>{tomorrowEvents.length?`Первая в ${tomorrowEvents[0].start} · ${tomorrowEvents.length} ${tomorrowEvents.length===1?"занятие":"занятия"} · до ${tomorrowEvents[tomorrowEvents.length-1].end}`:"Занятий не запланировано"}</small></div><Link href="/schedule">Расписание →</Link></section>}
  {!noPairs&&<div className="dashboard-scholarship-slot" />}

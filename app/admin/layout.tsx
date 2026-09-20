@@ -18,7 +18,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.adminRehearsalsNav = "true";
-      button.innerHTML = `<span>08</span>Репетиции`;
+      button.innerHTML = `<span>09</span>Репетиции`;
       button.addEventListener("click", () => { window.location.href = "/admin/rehearsals"; });
       nav.appendChild(button);
       return true;
