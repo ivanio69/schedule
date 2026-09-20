@@ -112,17 +112,39 @@ export default function SettingsPage() {
 
   const switchEnvironment = (target: "stable" | "dev") => {
     if (!environmentInfo || environmentSwitching || environmentInfo.current === target) return;
-    const destination = target === "stable" ? environmentInfo.stable.url : environmentInfo.dev?.url;
-    if (!destination) return;
     setEnvironmentSwitching(true);
-    const targetUrl = new URL(`${window.location.pathname}${window.location.search}`, destination);
-    const transfer = new URLSearchParams();
-    const profileId = localStorage.getItem(PERSON_KEY);
-    const storedAppearance = localStorage.getItem("schedule_appearance");
-    if (profileId) transfer.set("schedule-profile", profileId);
-    if (storedAppearance) transfer.set("schedule-appearance", storedAppearance);
-    if ([...transfer].length) targetUrl.hash = transfer.toString();
-    window.location.assign(targetUrl.toString());
+
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    const clearCookie = (name: string) => {
+      document.cookie = `${name}=; Path=/; SameSite=Lax; Max-Age=0${secure}`;
+    };
+
+    if (target === "stable") {
+      clearCookie("schedule_environment");
+      clearCookie("schedule_dev_host");
+      clearCookie("schedule_dev_pr");
+      window.location.reload();
+      return;
+    }
+
+    const destination = environmentInfo.dev?.url;
+    if (!destination) {
+      setEnvironmentSwitching(false);
+      return;
+    }
+
+    const preview = new URL(destination);
+    if (!preview.hostname.startsWith("schedule-git-") || !preview.hostname.endsWith("-ivanio.vercel.app")) {
+      setEnvironmentSwitching(false);
+      setStatus("Не удалось определить DEV-сборку");
+      return;
+    }
+
+    const maxAge = 60 * 60 * 24 * 7;
+    document.cookie = `schedule_environment=dev; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+    document.cookie = `schedule_dev_host=${preview.hostname}; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+    document.cookie = `schedule_dev_pr=${environmentInfo.dev.pr}; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+    window.location.reload();
   };
 
   const logout = () => {

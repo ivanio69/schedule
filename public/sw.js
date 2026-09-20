@@ -1,4 +1,4 @@
-const CACHE_NAME = "schedule-offline-v1";
+const CACHE_NAME = "schedule-offline-v2";
 const APP_SHELL = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -24,7 +24,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        if (response.ok) {
+        if (response.ok && response.headers.get("x-schedule-environment") !== "dev") {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }

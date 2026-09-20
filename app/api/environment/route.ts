@@ -70,10 +70,18 @@ async function previewExists(url: string) {
   }
 }
 
+function cookieValue(request: Request, name: string) {
+  const cookie = request.headers.get("cookie") ?? "";
+  const match = cookie.split(";").map(part => part.trim()).find(part => part.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+
 export async function GET(request: Request) {
   const requestOrigin = new URL(request.url).origin;
   const gitRef = process.env.VERCEL_GIT_COMMIT_REF ?? "";
   const isPreview = process.env.VERCEL_ENV === "preview" || Boolean(gitRef && gitRef !== "main");
+  const proxiedDev = !isPreview && cookieValue(request, "schedule_environment") === "dev";
+  const proxiedPr = Number(cookieValue(request, "schedule_dev_pr") ?? "") || null;
 
   const stableUrl = absoluteVercelUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL)
     ?? (process.env.VERCEL_ENV === "production" ? absoluteVercelUrl(process.env.VERCEL_URL) : null)
@@ -103,7 +111,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json(
     {
-      current: isPreview ? "dev" : "stable",
+      current: isPreview || proxiedDev ? "dev" : "stable",
+      currentPr: isPreview ? versionInfo.pr : proxiedPr,
       stable: { url: stableUrl },
       dev,
     },
