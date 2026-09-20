@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import "./admin-system.css";
 import "./rehearsals/rehearsals.css";
@@ -29,5 +30,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return () => observer.disconnect();
   }, [pathname]);
 
-  return <>{children}</>;
+  return <>
+    <div className="admin-return-bar">
+      <Link className="admin-return-app" href="/" aria-label="Вернуться в приложение">← В приложение</Link>
+    </div>
+    {children}
+  </>;
 }

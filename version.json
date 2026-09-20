@@ -1,7 +1,7 @@
 {
-  "release": "3.2.2",
-  "dev": 4,
-  "pr": 41,
+  "release": "3.5.0",
+  "dev": 1,
+  "pr": 42,
   "majorBasePr": 37,
-  "channel": "hotfix"
+  "channel": "minor"
 }

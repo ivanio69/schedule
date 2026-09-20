@@ -8,7 +8,13 @@ export function ScheduleCard({ lesson, onClick }: { lesson: Lesson; onClick?: ()
   const status = lesson.occurrence?.status;
   const cancelled = status === "cancelled";
   const moved = status === "moved";
-  const noteKey = useMemo(() => `${lesson.class}|${lesson.timeStart}|${lesson.timeEnd}|${lesson.auditorium}|${lesson.group.join(",")}`, [lesson]);
+  const fallbackNoteKey = useMemo(() => `${lesson.class}|${lesson.timeStart}|${lesson.timeEnd}|${lesson.auditorium}|${lesson.group.join(",")}`, [lesson.class, lesson.timeStart, lesson.timeEnd, lesson.auditorium, lesson.group]);
+  const noteKey = useMemo(() => {
+    const occurrence = lesson.occurrence;
+    return occurrence?.date && occurrence?.key
+      ? `occurrence:${occurrence.date}:${occurrence.key}`
+      : fallbackNoteKey;
+  }, [lesson.occurrence, fallbackNoteKey]);
   const [personId, setPersonId] = useState("");
   const [note, setNote] = useState("");
   const [editing, setEditing] = useState(false);
