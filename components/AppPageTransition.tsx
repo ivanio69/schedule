@@ -48,11 +48,10 @@ export default function AppPageTransition({ children }: { children: ReactNode })
       if (url.origin !== window.location.origin) return;
 
       const current = new URL(window.location.href);
-      if (
-        url.pathname === current.pathname
-        && url.search === current.search
-        && url.hash !== current.hash
-      ) return;
+      // Query/hash-only changes keep their native behavior. usePathname does
+      // not change for them, so route-level exit is only used for a real page
+      // change where we can reliably reveal the new tree after Next swaps it.
+      if (url.pathname === current.pathname) return;
 
       const destination = `${url.pathname}${url.search}${url.hash}`;
       const currentDestination = `${current.pathname}${current.search}${current.hash}`;
