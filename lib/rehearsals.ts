@@ -69,7 +69,8 @@ export function getChangedRehearsalAudienceNames(before: Rehearsal, after: Rehea
   const topLevelChanged = before.subject !== after.subject
     || before.date !== after.date
     || before.responsible !== after.responsible
-    || (before.notes ?? "") !== (after.notes ?? "");
+    || (before.notes ?? "") !== (after.notes ?? "")
+    || !sameNames(before.tags ?? [], after.tags ?? []);
 
   if (beforeMode === "rehearsal") {
     const oldBlocks = before.blocks ?? [];
