@@ -17,6 +17,7 @@ export function RehearsalCard({ rehearsal, own, conflictWith = [], onDelete, onC
           <span>автор: {rehearsal.creatorName ?? (rehearsal.isGlobal ? "Администратор" : "не указан")}</span><span aria-hidden="true">·</span>
           <span>ответственный: {rehearsal.responsible}</span>
           {blocks > 0 && <><span aria-hidden="true">·</span><span>{blocks} {blocks === 1 ? "блок" : "блоков"}</span></>}
+          {rehearsal.tags?.length ? <><span aria-hidden="true">·</span><span>{rehearsal.tags.map(tag => `#${tag}`).join(" ")}</span></> : null}
           <span aria-hidden="true">·</span><span>{rehearsal.isGlobal ? `общая · приглашено ${audience}` : `${audience} участн.`}</span>
         </div>
         <PersonalEventNote noteKey={`rehearsal:${rehearsal.id}`}/>

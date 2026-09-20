@@ -10,6 +10,7 @@ export type RehearsalDraft = {
   responsible: string;
   date: string;
   notes: string;
+  tags: string[];
   timeStart: string;
   timeEnd: string;
   participantMode: RehearsalParticipantMode;

@@ -13,6 +13,9 @@ const text = (value: unknown, max: number) => typeof value === "string" ? value.
 const names = (value: unknown) => Array.isArray(value) && value.every(item => typeof item === "string")
   ? [...new Set(value.map(item => item.trim()).filter(Boolean))].slice(0, 100)
   : [];
+const tags = (value: unknown) => Array.isArray(value) && value.every(item => typeof item === "string")
+  ? [...new Set(value.map(item => item.trim().toLowerCase().slice(0, 24)).filter(Boolean))].slice(0, 8)
+  : [];
 
 function blocks(value: unknown): RehearsalBlock[] {
   if (!Array.isArray(value)) return [];
@@ -67,6 +70,7 @@ export async function PUT(request: Request) {
       responsible: text(raw.responsible, 120),
       date: typeof raw.date === "string" ? raw.date : "",
       notes: text(raw.notes, 2000),
+      tags: tags(raw.tags),
       timeStart: validTime(raw.timeStart) ? raw.timeStart : "18:00",
       timeEnd: validTime(raw.timeEnd) ? raw.timeEnd : "20:00",
       participantMode: raw.participantMode === "blocks" ? "blocks" : "rehearsal",
