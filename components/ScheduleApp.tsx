@@ -11,6 +11,7 @@ import type { Person } from "@/lib/people";
 import { getRehearsalAudienceNames } from "@/lib/rehearsals";
 import LoadingState from "@/components/LoadingState";
 import { buildConflictMap, type ConflictRecord, type ConflictInterval } from "@/lib/conflicts";
+import type { RehearsalDraft } from "@/lib/rehearsal-drafts";
 
 type View = "schedule" | "settings";
 type Preferences = Record<string, GroupPreference>;
@@ -66,6 +67,10 @@ export default function ScheduleApp() {
   const [rehearsalConflictsLoading, setRehearsalConflictsLoading] = useState(false);
   const [rehearsalEditing, setRehearsalEditing] = useState(false);
   const [rehearsalDate, setRehearsalDate] = useState("");
+  const [rehearsalDrafts, setRehearsalDrafts] = useState<RehearsalDraft[]>([]);
+  const [activeDraftId, setActiveDraftId] = useState("");
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [draftNotice, setDraftNotice] = useState("");
   const didInitializeSelection = useRef(false);
 
   const totalWeeks = useMemo(() => schedule ? getTotalWeeks(schedule) : 1, [schedule]);
@@ -191,6 +196,47 @@ export default function ScheduleApp() {
     const data = await response.json() as { rehearsals: Rehearsal[] };
     setRehearsals(data.rehearsals ?? []);
   };
+  const refreshDrafts = async () => {
+    if (!creatorId) { setRehearsalDrafts([]); return; }
+    try {
+      const response = await fetch(`/api/rehearsal-drafts?personId=${encodeURIComponent(creatorId)}`, { cache: "no-store" });
+      const data = response.ok ? await response.json() as { drafts?: RehearsalDraft[] } : null;
+      setRehearsalDrafts((data?.drafts ?? []).filter(draft => draft.kind === "simple" && draft.date === selectedDate));
+    } catch { setRehearsalDrafts([]); }
+  };
+  const loadSimpleDraft = (draft: RehearsalDraft) => {
+    setActiveDraftId(draft.id);
+    setRehearsalSubject(draft.subject);
+    setRehearsalResponsible(draft.responsible);
+    setRehearsalParticipants(creatorName ? [...new Set([creatorName, ...draft.participants])] : draft.participants);
+    setRehearsalNotes(draft.notes);
+    setRehearsalStart(draft.timeStart);
+    setRehearsalEnd(draft.timeEnd);
+    setDraftNotice("Черновик открыт");
+  };
+  const saveSimpleDraft = async () => {
+    if (!creatorId || draftSaving) return;
+    setDraftSaving(true); setDraftNotice("");
+    try {
+      const response = await fetch("/api/rehearsal-drafts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        id: activeDraftId || undefined, ownerId: creatorId, kind: "simple", subject: rehearsalSubject, responsible: rehearsalResponsible,
+        date: selectedDate, notes: rehearsalNotes, timeStart: rehearsalStart, timeEnd: rehearsalEnd, participantMode: "rehearsal",
+        participants: rehearsalParticipants, blocks: [],
+      }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Не удалось сохранить черновик");
+      setActiveDraftId(data.draft.id);
+      setDraftNotice("Черновик сохранён");
+      await refreshDrafts();
+    } catch (error) { setDraftNotice(error instanceof Error ? error.message : "Не удалось сохранить черновик"); }
+    finally { setDraftSaving(false); }
+  };
+  const deleteActiveDraft = async () => {
+    if (!creatorId || !activeDraftId) return;
+    await fetch(`/api/rehearsal-drafts?personId=${encodeURIComponent(creatorId)}&id=${encodeURIComponent(activeDraftId)}`, { method: "DELETE" }).catch(() => {});
+    setActiveDraftId("");
+    await refreshDrafts();
+  };
 
   const moveDay = (direction: 1 | -1) => {
     if (direction === 1) {
@@ -213,6 +259,7 @@ export default function ScheduleApp() {
       const response = await fetch("/api/rehearsals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ creatorId, subject: rehearsalSubject, date: selectedDate, timeStart: rehearsalStart, timeEnd: rehearsalEnd, responsible: rehearsalResponsible, participants, participantMode: "rehearsal", blocks: [], notes: rehearsalNotes }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Не удалось создать репетицию");
+      if (activeDraftId) await deleteActiveDraft();
       setRehearsalSubject(""); setRehearsalResponsible(""); setRehearsalParticipants([]); setRehearsalNotes(""); setRehearsalOpen(false); await refreshRehearsals();
     } catch (error) { setRehearsalError(error instanceof Error ? error.message : "Не удалось создать репетицию"); }
     finally { setRehearsalSaving(false); }
@@ -227,7 +274,10 @@ export default function ScheduleApp() {
     setRehearsalEnd("20:00");
     setRehearsalDate(selectedDate);
     setRehearsalError("");
+    setActiveDraftId("");
+    setDraftNotice("");
     setRehearsalOpen(true);
+    void refreshDrafts();
   };
 
   const beginRehearsalEdit = (item: Rehearsal) => {
@@ -318,7 +368,7 @@ export default function ScheduleApp() {
       <nav className="day-tabs" aria-label="Дни недели">{DAY_NAMES.map((name,index)=><button type="button" key={name} className={day===index?"is-active":""} aria-current={day===index?"page":undefined} onClick={()=>setDay(index)}><span>{name}</span><small>{index+1}</small></button>)}</nav>
       <section className="schedule-panel" {...handlers} aria-live="polite">
         <div className="week-toolbar"><button type="button" className="icon-button" onClick={()=>setWeek(v=>Math.max(1,v-1))} disabled={week===1} aria-label="Предыдущая неделя">←</button><button type="button" className="week-number" onClick={()=>setWeek(currentWeek)} aria-label="Перейти к текущей неделе"><span>Неделя</span><strong>{week}</strong>{week===currentWeek&&<em>сейчас</em>}</button><button type="button" className="icon-button" onClick={()=>setWeek(v=>Math.min(totalWeeks,v+1))} disabled={week===totalWeeks} aria-label="Следующая неделя">→</button></div>
-        {rehearsalOpen ? <section className="rehearsal-form"><div className="rehearsal-form__head"><div><p className="rehearsal-label">Новая репетиция</p><h2>{selectedDate}</h2></div><a className="rehearsal-schedule-link" href={`/schedule/rehearsals/new?date=${encodeURIComponent(selectedDate)}`}>Создать с графиком →</a></div><div className="rehearsal-grid"><label>Предмет<input className="admin-input" value={rehearsalSubject} onChange={e=>setRehearsalSubject(e.target.value)} placeholder="Например, сценическое движение" autoFocus /></label><label>Ответственный<input className="admin-input" value={rehearsalResponsible} onChange={e=>setRehearsalResponsible(e.target.value)} placeholder="ФИО" /></label><label>Начало<input className="admin-input" type="time" value={rehearsalStart} onChange={e=>setRehearsalStart(e.target.value)} /></label><label>Конец<input className="admin-input" type="time" value={rehearsalEnd} onChange={e=>setRehearsalEnd(e.target.value)} /></label><div className="rehearsal-participants"><span>Участники</span><div className="rehearsal-people-picker" role="group" aria-label="Участники репетиции">{people.map(person=><button type="button" key={person.id} className={`${rehearsalParticipants.includes(person.name)?"is-active":""}${person.name===creatorName?" is-locked":""}`} aria-pressed={rehearsalParticipants.includes(person.name)} disabled={person.name===creatorName} title={person.name===creatorName?"Автор участвует автоматически":undefined} onClick={()=>toggleRehearsalParticipant(person.name)}>{person.name}{person.name===creatorName?" · автор":""}</button>)}</div><small>{rehearsalParticipants.length?`Выбрано: ${rehearsalParticipants.length}`:"Выберите приглашённых"}</small></div><label className="rehearsal-notes-field">Заметки<textarea className="admin-input" value={rehearsalNotes} onChange={e=>setRehearsalNotes(e.target.value)} placeholder="Что взять, подготовить или не забыть…" /></label></div>{rehearsalConflictsLoading&&<p className="rehearsal-conflict-status">Проверяем пересечения…</p>}{rehearsalConflicts.length>0&&<div className="rehearsal-conflict-notice"><strong>Есть конфликты · {rehearsalConflicts.length}</strong>{rehearsalConflicts.slice(0,6).map((conflict,index)=><span key={`${conflict.personId}-${conflict.existing.id}-${index}`}><b>{conflict.personName}</b> · {conflict.existing.timeStart}–{conflict.existing.timeEnd} · {conflict.existing.title}</span>)}{rehearsalConflicts.length>6&&<small>И ещё {rehearsalConflicts.length-6}</small>}</div>}{rehearsalError&&<p className="admin-error">{rehearsalError}</p>}<div className="rehearsal-form__actions"><button type="button" className="admin-secondary" onClick={()=>setRehearsalOpen(false)}>Отмена</button><button type="button" className="admin-primary" disabled={rehearsalSaving} onClick={()=>void createRehearsal()}>{rehearsalSaving?"Создаю…":"Создать репетицию"}</button></div></section> : <><button type="button" className="add-rehearsal-button" onClick={openCreateRehearsal}>＋ Добавить репетицию</button><div className="schedule-scholarship-slot" /></>}
+        {rehearsalOpen ? <section className="rehearsal-form"><div className="rehearsal-form__head"><div><p className="rehearsal-label">Новая репетиция</p><h2>{selectedDate}</h2></div><a className="rehearsal-schedule-link" href={`/schedule/rehearsals/new?date=${encodeURIComponent(selectedDate)}`}>Создать с графиком →</a></div>{rehearsalDrafts.length>0&&<div className="rehearsal-drafts-strip"><span>Черновики</span>{rehearsalDrafts.map(draft=><button type="button" key={draft.id} className={activeDraftId===draft.id?"is-active":""} onClick={()=>loadSimpleDraft(draft)}>{draft.subject||"Без названия"} · {new Intl.DateTimeFormat("ru-RU",{hour:"2-digit",minute:"2-digit"}).format(new Date(draft.updatedAt))}</button>)}</div>}<div className="rehearsal-grid"><label>Предмет<input className="admin-input" value={rehearsalSubject} onChange={e=>setRehearsalSubject(e.target.value)} placeholder="Например, сценическое движение" autoFocus /></label><label>Ответственный<input className="admin-input" value={rehearsalResponsible} onChange={e=>setRehearsalResponsible(e.target.value)} placeholder="ФИО" /></label><label>Начало<input className="admin-input" type="time" value={rehearsalStart} onChange={e=>setRehearsalStart(e.target.value)} /></label><label>Конец<input className="admin-input" type="time" value={rehearsalEnd} onChange={e=>setRehearsalEnd(e.target.value)} /></label><div className="rehearsal-participants"><span>Участники</span><div className="rehearsal-people-picker" role="group" aria-label="Участники репетиции">{people.map(person=><button type="button" key={person.id} className={`${rehearsalParticipants.includes(person.name)?"is-active":""}${person.name===creatorName?" is-locked":""}`} aria-pressed={rehearsalParticipants.includes(person.name)} disabled={person.name===creatorName} title={person.name===creatorName?"Автор участвует автоматически":undefined} onClick={()=>toggleRehearsalParticipant(person.name)}>{person.name}{person.name===creatorName?" · автор":""}</button>)}</div><small>{rehearsalParticipants.length?`Выбрано: ${rehearsalParticipants.length}`:"Выберите приглашённых"}</small></div><label className="rehearsal-notes-field">Заметки<textarea className="admin-input" value={rehearsalNotes} onChange={e=>setRehearsalNotes(e.target.value)} placeholder="Что взять, подготовить или не забыть…" /></label></div>{rehearsalConflictsLoading&&<p className="rehearsal-conflict-status">Проверяем пересечения…</p>}{rehearsalConflicts.length>0&&<div className="rehearsal-conflict-notice"><strong>Есть конфликты · {rehearsalConflicts.length}</strong>{rehearsalConflicts.slice(0,6).map((conflict,index)=><span key={`${conflict.personId}-${conflict.existing.id}-${index}`}><b>{conflict.personName}</b> · {conflict.existing.timeStart}–{conflict.existing.timeEnd} · {conflict.existing.title}</span>)}{rehearsalConflicts.length>6&&<small>И ещё {rehearsalConflicts.length-6}</small>}</div>}{rehearsalError&&<p className="admin-error">{rehearsalError}</p>}{draftNotice&&<p className="rehearsal-draft-notice" role="status">{draftNotice}</p>}<div className="rehearsal-form__actions"><button type="button" className="admin-secondary" disabled={draftSaving} onClick={()=>void saveSimpleDraft()}>{draftSaving?"Сохраняю…":activeDraftId?"Обновить черновик":"Сохранить черновик"}</button><button type="button" className="admin-secondary" onClick={()=>setRehearsalOpen(false)}>Отмена</button><button type="button" className="admin-primary" disabled={rehearsalSaving} onClick={()=>void createRehearsal()}>{rehearsalSaving?"Создаю…":"Создать репетицию"}</button></div></section> : <><button type="button" className="add-rehearsal-button" onClick={openCreateRehearsal}>＋ Добавить репетицию</button><div className="schedule-scholarship-slot" /></>}
         <AnimatePresence mode="wait" initial={false}><motion.div key={`${week}-${day}-${chinaMode}-${JSON.stringify(preferences)}-${individualLessons.map(item=>item.id).join(",")}`} className="lesson-list" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.18}}>{entries.map(entry=>entry.type==="lesson"?<ScheduleCard key={entry.key} lesson={entry.item} conflictWith={conflictMap.get(entry.key)} onClick={()=>setDetails({type:"lesson",item:entry.item})}/>:entry.type==="individual"?<IndividualLessonCard key={entry.key} lesson={entry.item} conflictWith={conflictMap.get(entry.key)} onClick={()=>setDetails({type:"individual",item:entry.item})}/>:<RehearsalCard key={entry.key} rehearsal={entry.item} conflictWith={conflictMap.get(entry.key)} own={entry.item.creatorId===creatorId} onDelete={entry.item.creatorId===creatorId?()=>void removeRehearsal(entry.item.id):undefined} onClick={()=>setDetails({type:"rehearsal",item:entry.item})}/>) }{entries.length===0&&<div className="empty-state"><span className="empty-state__icon">—</span><h2>Ничего нет</h2><p>В этот день ничего не запланировано.</p></div>}</motion.div></AnimatePresence>
       </section>
     </> : <section className="settings-panel" aria-label="Настройки расписания"><div className="settings-section"><div><p className="settings-section__eyebrow">Подгруппы</p><h2>Настройки предметов</h2><p>Для каждого предмета с подгруппами выберите, какую группу показывать.</p></div><div className="settings-list">{subgroupSubjects.map(({name,groups})=>{const value=preferences[name]??"both";return <div className="setting-row setting-row--subject" key={name}><span><strong>{name}</strong><small>Подгруппы: {groups.join(" и ")}</small></span><div className="preference-switch" role="group" aria-label={`Подгруппа для предмета ${name}`}>{(["1","2","both"] as GroupPreference[]).map(option=><button type="button" key={option} className={value===option?"is-active":""} aria-pressed={value===option} onClick={()=>setPreference(name,option)}>{option==="both"?"Обе":option}</button>)}</div></div>})}</div></div></section>}

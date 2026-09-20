@@ -6,6 +6,7 @@ import type { Person } from "@/lib/people";
 import type { Rehearsal, RehearsalBlock, RehearsalParticipantMode } from "@/lib/schedule";
 import { getRehearsalBounds } from "@/lib/rehearsals";
 import type { ConflictRecord } from "@/lib/conflicts";
+import type { RehearsalDraft } from "@/lib/rehearsal-drafts";
 
 type Props = {
   admin?: boolean;
@@ -39,6 +40,10 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
   const [error, setError] = useState("");
   const [conflicts, setConflicts] = useState<ConflictRecord[]>([]);
   const [conflictsLoading, setConflictsLoading] = useState(false);
+  const [drafts, setDrafts] = useState<RehearsalDraft[]>([]);
+  const [activeDraftId, setActiveDraftId] = useState("");
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [draftNotice, setDraftNotice] = useState("");
   const didSeedAdmin = useRef(false);
 
   const bounds = useMemo(() => getRehearsalBounds(blocks), [blocks]);
@@ -51,6 +56,16 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
       .then(data => setPeople(data?.people ?? []))
       .catch(() => setError("Не удалось загрузить список группы"));
   }, [admin]);
+
+  useEffect(() => {
+    if (admin || editId || !creatorId) return;
+    let stopped = false;
+    void fetch(`/api/rehearsal-drafts?personId=${encodeURIComponent(creatorId)}`, { cache: "no-store" })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (!stopped) setDrafts((data?.drafts ?? []).filter((draft: RehearsalDraft) => draft.kind === "scheduled")); })
+      .catch(() => {});
+    return () => { stopped = true; };
+  }, [admin, editId, creatorId]);
 
   useEffect(() => {
     if (!editId) return;
@@ -163,6 +178,41 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
     setParticipantMode(mode);
   };
 
+  const loadDraft = (draft: RehearsalDraft) => {
+    setActiveDraftId(draft.id);
+    setSubject(draft.subject);
+    setResponsible(draft.responsible);
+    setDate(draft.date);
+    setNotes(draft.notes);
+    setParticipantMode(draft.participantMode);
+    setParticipants(draft.participants);
+    setBlocks(draft.blocks.length ? draft.blocks : [blankBlock()]);
+    setDraftNotice("Черновик открыт");
+  };
+  const saveDraft = async () => {
+    if (admin || editId || !creatorId || draftSaving) return;
+    setDraftSaving(true); setDraftNotice("");
+    try {
+      const response = await fetch("/api/rehearsal-drafts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        id: activeDraftId || undefined, ownerId: creatorId, kind: "scheduled", subject, responsible, date, notes,
+        timeStart: bounds.timeStart, timeEnd: bounds.timeEnd, participantMode, participants, blocks,
+      }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Не удалось сохранить черновик");
+      const draft = data.draft as RehearsalDraft;
+      setActiveDraftId(draft.id);
+      setDrafts(current => [draft, ...current.filter(item => item.id !== draft.id)]);
+      setDraftNotice("Черновик сохранён");
+    } catch (value) { setDraftNotice(value instanceof Error ? value.message : "Не удалось сохранить черновик"); }
+    finally { setDraftSaving(false); }
+  };
+  const removeDraft = async (id = activeDraftId) => {
+    if (!creatorId || !id) return;
+    await fetch(`/api/rehearsal-drafts?personId=${encodeURIComponent(creatorId)}&id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+    setDrafts(current => current.filter(item => item.id !== id));
+    if (activeDraftId === id) setActiveDraftId("");
+  };
+
   const save = async () => {
     setError("");
     if (!admin && !creatorId) { setError("Сначала выберите свой профиль на дашборде"); return; }
@@ -193,6 +243,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
       const response = await fetch(endpoint, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error ?? "Не удалось сохранить репетицию");
+      if (!admin && !editId && activeDraftId) await removeDraft(activeDraftId);
       window.location.href = admin ? "/admin?tab=rehearsals" : "/schedule";
     } catch (value) {
       setError(value instanceof Error ? value.message : "Не удалось сохранить репетицию");
@@ -209,6 +260,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
       <button type="button" className="rehearsal-editor-back" onClick={() => history.back()}>← Назад</button>
     </header>
 
+    {!admin&&!editId&&drafts.length>0&&<section className="rehearsal-editor-drafts"><div><p>ЧЕРНОВИКИ</p><span>Можно продолжить сохранённую репетицию.</span></div><div>{drafts.map(draft=><button type="button" key={draft.id} className={activeDraftId===draft.id?"is-active":""} onClick={()=>loadDraft(draft)}><strong>{draft.subject||"Без названия"}</strong><small>{draft.date||"Без даты"} · {new Intl.DateTimeFormat("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(draft.updatedAt))}</small></button>)}</div></section>}
     <section className="rehearsal-editor-card rehearsal-editor-main">
       <div className="rehearsal-editor-grid">
         <label>Название<input value={subject} onChange={event => setSubject(event.target.value)} placeholder="Например, прогон первого акта" autoFocus /></label>
@@ -245,7 +297,8 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
 
     {conflictsLoading && <p className="rehearsal-conflict-status">Проверяем пересечения…</p>}
     {conflicts.length > 0 && <section className="rehearsal-editor-conflicts"><div><p>КОНФЛИКТЫ</p><h2>{conflicts.length} {conflicts.length === 1 ? "пересечение" : "пересечений"}</h2><span>Сохранение не заблокировано — проверьте, намеренно ли совпадает время.</span></div><div className="rehearsal-editor-conflict-list">{conflicts.slice(0,12).map((conflict,index)=><article key={`${conflict.personId}-${conflict.existing.id}-${conflict.candidateBlockId ?? "all"}-${index}`}><strong>{conflict.personName}</strong><span>{conflict.candidateLabel} · {conflict.existing.timeStart}–{conflict.existing.timeEnd}</span><small>{conflict.existing.title}</small></article>)}</div>{conflicts.length>12&&<small className="rehearsal-editor-conflict-more">И ещё {conflicts.length-12}</small>}</section>}
+    {draftNotice && <p className="rehearsal-draft-notice" role="status">{draftNotice}</p>}
     {error && <p className="rehearsal-editor-error">{error}</p>}
-    <footer className="rehearsal-editor-footer"><button type="button" className="rehearsal-editor-cancel" onClick={() => history.back()}>Отмена</button><button type="button" className="rehearsal-editor-save" disabled={saving} onClick={() => void save()}>{saving ? "Сохраняю…" : editId ? "Сохранить изменения" : "Создать репетицию"}</button></footer>
+    <footer className="rehearsal-editor-footer">{!admin&&!editId&&<button type="button" className="rehearsal-editor-cancel" disabled={draftSaving} onClick={()=>void saveDraft()}>{draftSaving?"Сохраняю…":activeDraftId?"Обновить черновик":"Сохранить черновик"}</button>}<button type="button" className="rehearsal-editor-cancel" onClick={() => history.back()}>Отмена</button><button type="button" className="rehearsal-editor-save" disabled={saving} onClick={() => void save()}>{saving ? "Сохраняю…" : editId ? "Сохранить изменения" : "Создать репетицию"}</button></footer>
   </main>;
 }
