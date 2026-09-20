@@ -392,3 +392,15 @@ body .admin-unified :is(.admin-day-heading, .admin-list-head) h2 { font-size: 18
 @media (max-width:600px) {
   body .admin-unified :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { font-size:16px; }
 }
+
+
+/* Conflict state wins over event-category accents. */
+body :is(.schedule-card,.rehearsal-card).schedule-card--conflict{
+  border-color:color-mix(in srgb,#ff9b6b 58%,var(--border)) !important;
+  box-shadow:inset 3px 0 0 #ff9b6b !important;
+}
+body :is(.schedule-card,.rehearsal-card).schedule-card--conflict .card-kind-badge--conflict{
+  color:#ffb08a !important;
+  border-color:color-mix(in srgb,#ff9b6b 58%,var(--border)) !important;
+  background:color-mix(in srgb,#ff9b6b 12%,transparent) !important;
+}
