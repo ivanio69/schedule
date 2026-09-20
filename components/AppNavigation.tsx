@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useSyncExternalStore } from "react";
+
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -18,17 +19,51 @@ const subscribe = (notify: () => void) => {
 };
 const getSnapshot = () => Boolean(localStorage.getItem("schedule_person_id"));
 const getServerSnapshot = () => false;
+const EXIT_MS = 260;
 
 export default function AppNavigation(){
  const pathname=usePathname();
  const authenticated=useSyncExternalStore(subscribe,getSnapshot,getServerSnapshot);
- useEffect(()=>{document.body.classList.toggle("has-app-navigation",authenticated&&!pathname.startsWith("/admin"));return()=>document.body.classList.remove("has-app-navigation")},[authenticated,pathname]);
- if(pathname.startsWith("/admin") || !authenticated) return null;
- return <nav className="app-navigation navigation-labelled navigation-icons-only" aria-label="Основные разделы">
+ const shouldShow=authenticated&&!pathname.startsWith("/admin");
+ const [mounted,setMounted]=useState(shouldShow);
+ const [visible,setVisible]=useState(false);
+ const hideTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+
+ useEffect(()=>{
+   if(hideTimer.current){clearTimeout(hideTimer.current);hideTimer.current=null;}
+
+   if(shouldShow){
+     setMounted(true);
+     const frame=requestAnimationFrame(()=>setVisible(true));
+     document.body.classList.add("has-app-navigation");
+     return()=>cancelAnimationFrame(frame);
+   }
+
+   setVisible(false);
+   if(mounted){
+     hideTimer.current=setTimeout(()=>{
+       setMounted(false);
+       document.body.classList.remove("has-app-navigation");
+       hideTimer.current=null;
+     },EXIT_MS);
+   }else{
+     document.body.classList.remove("has-app-navigation");
+   }
+
+   return()=>{
+     if(hideTimer.current){clearTimeout(hideTimer.current);hideTimer.current=null;}
+   };
+ },[mounted,shouldShow]);
+
+ useEffect(()=>()=>document.body.classList.remove("has-app-navigation"),[]);
+
+ if(!mounted) return null;
+
+ return <nav className={`app-navigation navigation-labelled navigation-icons-only ${visible?"is-visible":"is-exiting"}`} aria-label="Основные разделы" aria-hidden={!visible}>
    {items.map(({href,label,icon}) => {
      const active=pathname===href || (href!=="/" && pathname.startsWith(href+"/"));
      return <Link key={href} className={active?"is-active":""} href={href}
-       aria-current={active?"page":undefined} aria-label={label} title={label}>
+       aria-current={active?"page":undefined} aria-label={label} title={label} tabIndex={visible?undefined:-1}>
        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">{icon}</svg>
        <span className="app-navigation-label" aria-hidden="true">{label}</span>
      </Link>;
