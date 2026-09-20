@@ -18,6 +18,7 @@ function clearDevCookies(response: NextResponse) {
   response.cookies.set(ENV_COOKIE, "", { path: "/", maxAge: 0, sameSite: "lax" });
   response.cookies.set(DEV_HOST_COOKIE, "", { path: "/", maxAge: 0, sameSite: "lax" });
   response.cookies.set("schedule_dev_pr", "", { path: "/", maxAge: 0, sameSite: "lax" });
+  response.cookies.set("schedule_dev_version", "", { path: "/", maxAge: 0, sameSite: "lax" });
   return response;
 }
 
