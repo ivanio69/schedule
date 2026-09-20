@@ -12,7 +12,7 @@ export type AppChangelogEntry = {
 
 export const APP_CHANGELOG: AppChangelogEntry[] = [
   {
-    version: "3.5.0",
+    version: "3.2.3",
     date: "20 сентября 2026",
     title: "Админка и заметки к парам",
     items: [
