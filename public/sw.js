@@ -35,12 +35,27 @@ async function navigate(request) {
   }
 }
 
+async function precacheShell() {
+  const cache = await caches.open(CACHE_NAME);
+
+  await Promise.all(APP_SHELL.map(async (path) => {
+    try {
+      const response = await fetch(path, { cache: "reload" });
+      if (canCache(response)) {
+        await cache.put(path, response.clone());
+        return;
+      }
+    } catch {}
+
+    // If the PWA is temporarily in same-origin DEV, keep the previous STABLE
+    // shell instead of replacing it with preview HTML.
+    const previous = await caches.match(path);
+    if (previous) await cache.put(path, previous);
+  }));
+}
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil(precacheShell().then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
