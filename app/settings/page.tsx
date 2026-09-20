@@ -65,7 +65,7 @@ export default function SettingsPage() {
   useEffect(() => {
     let stopped = false;
 
-    const refreshEnvironment = async () => {
+    void (async () => {
       try {
         const stamp = Date.now();
         const [environmentResponse, buildResponse] = await Promise.all([
@@ -79,33 +79,16 @@ export default function SettingsPage() {
           ? await buildResponse.json() as { version?: string; channel?: "preview" | "production" }
           : null;
 
-        // /api/build-version is intentionally proxied to the active DEV build.
-        // It is the source of truth for the version actually running right now.
         if (data.current === "dev" && build?.channel === "preview" && build.version) {
           data.currentVersion = build.version;
         }
 
         if (!stopped) setEnvironmentInfo(data);
       } catch {}
-    };
-
-    const onFocus = () => { void refreshEnvironment(); };
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") void refreshEnvironment();
-    };
-
-    void refreshEnvironment();
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refreshEnvironment();
-    }, 4000);
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
+    })();
 
     return () => {
       stopped = true;
-      window.clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
