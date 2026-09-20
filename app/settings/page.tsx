@@ -67,9 +67,24 @@ export default function SettingsPage() {
 
     const refreshEnvironment = async () => {
       try {
-        const response = await fetch(`/api/environment?ts=${Date.now()}`, { cache: "no-store" });
-        if (!response.ok) return;
-        const data = await response.json() as EnvironmentInfo;
+        const stamp = Date.now();
+        const [environmentResponse, buildResponse] = await Promise.all([
+          fetch(`/api/environment?ts=${stamp}`, { cache: "no-store" }),
+          fetch(`/api/build-version?ts=${stamp}`, { cache: "no-store" }),
+        ]);
+        if (!environmentResponse.ok) return;
+
+        const data = await environmentResponse.json() as EnvironmentInfo;
+        const build = buildResponse.ok
+          ? await buildResponse.json() as { version?: string; channel?: "preview" | "production" }
+          : null;
+
+        // /api/build-version is intentionally proxied to the active DEV build.
+        // It is the source of truth for the version actually running right now.
+        if (data.current === "dev" && build?.channel === "preview" && build.version) {
+          data.currentVersion = build.version;
+        }
+
         if (!stopped) setEnvironmentInfo(data);
       } catch {}
     };
@@ -82,7 +97,7 @@ export default function SettingsPage() {
     void refreshEnvironment();
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void refreshEnvironment();
-    }, 8000);
+    }, 4000);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
 
