@@ -23,6 +23,7 @@ import "./client-polish.css";
 import "./appearance.css";
 import AppNavigation from "@/components/AppNavigation";
 import OfflineBanner from "@/components/OfflineBanner";
+import DevEnvironmentBanner from "@/components/DevEnvironmentBanner";
 import PushPrompt from "@/components/PushPrompt";
 import AmbientBackground from "@/components/AmbientBackground";
 import AppearanceProvider from "@/components/AppearanceProvider";
@@ -38,5 +39,5 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: environmentTransferBootScript }} /><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><AmbientBackground /><AppearanceProvider /><OfflineBanner /><SelectedUserGuard><PushPrompt /><AppNavigation /><div className="app-page-transition">{children}</div></SelectedUserGuard></body></html>;
+  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: environmentTransferBootScript }} /><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><AmbientBackground /><AppearanceProvider /><OfflineBanner /><DevEnvironmentBanner /><SelectedUserGuard><PushPrompt /><AppNavigation /><div className="app-page-transition">{children}</div></SelectedUserGuard></body></html>;
 }
