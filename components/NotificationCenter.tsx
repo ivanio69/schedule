@@ -33,8 +33,9 @@ export default function NotificationCenter({ personId }: { personId: string }) {
     setReady(true);
   }, [personId, storageKey]);
 
+  const modalActive = open || exiting;
   useEffect(() => {
-    if (!open && !exiting) return;
+    if (!modalActive) return;
     const previousOverflow = document.body.style.overflow;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeCenter();
@@ -46,7 +47,7 @@ export default function NotificationCenter({ personId }: { personId: string }) {
       window.removeEventListener("keydown", onKeyDown);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, exiting]);
+  }, [modalActive]);
 
   const readSet = useMemo(() => new Set(readVersions), [readVersions]);
   const unreadCount = ready ? APP_CHANGELOG.filter(entry => !readSet.has(entry.version)).length : 0;
@@ -89,9 +90,9 @@ export default function NotificationCenter({ personId }: { personId: string }) {
           key="notification-center"
           className="notification-center-overlay"
           onMouseDown={closeCenter}
-          initial={reducedMotion ? false : { opacity: 0, backdropFilter: "blur(0px)" }}
-          animate={{ opacity: 1, backdropFilter: "blur(12px)" }}
-          exit={reducedMotion ? undefined : { opacity: 0, backdropFilter: "blur(0px)" }}
+          initial={reducedMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reducedMotion ? undefined : { opacity: 0 }}
           transition={{ duration: reducedMotion ? 0 : .18, ease: "easeOut" }}
         >
           <motion.section
@@ -100,9 +101,9 @@ export default function NotificationCenter({ personId }: { personId: string }) {
             aria-modal="true"
             aria-labelledby="notification-center-title"
             onMouseDown={event => event.stopPropagation()}
-            initial={reducedMotion ? false : { opacity: 0, y: 18, scale: .975, filter: "blur(5px)" }}
-            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-            exit={reducedMotion ? undefined : { opacity: 0, y: 12, scale: .985, filter: "blur(5px)" }}
+            initial={reducedMotion ? false : { opacity: 0, y: 14, scale: .985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={reducedMotion ? undefined : { opacity: 0, y: 8, scale: .992 }}
             transition={{ duration: reducedMotion ? 0 : .22, ease: [0.22, 1, 0.36, 1] }}
           >
             <header>
@@ -150,8 +151,8 @@ export default function NotificationCenter({ personId }: { personId: string }) {
       .notification-center-trigger:hover{background:var(--surface-hover);border-color:var(--border-strong);transform:translateY(-1px)}
       .notification-center-trigger svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
       .notification-center-trigger b{position:absolute;top:-5px;right:-5px;display:grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border:2px solid var(--surface);border-radius:999px;color:var(--accent-text);background:var(--accent);font-size:9px;line-height:1}
-      .notification-center-overlay{position:fixed;inset:0;z-index:2200;display:grid;place-items:center;width:100vw;height:100dvh;padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));overflow:hidden;background:rgba(0,0,0,.78);overscroll-behavior:contain;isolation:isolate}
-      .notification-center-panel{position:relative;transform-origin:50% 55%;will-change:transform,opacity,filter;display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(100%,620px);max-height:min(760px,calc(100dvh - 40px));min-height:0;overflow:hidden;border:1px solid var(--border);border-radius:24px;color:var(--text);background:var(--surface);box-shadow:0 30px 100px rgba(0,0,0,.72),0 0 0 1px rgba(255,255,255,.025)}
+      .notification-center-overlay{position:fixed;inset:0;z-index:2500;display:grid;place-items:center;width:100vw;height:100dvh;padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));overflow:hidden;background:rgba(0,0,0,.82);overscroll-behavior:contain;isolation:isolate}
+      .notification-center-panel{position:relative;transform-origin:50% 55%;will-change:transform,opacity;display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:min(100%,620px);max-height:min(760px,calc(100dvh - 40px));min-height:0;overflow:hidden;border:1px solid var(--border);border-radius:24px;color:var(--text);background:var(--surface);box-shadow:0 30px 100px rgba(0,0,0,.72),0 0 0 1px rgba(255,255,255,.025)}
       .notification-center-panel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;min-width:0;padding:22px 22px 18px;border-bottom:1px solid var(--border);background:var(--surface)}
       .notification-center-panel>header span{color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.12em}
       .notification-center-panel>header h2{margin:7px 0 5px;font-size:26px;letter-spacing:-.035em}
@@ -173,9 +174,9 @@ export default function NotificationCenter({ personId }: { personId: string }) {
       .monday-green .notification-center-trigger{border-color:rgba(57,255,136,.38);color:var(--monday);background:rgba(5,25,13,.82)}
       .monday-green .notification-center-trigger b{border-color:#07170d;color:#07170d;background:var(--monday)}
       @media(max-width:640px){
-        .notification-center-overlay{place-items:end center;padding:max(10px,env(safe-area-inset-top)) 0 0}
-        .notification-center-panel{width:100%;transform-origin:50% 100%;max-height:calc(100dvh - max(10px,env(safe-area-inset-top)));border-left:0;border-right:0;border-bottom:0;border-radius:24px 24px 0 0}
-        .notification-center-panel>header{padding:20px 18px 16px}
+        .notification-center-overlay{place-items:stretch;padding:0;background:var(--surface)}
+        .notification-center-panel{width:100%;height:100dvh;max-height:100dvh;transform-origin:50% 50%;border:0;border-radius:0;box-shadow:none}
+        .notification-center-panel>header{padding:max(20px,env(safe-area-inset-top)) 18px 16px}
         .notification-center-list{padding:10px 10px 14px}
         .notification-center-panel>footer{padding:12px 14px calc(12px + env(safe-area-inset-bottom))}
         .notification-center-panel>footer button{width:100%;min-height:44px}
