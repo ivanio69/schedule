@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
-type AdminTab = "schedule" | "people" | "individuals" | "seminars" | "rehearsals" | "notifications" | "announcements" | "quotes" | "analytics" | "statistics" | "diagnostics";
+type AdminTab = "schedule" | "people" | "individuals" | "seminars" | "rehearsals" | "notifications" | "announcements" | "quotes" | "analytics" | "diagnostics";
 
 type NavItem = {
   value: AdminTab;
   label: string;
   short: string;
-  icon: "calendar" | "people" | "person" | "book" | "music" | "bell" | "megaphone" | "quote" | "analytics" | "chart" | "pulse";
+  icon: "calendar" | "people" | "person" | "book" | "music" | "bell" | "megaphone" | "quote" | "analytics" | "pulse";
 };
 
 const GROUPS: { label: string; items: NavItem[] }[] = [
@@ -36,7 +36,6 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Система",
     items: [
       { value: "analytics", label: "Аналитика", short: "Аналитика", icon: "analytics" },
-      { value: "statistics", label: "Статистика", short: "Стат.", icon: "chart" },
       { value: "diagnostics", label: "Диагностика", short: "Диагн.", icon: "pulse" },
     ],
   },
@@ -53,14 +52,13 @@ function Icon({ name }: { name: NavItem["icon"] }) {
   if (name === "megaphone") return <svg {...common}><path d="M4 13V9h4l10-4v12L8 13H4Z"/><path d="m8 13 1.5 6h3L11 14"/></svg>;
   if (name === "quote") return <svg {...common}><path d="M5 7h6v6H7l-2 4v-4H5V7ZM13 7h6v6h-4l-2 4v-4h0V7Z"/></svg>;
   if (name === "analytics") return <svg {...common}><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/><path d="m4 8 6-4 6 6 4-3"/></svg>;
-  if (name === "chart") return <svg {...common}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>;
   return <svg {...common}><path d="M3 12h4l2.2-6 4.1 12 2.2-6H21"/><path d="M4 4h16v16H4z" opacity=".18"/></svg>;
 }
 
 function resolveActive(pathname: string, tab: string | null): AdminTab {
   if (pathname.startsWith("/admin/rehearsals")) return "rehearsals";
   if (pathname.startsWith("/admin/individual")) return "individuals";
-  const values = new Set<AdminTab>(["schedule","people","individuals","seminars","rehearsals","notifications","announcements","quotes","analytics","statistics","diagnostics"]);
+  const values = new Set<AdminTab>(["schedule","people","individuals","seminars","rehearsals","notifications","announcements","quotes","analytics","diagnostics"]);
   return values.has(tab as AdminTab) ? tab as AdminTab : "schedule";
 }
 

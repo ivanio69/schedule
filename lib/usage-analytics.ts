@@ -32,6 +32,7 @@ type UsageSessionDocument = {
   pageViews: number;
   device: UsageDevice;
   mode: UsageMode;
+  routeViews?: Partial<Record<UsageRoute, number>>;
 };
 
 const ROUTES: UsageRoute[] = ["dashboard","schedule","seminars","individuals","settings","rehearsal-editor","other"];
@@ -69,6 +70,7 @@ async function ensureSession(input: UsageEvent) {
       pageViews: 0,
       device,
       mode,
+      routeViews: {},
     });
   } catch {
     const raced = await sessions.findOne({ _id: input.sessionId }, { projection: { personId: 1 } });
@@ -120,7 +122,7 @@ export async function recordUsageEvent(raw: UsageEvent) {
 
   const route = safeRoute(input.route);
   await Promise.all([
-    sessions.updateOne({ _id: input.sessionId, personId: input.personId }, { $set: { lastSeenAt: nowIso }, $inc: { pageViews: 1 } }),
+    sessions.updateOne({ _id: input.sessionId, personId: input.personId }, { $set: { lastSeenAt: nowIso }, $inc: { pageViews: 1, [`routeViews.${route}`]: 1 } }),
     users.updateOne(
       { _id: input.personId },
       {
@@ -141,91 +143,144 @@ export async function deleteUsageAnalyticsForPerson(personId: string) {
   ]);
 }
 
-export async function getUsageAnalyticsReport() {
-  const db = await getDatabase();
-  const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const since14 = new Date(Date.now() - 13 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const ANALYTICS_PERIODS = [7,14,30,90] as const;
 
-  const [people, userDocs, recentByPerson, dailyRows] = await Promise.all([
+export async function getUsageAnalyticsReport(requestedDays = 14) {
+  const db = await getDatabase();
+  const periodDays = ANALYTICS_PERIODS.includes(requestedDays as (typeof ANALYTICS_PERIODS)[number]) ? requestedDays : 14;
+  const now = Date.now();
+  const sinceIso = new Date(now - periodDays * 24 * 60 * 60 * 1000).toISOString();
+
+  const [people, userDocs, sessionDocs, pushDeviceCounts] = await Promise.all([
     getPeople(),
     db.collection<UsageUserDocument>("usage_analytics_users").find({}).toArray(),
-    db.collection<UsageSessionDocument>("usage_analytics_sessions").aggregate<{ _id: string; sessions: number; activeSeconds: number }>([
-      { $match: { startedAt: { $gte: since7 } } },
-      { $group: { _id: "$personId", sessions: { $sum: 1 }, activeSeconds: { $sum: "$activeSeconds" } } },
-    ]).toArray(),
-    db.collection<UsageSessionDocument>("usage_analytics_sessions").aggregate<{ _id: string; sessions: number; activeSeconds: number; users: string[] }>([
-      { $match: { startedAt: { $gte: `${since14}T00:00:00.000Z` } } },
-      { $group: { _id: { $substrBytes: ["$startedAt", 0, 10] }, sessions: { $sum: 1 }, activeSeconds: { $sum: "$activeSeconds" }, users: { $addToSet: "$personId" } } },
-      { $sort: { _id: 1 } },
+    db.collection<UsageSessionDocument>("usage_analytics_sessions").find({ startedAt: { $gte: sinceIso } }).sort({ startedAt: 1 }).toArray(),
+    db.collection("push_subscriptions").aggregate<{ _id: string; devices: number }>([
+      { $match: { personId: { $type: "string" } } },
+      { $group: { _id: "$personId", devices: { $sum: 1 } } },
     ]).toArray(),
   ]);
 
-  const docs = new Map(userDocs.map(item => [item._id, item]));
-  const recent = new Map(recentByPerson.map(item => [item._id, item]));
+  const userDocMap = new Map(userDocs.map(item => [item._id, item]));
+  const pushMap = new Map(pushDeviceCounts.map(item => [item._id, item.devices]));
+  const perPerson = new Map<string, {
+    sessions: number;
+    activeSeconds: number;
+    pageViews: number;
+    activeDays: Set<string>;
+    deviceCounts: Partial<Record<UsageDevice, number>>;
+    modeCounts: Partial<Record<UsageMode, number>>;
+    routeViews: Partial<Record<UsageRoute, number>>;
+    firstSeenAt: string | null;
+    lastSeenAt: string | null;
+  }>();
   const routeTotals = Object.fromEntries(ROUTES.map(route => [route, 0])) as Record<UsageRoute, number>;
+  const dailyMap = new Map<string, { sessions: number; activeSeconds: number; users: Set<string> }>();
 
-  for (const item of userDocs) {
-    for (const route of ROUTES) routeTotals[route] += item.routeViews?.[route] ?? 0;
+  for (const session of sessionDocs) {
+    const current = perPerson.get(session.personId) ?? {
+      sessions: 0,
+      activeSeconds: 0,
+      pageViews: 0,
+      activeDays: new Set<string>(),
+      deviceCounts: {},
+      modeCounts: {},
+      routeViews: {},
+      firstSeenAt: null,
+      lastSeenAt: null,
+    };
+    current.sessions += 1;
+    current.activeSeconds += session.activeSeconds ?? 0;
+    current.pageViews += session.pageViews ?? 0;
+    current.activeDays.add(session.startedAt.slice(0, 10));
+    current.deviceCounts[session.device] = (current.deviceCounts[session.device] ?? 0) + 1;
+    current.modeCounts[session.mode] = (current.modeCounts[session.mode] ?? 0) + 1;
+    current.firstSeenAt = !current.firstSeenAt || session.startedAt < current.firstSeenAt ? session.startedAt : current.firstSeenAt;
+    current.lastSeenAt = !current.lastSeenAt || session.lastSeenAt > current.lastSeenAt ? session.lastSeenAt : current.lastSeenAt;
+    for (const route of ROUTES) {
+      const views = session.routeViews?.[route] ?? 0;
+      current.routeViews[route] = (current.routeViews[route] ?? 0) + views;
+      routeTotals[route] += views;
+    }
+    perPerson.set(session.personId, current);
+
+    const date = session.startedAt.slice(0, 10);
+    const daily = dailyMap.get(date) ?? { sessions: 0, activeSeconds: 0, users: new Set<string>() };
+    daily.sessions += 1;
+    daily.activeSeconds += session.activeSeconds ?? 0;
+    daily.users.add(session.personId);
+    dailyMap.set(date, daily);
   }
 
   const users = people.map(person => {
-    const item = docs.get(person.id);
-    const last7 = recent.get(person.id);
-    const routeViews = item?.routeViews ?? {};
+    const period = perPerson.get(person.id);
+    const stored = userDocMap.get(person.id);
+    const routeViews = period?.routeViews ?? {};
     const favoriteRoute = ROUTES.reduce<UsageRoute | null>((best, route) => {
       if (!best) return (routeViews[route] ?? 0) > 0 ? route : null;
       return (routeViews[route] ?? 0) > (routeViews[best] ?? 0) ? route : best;
     }, null);
-    const sessions = item?.sessions ?? 0;
-    const totalActiveSeconds = item?.totalActiveSeconds ?? 0;
+    const sessions = period?.sessions ?? 0;
+    const totalActiveSeconds = period?.activeSeconds ?? 0;
     return {
       personId: person.id,
       name: person.name,
       active: person.active,
+      role: person.role ?? "user",
       sessions,
       totalActiveSeconds,
       averageSessionSeconds: sessions ? Math.round(totalActiveSeconds / sessions) : 0,
-      pageViews: item?.pageViews ?? 0,
-      activeDays: item?.activeDays?.length ?? 0,
-      firstSeenAt: item?.firstSeenAt ?? null,
-      lastSeenAt: item?.lastSeenAt ?? null,
+      pageViews: period?.pageViews ?? 0,
+      activeDays: period?.activeDays.size ?? 0,
+      firstSeenAt: period?.firstSeenAt ?? null,
+      lastSeenAt: period?.lastSeenAt ?? null,
+      lastSeenOverallAt: stored?.lastSeenAt ?? null,
       favoriteRoute,
-      deviceCounts: item?.deviceCounts ?? {},
-      modeCounts: item?.modeCounts ?? {},
-      sessions7d: last7?.sessions ?? 0,
-      activeSeconds7d: last7?.activeSeconds ?? 0,
+      deviceCounts: period?.deviceCounts ?? {},
+      modeCounts: period?.modeCounts ?? {},
+      pushDevices: pushMap.get(person.id) ?? 0,
     };
   }).sort((a, b) => (b.lastSeenAt ?? "").localeCompare(a.lastSeenAt ?? "") || a.name.localeCompare(b.name, "ru"));
 
   const totalSessions = users.reduce((sum, item) => sum + item.sessions, 0);
   const totalActiveSeconds = users.reduce((sum, item) => sum + item.totalActiveSeconds, 0);
   const totalPageViews = users.reduce((sum, item) => sum + item.pageViews, 0);
-  const activeUsers7d = users.filter(item => item.sessions7d > 0).length;
-  const trackedUsers = users.filter(item => item.sessions > 0).length;
+  const activeUsers = users.filter(item => item.sessions > 0).length;
   const returningUsers = users.filter(item => item.sessions > 1).length;
+  const pushUsers = users.filter(item => item.pushDevices > 0).length;
+  const pushDevices = users.reduce((sum, item) => sum + item.pushDevices, 0);
 
-  const dailyMap = new Map(dailyRows.map(row => [row._id, row]));
-  const daily = Array.from({ length: 14 }, (_, index) => {
-    const date = new Date(Date.now() - (13 - index) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const daily = Array.from({ length: periodDays }, (_, index) => {
+    const date = new Date(now - (periodDays - 1 - index) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const row = dailyMap.get(date);
-    return { date, sessions: row?.sessions ?? 0, activeSeconds: row?.activeSeconds ?? 0, activeUsers: row?.users?.length ?? 0 };
+    return { date, sessions: row?.sessions ?? 0, activeSeconds: row?.activeSeconds ?? 0, activeUsers: row?.users.size ?? 0 };
   });
 
-  const topRoutes = ROUTES.map(route => ({ route, views: routeTotals[route] })).filter(item => item.views > 0).sort((a, b) => b.views - a.views);
+  const topRoutes = ROUTES.map(route => ({ route, views: routeTotals[route] }))
+    .filter(item => item.views > 0)
+    .sort((a, b) => b.views - a.views);
+
+  const pushDevicesByPerson = users
+    .map(user => ({ personId: user.personId, name: user.name, active: user.active, devices: user.pushDevices }))
+    .sort((a, b) => b.devices - a.devices || a.name.localeCompare(b.name, "ru"));
 
   return {
+    periodDays,
     summary: {
-      trackedUsers,
+      trackedUsers: activeUsers,
       totalUsers: people.length,
-      activeUsers7d,
+      activeUsers,
       totalSessions,
       totalActiveSeconds,
       averageSessionSeconds: totalSessions ? Math.round(totalActiveSeconds / totalSessions) : 0,
       totalPageViews,
       returningUsers,
+      pushUsers,
+      pushDevices,
     },
     users,
     daily,
     topRoutes,
+    pushDevicesByPerson,
   };
 }
