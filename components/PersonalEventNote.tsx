@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 const PERSON_KEY = "schedule_person_id";
+const NOTE_CHANGE_EVENT = "schedule-personal-note-change";
 let cachedPersonId = "";
 let cachedNotes: Record<string, string> | null = null;
 let pending: Promise<Record<string, string>> | null = null;
@@ -48,7 +49,18 @@ export default function PersonalEventNote({ noteKey }: { noteKey: string }) {
       setNote(value);
       setDraft(value);
     });
-    return () => { stopped = true; };
+    const sync = (event: Event) => {
+      const detail = (event as CustomEvent<{ personId?: string; noteKey?: string; value?: string }>).detail;
+      if (detail?.personId !== id || detail?.noteKey !== noteKey) return;
+      const value = typeof detail.value === "string" ? detail.value : "";
+      setNote(value);
+      setDraft(value);
+    };
+    window.addEventListener(NOTE_CHANGE_EVENT, sync);
+    return () => {
+      stopped = true;
+      window.removeEventListener(NOTE_CHANGE_EVENT, sync);
+    };
   }, [noteKey]);
 
   const startEditing = () => { setDraft(note); setEditing(true); };
@@ -69,6 +81,7 @@ export default function PersonalEventNote({ noteKey }: { noteKey: string }) {
         cachedNotes = { ...(cachedNotes ?? {}), ...(value ? { [noteKey]: value } : {}) };
         if (!value && cachedNotes) delete cachedNotes[noteKey];
       }
+      window.dispatchEvent(new CustomEvent(NOTE_CHANGE_EVENT, { detail: { personId, noteKey, value } }));
       setEditing(false);
     } catch {} finally { setSaving(false); }
   };

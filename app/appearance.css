@@ -220,7 +220,12 @@ body .app-navigation.app-navigation{
 }
 .offline-banner{background:var(--surface-raised)!important;border-color:var(--border)!important;color:var(--text)!important}
 ::selection{background:var(--accent);color:var(--accent-text)}
-.monday-green{--monday:var(--accent)!important;--monday-soft:var(--muted-strong)!important;--monday-deep:var(--bg)!important;color:var(--text)!important;text-shadow:none!important}
+body:has(.dashboard-v2.monday-green){
+  --accent:#32ff7e!important;
+  --accent-text:#041009!important;
+  --accent-soft:rgba(50,255,126,.15)!important;
+}
+.monday-green{--monday:var(--accent)!important;--monday-soft:#a8ffc8!important;--monday-deep:#03150a!important;color:var(--text)!important;text-shadow:none!important}
 .monday-green :where(h1,h2,h3,strong){color:var(--text)!important}
 .monday-green :where(.dashboard-kicker,.dashboard-focus-top,.dashboard-focus p,.dashboard-stats span,.dashboard-stats small,.dashboard-section-head span,.dashboard-event-time small,.dashboard-event-content p){color:var(--muted)!important}
 .dashboard-v2 .dashboard-focus,
