@@ -16,7 +16,7 @@ function readStoredVersions(key: string) {
   }
 }
 
-export default function NotificationCenter({ personId }: { personId: string }) {
+export default function NotificationCenter({ personId, variant = "icon" }: { personId: string; variant?: "icon" | "settings" }) {
   const [open, setOpen] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [ready, setReady] = useState(false);
@@ -70,7 +70,13 @@ export default function NotificationCenter({ personId }: { personId: string }) {
   };
 
   return <>
-    <button
+    {variant === "settings" ? <button
+      type="button"
+      className="notification-center-settings-trigger"
+      aria-label={unreadCount ? `Что нового: ${unreadCount} непрочитанных обновлений` : "Открыть «Что нового»"}
+      aria-expanded={open}
+      onClick={() => setOpen(true)}
+    >{unreadCount > 0 ? `${unreadCount} новых` : "Открыть"}</button> : <button
       type="button"
       className="notification-center-trigger"
       aria-label={unreadCount ? `Уведомления: ${unreadCount} новых` : "Уведомления"}
@@ -82,7 +88,7 @@ export default function NotificationCenter({ personId }: { personId: string }) {
         <path d="M10 21h4"/>
       </svg>
       {unreadCount > 0 && <b>{unreadCount > 9 ? "9+" : unreadCount}</b>}
-    </button>
+    </button>}
 
     {typeof document !== "undefined" && createPortal(
       <AnimatePresence onExitComplete={() => setExiting(false)}>
@@ -148,6 +154,8 @@ export default function NotificationCenter({ personId }: { personId: string }) {
 
     <style jsx global>{`
       .notification-center-trigger{position:relative;display:grid;place-items:center;flex:0 0 auto;width:44px;height:44px;border:1px solid var(--border);border-radius:14px;color:var(--muted-strong);background:var(--surface);cursor:pointer;transition:background .18s,border-color .18s,transform .18s}
+      .notification-center-settings-trigger{flex:0 0 auto;min-width:86px;border:1px solid var(--border);border-radius:10px;padding:9px 13px;color:var(--text);background:var(--surface-raised);font:inherit;font-size:11px;font-weight:800;cursor:pointer;transition:background .18s,border-color .18s,transform .18s}
+      .notification-center-settings-trigger:hover{border-color:var(--border-strong);background:var(--surface-hover);transform:translateY(-1px)}
       .notification-center-trigger:hover{background:var(--surface-hover);border-color:var(--border-strong);transform:translateY(-1px)}
       .notification-center-trigger svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
       .notification-center-trigger b{position:absolute;top:-5px;right:-5px;display:grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border:2px solid var(--surface);border-radius:999px;color:var(--accent-text);background:var(--accent);font-size:9px;line-height:1}
