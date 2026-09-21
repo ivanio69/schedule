@@ -1,8 +1,7 @@
-.dashboard-daily-quote{position:relative;margin-top:12px;padding:20px 22px 18px;border:1px solid color-mix(in srgb,var(--accent) 20%,var(--border));border-radius:20px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 8%,var(--surface-raised)),var(--surface));box-shadow:0 14px 34px rgba(0,0,0,.08)}
-.dashboard-daily-quote::before{content:"“";position:absolute;right:18px;top:2px;color:color-mix(in srgb,var(--accent) 18%,transparent);font-size:76px;font-weight:800;line-height:1;pointer-events:none}
-.dashboard-daily-quote>span{display:block;margin-bottom:8px;color:var(--accent);font-size:9px;font-weight:900;letter-spacing:.12em}
-.dashboard-daily-quote blockquote{position:relative;z-index:1;margin:0;max-width:780px;color:var(--text);font-size:clamp(16px,2.6vw,21px);font-weight:650;line-height:1.45;letter-spacing:-.015em}
-.dashboard-daily-quote footer{margin-top:9px;color:var(--muted);font-size:10px;font-weight:700}
+.dashboard-daily-quote{display:grid;gap:3px;margin:10px 6px 0;padding:0;color:var(--muted)}
+.dashboard-daily-quote>span{display:block;color:color-mix(in srgb,var(--muted) 72%,transparent);font-size:8px;font-weight:700;letter-spacing:.1em}
+.dashboard-daily-quote blockquote{margin:0;max-width:760px;color:var(--muted-strong);font-size:12px;font-weight:500;line-height:1.5;letter-spacing:0}
+.dashboard-daily-quote footer{margin:0;color:var(--muted);font-size:9px;font-weight:600}
 
 .daily-quotes-form{margin-bottom:14px}
 .daily-quotes-author{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-raised)}
@@ -12,4 +11,4 @@
 .daily-quotes-list>article>div:first-child>span{display:block;margin-bottom:6px;color:var(--muted);font-size:8px;font-weight:900;letter-spacing:.1em}.daily-quotes-list>article.is-active>div:first-child>span{color:var(--accent)}
 .daily-quotes-list blockquote{margin:0;color:var(--text);font-size:14px;line-height:1.55}.daily-quotes-list small{display:block;margin-top:7px;color:var(--muted);font-size:9px}
 .daily-quotes-list>article>div:last-child{display:flex;align-items:flex-start;flex-wrap:wrap;gap:7px}
-@media(max-width:720px){.dashboard-daily-quote{padding:17px 18px 16px;border-radius:17px}.dashboard-daily-quote::before{right:12px;font-size:62px}.daily-quotes-list>article{grid-template-columns:1fr}.daily-quotes-list>article>div:last-child>*{flex:1 1 auto}}
+@media(max-width:720px){.dashboard-daily-quote{margin:8px 3px 0}.dashboard-daily-quote blockquote{font-size:11px}.daily-quotes-list>article{grid-template-columns:1fr}.daily-quotes-list>article>div:last-child>*{flex:1 1 auto}}
