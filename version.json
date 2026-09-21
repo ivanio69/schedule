@@ -1,7 +1,7 @@
 {
-  "release": "4.2.0",
+  "release": "4.3.0",
   "dev": 1,
-  "pr": 61,
+  "pr": 62,
   "majorBasePr": 59,
   "channel": "minor"
 }
