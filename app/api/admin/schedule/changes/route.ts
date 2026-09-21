@@ -24,8 +24,25 @@ export async function POST(request: NextRequest) {
       const time = /^([01]\d|2[0-3]):[0-5]\d$/;
       if (typeof input.targetDate !== "string" || !validScheduleDate(schedule,input.targetDate) || typeof input.timeStart !== "string" || !time.test(input.timeStart) || typeof input.timeEnd !== "string" || !time.test(input.timeEnd) || input.timeStart >= input.timeEnd || typeof input.auditorium !== "string" || input.auditorium.length > 120) return reply({ error: "Выберите учебный день семестра и корректное время" }, 400);
       if (input.targetDate === currentDate && input.timeStart === lesson.timeStart && input.timeEnd === lesson.timeEnd && input.auditorium.trim() === lesson.auditorium) return reply({ error: "Дата, время и аудитория не изменились" }, 400);
-      const conflict = getOccurrences(schedule,input.targetDate).some(l => !(l.occurrence?.key === input.key && l.occurrence?.date === input.date) && l.timeStart < input.timeEnd && l.timeEnd > input.timeStart && (!l.group.length || !lesson.group.length || l.group.some(g => lesson.group.includes(g))));
-      if (conflict) return reply({ error: "В это время у подгруппы уже есть пара. Выберите другое время." }, 409);
+      const conflicts = getOccurrences(schedule,input.targetDate)
+        .filter(l => !(l.occurrence?.key === input.key && l.occurrence?.date === input.date)
+          && l.timeStart < input.timeEnd
+          && l.timeEnd > input.timeStart
+          && (!l.group.length || !lesson.group.length || l.group.some(g => lesson.group.includes(g))))
+        .map(l => ({
+          class: l.class,
+          timeStart: l.timeStart,
+          timeEnd: l.timeEnd,
+          auditorium: l.auditorium,
+          group: l.group,
+        }));
+      if (conflicts.length && input.ignoreConflicts !== true) {
+        return reply({
+          code: "schedule_conflict",
+          error: "В это время у подгруппы уже есть пара.",
+          conflicts,
+        }, 409);
+      }
     }
     const change: ScheduleChange = {
       key: input.key, date: input.date, lesson: previous?.lesson ?? lesson, kind: input.kind,

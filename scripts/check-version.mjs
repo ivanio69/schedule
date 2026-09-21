@@ -55,9 +55,18 @@ if (prNumber && baseRef) {
   const base = parseRelease(baseVersion.release, "base release");
 
   if (version.channel === "minor") {
-    const expected = `${base.major}.${base.minor + 1}.0`;
+    const consolidated = version.consolidatesPrs;
+    let increment = 1;
+    if (consolidated !== undefined) {
+      if (!Array.isArray(consolidated) || !consolidated.length) fail("consolidatesPrs must be a non-empty array when present");
+      if (!consolidated.every(item => Number.isInteger(item) && item > 0)) fail("consolidatesPrs must contain positive PR numbers");
+      if (new Set(consolidated).size !== consolidated.length) fail("consolidatesPrs must not contain duplicates");
+      if (consolidated.includes(prNumber)) fail("consolidatesPrs must only contain superseded PRs");
+      increment += consolidated.length;
+    }
+    const expected = `${base.major}.${base.minor + increment}.0`;
     if (version.release !== expected) {
-      fail(`minor release from ${baseVersion.release} must be ${expected}`);
+      fail(`minor release from ${baseVersion.release} must be ${expected}${consolidated ? " for this consolidated release" : ""}`);
     }
     if (version.majorBasePr !== baseVersion.majorBasePr) {
       fail("minor release must preserve majorBasePr");
