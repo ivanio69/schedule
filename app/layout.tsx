@@ -31,6 +31,7 @@ import AppearanceProvider from "@/components/AppearanceProvider";
 import SelectedUserGuard from "@/components/SelectedUserGuard";
 import AppPageTransition from "@/components/AppPageTransition";
 import VersionUpdateNotice from "@/components/VersionUpdateNotice";
+import UsageAnalyticsTracker from "@/components/UsageAnalyticsTracker";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin", "cyrillic"] });
 const environmentTransferBootScript = `(()=>{try{const hash=location.hash.startsWith("#")?location.hash.slice(1):"";if(!hash)return;const params=new URLSearchParams(hash);const profile=params.get("schedule-profile");const appearance=params.get("schedule-appearance");let changed=false;if(profile&&profile.length<160){localStorage.setItem("schedule_person_id",profile);changed=true}if(appearance&&appearance.length<4000){JSON.parse(appearance);localStorage.setItem("schedule_appearance",appearance);changed=true}if(changed)history.replaceState(history.state,"",location.pathname+location.search)}catch{}})();`;
@@ -59,5 +60,5 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#09090b" };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: environmentTransferBootScript }} /><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><AmbientBackground /><AppearanceProvider /><OfflineBanner /><DevEnvironmentBanner /><VersionUpdateNotice /><SelectedUserGuard><PushPrompt /><AppNavigation /><AppPageTransition>{children}</AppPageTransition></SelectedUserGuard><Analytics /></body></html>;
+  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: environmentTransferBootScript }} /><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><AmbientBackground /><AppearanceProvider /><OfflineBanner /><DevEnvironmentBanner /><VersionUpdateNotice /><SelectedUserGuard><UsageAnalyticsTracker /><PushPrompt /><AppNavigation /><AppPageTransition>{children}</AppPageTransition></SelectedUserGuard><Analytics /></body></html>;
 }

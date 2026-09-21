@@ -38,6 +38,7 @@ export type Rehearsal = {
   blocks?: RehearsalBlock[];
   notes?: string;
   tags?: string[];
+  ignoredConflictKeys?: string[];
   isGlobal?: boolean;
   createdAt: string;
 };

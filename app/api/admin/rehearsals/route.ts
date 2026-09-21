@@ -21,6 +21,11 @@ const cleanTags = (value: unknown) => {
   if (!Array.isArray(value) || value.some(item => typeof item !== "string")) return null;
   return [...new Set(value.map(item => item.trim().toLowerCase().slice(0, 24)).filter(Boolean))].slice(0, 8);
 };
+const cleanConflictKeys = (value: unknown) => {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.some(item => typeof item !== "string")) return null;
+  return [...new Set(value.map(item => item.trim().slice(0, 320)).filter(Boolean))].slice(0, 250);
+};
 
 async function normalizeNames(values: unknown, fallbackAll = false) {
   const people = await getPeople(true);
@@ -62,7 +67,8 @@ async function normalizeInput(body: unknown) {
   const responsible = cleanText(raw.responsible, 120);
   const notes = cleanText(raw.notes, 2000);
   const tags = cleanTags(raw.tags);
-  if (!subject || !responsible || !validDate(raw.date) || !tags) return null;
+  const ignoredConflictKeys = cleanConflictKeys(raw.ignoredConflictKeys);
+  if (!subject || !responsible || !validDate(raw.date) || !tags || !ignoredConflictKeys) return null;
   const participantMode: RehearsalParticipantMode = raw.participantMode === "blocks" ? "blocks" : "rehearsal";
   const hasSchedule = Array.isArray(raw.blocks) && raw.blocks.length > 0;
   const blocks = hasSchedule ? await normalizeBlocks(raw.blocks) : [];
@@ -94,6 +100,7 @@ async function normalizeInput(body: unknown) {
     blocks: blocks ?? [],
     notes,
     tags,
+    ignoredConflictKeys,
     isGlobal: true,
   };
 }

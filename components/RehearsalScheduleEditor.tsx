@@ -41,6 +41,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [conflicts, setConflicts] = useState<ConflictRecord[]>([]);
+  const [ignoredConflictKeys, setIgnoredConflictKeys] = useState<string[]>([]);
   const [conflictsLoading, setConflictsLoading] = useState(false);
   const [drafts, setDrafts] = useState<RehearsalDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState("");
@@ -50,6 +51,10 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
 
   const bounds = useMemo(() => getRehearsalBounds(blocks), [blocks]);
   const creatorName = useMemo(() => people.find(person => person.id === creatorId)?.name ?? "", [people, creatorId]);
+  const visibleConflicts = useMemo(() => conflicts.filter(conflict => !ignoredConflictKeys.includes(conflict.key)), [conflicts, ignoredConflictKeys]);
+  const ignoredConflicts = useMemo(() => conflicts.filter(conflict => ignoredConflictKeys.includes(conflict.key)), [conflicts, ignoredConflictKeys]);
+  const ignoreConflict = (key: string) => setIgnoredConflictKeys(current => current.includes(key) ? current : [...current, key]);
+  const restoreConflict = (key: string) => setIgnoredConflictKeys(current => current.filter(item => item !== key));
 
   useEffect(() => {
     if (!admin) setCreatorId(localStorage.getItem("schedule_person_id") ?? "");
@@ -85,6 +90,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
       setDate(rehearsal.date);
       setNotes(rehearsal.notes ?? "");
       setTags((rehearsal.tags ?? []).join(", "));
+      setIgnoredConflictKeys(rehearsal.ignoredConflictKeys ?? []);
       setParticipantMode(rehearsal.participantMode === "blocks" && rehearsal.blocks?.length ? "blocks" : "rehearsal");
       setParticipants(rehearsal.participants ?? []);
       setBlocks(rehearsal.blocks?.length ? rehearsal.blocks : [blankBlock()]);
@@ -188,6 +194,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
     setDate(draft.date);
     setNotes(draft.notes);
     setTags((draft.tags ?? []).join(", "));
+    setIgnoredConflictKeys(draft.ignoredConflictKeys ?? []);
     setParticipantMode(draft.participantMode);
     setParticipants(draft.participants);
     setBlocks(draft.blocks.length ? draft.blocks : [blankBlock()]);
@@ -199,6 +206,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
     try {
       const response = await fetch("/api/rehearsal-drafts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         id: activeDraftId || undefined, ownerId: creatorId, kind: "scheduled", subject, responsible, date, notes, tags: parseTags(tags),
+        ignoredConflictKeys,
         timeStart: bounds.timeStart, timeEnd: bounds.timeEnd, participantMode, participants, blocks,
       }) });
       const data = await response.json();
@@ -234,6 +242,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
         date,
         notes,
         tags: parseTags(tags),
+        ignoredConflictKeys,
         participantMode,
         participants: participantMode === "rehearsal" ? (!admin && creatorName ? unique([creatorName, ...participants]) : participants) : [],
         blocks: blocks.map(block => ({
@@ -302,7 +311,8 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
     </section>
 
     {conflictsLoading && <p className="rehearsal-conflict-status">Проверяем пересечения…</p>}
-    {conflicts.length > 0 && <section className="rehearsal-editor-conflicts"><div><p>КОНФЛИКТЫ</p><h2>{conflicts.length} {conflicts.length === 1 ? "пересечение" : "пересечений"}</h2><span>Сохранение не заблокировано — проверьте, намеренно ли совпадает время.</span></div><div className="rehearsal-editor-conflict-list">{conflicts.slice(0,12).map((conflict,index)=><article key={`${conflict.personId}-${conflict.existing.id}-${conflict.candidateBlockId ?? "all"}-${index}`}><strong>{conflict.personName}</strong><span>{conflict.candidateLabel} · {conflict.existing.timeStart}–{conflict.existing.timeEnd}</span><small>{conflict.existing.title}</small></article>)}</div>{conflicts.length>12&&<small className="rehearsal-editor-conflict-more">И ещё {conflicts.length-12}</small>}</section>}
+    {visibleConflicts.length > 0 && <section className="rehearsal-editor-conflicts"><div className="rehearsal-editor-conflicts-head"><div><p>КОНФЛИКТЫ</p><h2>{visibleConflicts.length} {visibleConflicts.length === 1 ? "пересечение" : "пересечений"}</h2><span>Сохранение не заблокировано. Намеренные пересечения можно скрыть кнопкой «Игнорировать».</span></div><button type="button" onClick={()=>setIgnoredConflictKeys(current=>[...new Set([...current,...visibleConflicts.map(conflict=>conflict.key)])])}>Игнорировать все</button></div><div className="rehearsal-editor-conflict-list">{visibleConflicts.slice(0,12).map(conflict=><article key={conflict.key}><div><strong>{conflict.personName}</strong><span>{conflict.candidateLabel} · {conflict.existing.timeStart}–{conflict.existing.timeEnd}</span><small>{conflict.existing.title}</small></div><button type="button" onClick={()=>ignoreConflict(conflict.key)}>Игнорировать</button></article>)}</div>{visibleConflicts.length>12&&<small className="rehearsal-editor-conflict-more">И ещё {visibleConflicts.length-12}</small>}</section>}
+    {ignoredConflicts.length > 0 && <section className="rehearsal-editor-ignored-conflicts"><div><span>Игнорируется: {ignoredConflicts.length}</span><button type="button" onClick={()=>setIgnoredConflictKeys(current=>current.filter(key=>!ignoredConflicts.some(conflict=>conflict.key===key)))}>Вернуть все</button></div>{ignoredConflicts.slice(0,12).map(conflict=><article key={conflict.key}><span><b>{conflict.personName}</b> · {conflict.existing.title}</span><button type="button" onClick={()=>restoreConflict(conflict.key)}>Вернуть</button></article>)}</section>}
     {draftNotice && <p className="rehearsal-draft-notice" role="status">{draftNotice}</p>}
     {error && <p className="rehearsal-editor-error">{error}</p>}
     <footer className="rehearsal-editor-footer">{!admin&&!editId&&<button type="button" className="rehearsal-editor-cancel" disabled={draftSaving} onClick={()=>void saveDraft()}>{draftSaving?"Сохраняю…":activeDraftId?"Обновить черновик":"Сохранить черновик"}</button>}<button type="button" className="rehearsal-editor-cancel" onClick={() => history.back()}>Отмена</button><button type="button" className="rehearsal-editor-save" disabled={saving} onClick={() => void save()}>{saving ? "Сохраняю…" : editId ? "Сохранить изменения" : "Создать репетицию"}</button></footer>
