@@ -41,7 +41,7 @@ export default function AdminPage(){
  const removePerson=async(id:string)=>{if(!confirm("Удалить человека?"))return;await fetch(`/api/admin/people?id=${encodeURIComponent(id)}`,{method:"DELETE"});await load()};
  useEffect(()=>{if(section!=="statistics")return;void fetch("/api/admin/statistics",{cache:"no-store"}).then(async r=>{if(r.ok)setStats((await r.json()).stats)});},[section]);
  const filtered=useMemo(()=>{const q=query.trim().toLowerCase();return q?people.filter(p=>p.name.toLowerCase().includes(q)):people},[people,query]);
- if(loading)return <LoadingState screen className="admin-loading-screen" label="Загружаем админку" detail="Получаем расписание и список группы."/>;
+ if(loading)return <LoadingState screen label="Загружаем админку" detail="Получаем расписание и список группы."/>;
  if(!loggedIn)return <main className="admin-shell admin-auth"><div className="admin-card admin-auth-card"><div className="admin-logo">214Р</div><p className="admin-eyebrow">Schedule Admin</p><h1>Панель управления</h1><p className="admin-muted">Расписание, люди и индивидуальные слоты.</p><input className="admin-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&void login()} placeholder="Пароль" autoFocus/><button className="admin-primary admin-wide" onClick={()=>void login()}>Войти</button>{message&&<p className="admin-error">{message}</p>}</div></main>;
  if(!schedule)return null;
  if(section==="analytics")return <main className="admin-shell admin-unified"><AdminAnalytics/></main>;

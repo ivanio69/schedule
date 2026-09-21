@@ -19,22 +19,47 @@ function localDateKey() {
 
 export default function DashboardDailyQuote() {
   const [quote, setQuote] = useState<DailyQuoteResponse | null>(null);
+  const [resolved, setResolved] = useState(false);
+  const [visible, setVisible] = useState(false);
   const date = useMemo(() => localDateKey(), []);
 
   useEffect(() => {
     let stopped = false;
+    setResolved(false);
+    setVisible(false);
+
     void fetch("/api/daily-quote?date=" + encodeURIComponent(date), { cache: "no-store" })
       .then(response => response.ok ? response.json() : null)
-      .then(data => { if (!stopped) setQuote(data?.quote ?? null); })
-      .catch(() => {});
+      .then(data => {
+        if (stopped) return;
+        setQuote(data?.quote ?? null);
+        setResolved(true);
+      })
+      .catch(() => {
+        if (stopped) return;
+        setQuote(null);
+        setResolved(true);
+      });
+
     return () => { stopped = true; };
   }, [date]);
 
-  if (!quote) return null;
+  useEffect(() => {
+    if (!resolved || !quote) {
+      setVisible(false);
+      return;
+    }
+    const frame = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(frame);
+  }, [resolved, quote]);
 
-  return <aside className="dashboard-daily-quote" aria-label="Цитата дня">
-    <span>ЦИТАТА ДНЯ</span>
-    <blockquote>«{quote.text}»</blockquote>
-    <footer>— {quote.author}</footer>
-  </aside>;
+  return <div className={`dashboard-daily-quote-reveal${visible ? " is-visible" : ""}`} aria-hidden={!visible}>
+    <div className="dashboard-daily-quote-reveal-inner">
+      {quote && <aside className="dashboard-daily-quote" aria-label="Цитата дня">
+        <span>ЦИТАТА ДНЯ</span>
+        <blockquote>«{quote.text}»</blockquote>
+        <footer>— {quote.author}</footer>
+      </aside>}
+    </div>
+  </div>;
 }
