@@ -12,11 +12,12 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [moveConflicts, setMoveConflicts] = useState<{ class: string; timeStart: string; timeEnd: string; auditorium: string; group: (number | "china")[] }[]>([]);
   const lastTrigger = useRef<HTMLButtonElement | null>(null);
   const date = getScheduleDate(schedule, week, day);
   const lessons = getOccurrences(schedule, date);
   const changes = (schedule.changes ?? []).filter(c => c.date === date || c.targetDate === date);
-  const close = () => { setEditing(null); lastTrigger.current?.focus(); };
+  const close = () => { setEditing(null); setMoveConflicts([]); lastTrigger.current?.focus(); };
   const reload = async () => {
     const response = await fetch("/api/admin/schedule", { cache: "no-store" });
     const data = await response.json();
@@ -28,14 +29,20 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
     event.preventDefault();
     if (!editing || busy) return;
     const form = new FormData(event.currentTarget);
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const ignoreConflicts = submitter?.name === "ignoreConflicts" && submitter.value === "true";
     setBusy(true); setError(""); setMessage("");
     try {
       const response = await fetch("/api/admin/schedule/changes", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...editing.lesson.occurrence, kind: editing.kind, reason: form.get("reason") ?? "", targetDate: form.get("targetDate"), timeStart: form.get("timeStart"), timeEnd: form.get("timeEnd"), auditorium: form.get("auditorium") }),
+        body: JSON.stringify({ ...editing.lesson.occurrence, kind: editing.kind, reason: form.get("reason") ?? "", targetDate: form.get("targetDate"), timeStart: form.get("timeStart"), timeEnd: form.get("timeEnd"), auditorium: form.get("auditorium"), ignoreConflicts }),
       });
       const data = await response.json();
       if (!response.ok) {
+        if (response.status === 409 && data.code === "schedule_conflict") {
+          setMoveConflicts(Array.isArray(data.conflicts) ? data.conflicts : []);
+          return;
+        }
         if (response.status === 409) await reload();
         throw new Error(data.error ?? "Не удалось сохранить изменение");
       }
@@ -67,9 +74,9 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
         <div className={styles.summary}>
           <div className={styles.time}><strong>{lesson.timeStart}</strong><span>{lesson.timeEnd}</span></div>
           <div className={styles.subject}><h2>{lesson.class}</h2><p>{[lesson.professor, lesson.auditorium && `Ауд. ${lesson.auditorium}`, lesson.group.length === 1 ? `Подгруппа ${lesson.group[0]}` : "Вся группа"].filter(Boolean).join(" · ")}</p>{lesson.occurrence!.revision > 0 && <small className={styles.badge}>Перенесена</small>}</div>
-          <div className={styles.actions}><button className="admin-secondary" disabled={busy} aria-expanded={active && editing.kind === "move"} onClick={e => { lastTrigger.current = e.currentTarget; setError(""); setEditing({ lesson, kind: "move" }); }}>Перенести</button><button className="admin-danger" disabled={busy} aria-expanded={active && editing.kind === "cancel"} onClick={e => { lastTrigger.current = e.currentTarget; setError(""); setEditing({ lesson, kind: "cancel" }); }}>Отменить пару</button></div>
+          <div className={styles.actions}><button className="admin-secondary" disabled={busy} aria-expanded={active && editing.kind === "move"} onClick={e => { lastTrigger.current = e.currentTarget; setError(""); setMoveConflicts([]); setEditing({ lesson, kind: "move" }); }}>Перенести</button><button className="admin-danger" disabled={busy} aria-expanded={active && editing.kind === "cancel"} onClick={e => { lastTrigger.current = e.currentTarget; setError(""); setMoveConflicts([]); setEditing({ lesson, kind: "cancel" }); }}>Отменить пару</button></div>
         </div>
-        {active && <form key={editing.kind} className={styles.form} onSubmit={submit}>
+        {active && <form key={editing.kind} className={styles.form} onSubmit={submit} onChange={() => { if (moveConflicts.length) setMoveConflicts([]); }}>
           <h3>{editing.kind === "move" ? "Куда перенести пару?" : "Подтвердите отмену пары"}</h3>
           <p>{date.split("-").reverse().join(".")} · {lesson.timeStart}–{lesson.timeEnd} · {lesson.class}</p>
           <fieldset disabled={busy}>
@@ -80,7 +87,11 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
               <label>Аудитория<input className="admin-input" name="auditorium" maxLength={120} defaultValue={lesson.auditorium}/></label>
             </div>}
             <label>Причина <span>(необязательно, попадёт в уведомление)</span><input autoFocus={editing.kind === "cancel"} className="admin-input" name="reason" maxLength={300} placeholder="Например, преподаватель заболел"/></label>
-            <div className={styles.confirm}><button type="button" className="admin-secondary" onClick={close}>Назад</button><button className={editing.kind === "cancel" ? "admin-danger" : "admin-primary"} type="submit">{busy ? "Сохраняем…" : editing.kind === "cancel" ? "Отменить и уведомить" : "Перенести и уведомить"}</button></div>
+            {editing.kind === "move" && moveConflicts.length > 0 && <div className={styles.conflictWarning} role="alert">
+              <div><strong>Есть конфликт · {moveConflicts.length}</strong><span>Перенос можно выполнить принудительно, если пересечение намеренное.</span></div>
+              <div className={styles.conflictList}>{moveConflicts.map((conflict,index)=><div key={conflict.class+"-"+conflict.timeStart+"-"+index}><b>{conflict.timeStart}–{conflict.timeEnd} · {conflict.class}</b><small>{[conflict.auditorium && "Ауд. "+conflict.auditorium, conflict.group.length === 1 ? "Подгруппа "+conflict.group[0] : "Вся группа"].filter(Boolean).join(" · ")}</small></div>)}</div>
+            </div>}
+            <div className={styles.confirm}><button type="button" className="admin-secondary" onClick={close}>Назад</button>{editing.kind === "move" && moveConflicts.length > 0 && <button className={styles.override} type="submit" name="ignoreConflicts" value="true">{busy ? "Сохраняем…" : "Всё равно перенести"}</button>}<button className={editing.kind === "cancel" ? "admin-danger" : "admin-primary"} type="submit">{busy ? "Сохраняем…" : editing.kind === "cancel" ? "Отменить и уведомить" : moveConflicts.length ? "Проверить снова" : "Перенести и уведомить"}</button></div>
           </fieldset>
         </form>}
       </article>;

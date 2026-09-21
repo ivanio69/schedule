@@ -40,7 +40,11 @@ async function main() {
     assert.equal((await POST(req(input,false))).status,401);
     assert.equal((await POST(req({...input,targetDate:"2026-09-13"}))).status,400);
     assert.equal((await POST(req({...input,timeEnd:"10:00"}))).status,400);
-    assert.equal((await POST(req({...input,targetDate:"2026-09-08",timeStart:"09:30",timeEnd:"11:00"}))).status,409);
+    const blockedConflict = await POST(req({...input,targetDate:"2026-09-08",timeStart:"09:30",timeEnd:"11:00"}));
+    assert.equal(blockedConflict.status,409);
+    const blockedConflictBody = await blockedConflict.json();
+    assert.equal(blockedConflictBody.code,"schedule_conflict");
+    assert.equal(blockedConflictBody.conflicts[0].class,"Литература");
     const race = await Promise.all([POST(req(input)),POST(req(input))]);
     assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);
     assert.equal(deliveries.length,2,"one broadcast, respecting schedule preference");
@@ -72,9 +76,24 @@ async function main() {
     const cancelledDirect = getOccurrences(await getSchedule(),"2026-09-14");
     assert.equal(cancelledDirect.length,1);
     assert.equal(cancelledDirect[0].occurrence?.status,"cancelled");
-    const allWeeks = {...schedule,days:[{table:[{...lesson,weeks:[]}]}]};
+    const forcedOccurrence = getOccurrences(await getSchedule(),"2026-09-21")[0].occurrence!;
+    const forcedConflict = {
+      ...forcedOccurrence,
+      kind:"move",
+      targetDate:"2026-09-22",
+      timeStart:"09:30",
+      timeEnd:"11:00",
+      auditorium:"3",
+      reason:"Намеренное пересечение",
+      ignoreConflicts:true,
+    };
+    const forcedResponse = await POST(req(forcedConflict));
+    assert.equal(forcedResponse.status,200,"explicit conflict override allows the move");
+    const forcedDay = getOccurrences(await getSchedule(),"2026-09-22");
+    assert.ok(forcedDay.some(item=>item.class==="История культуры"&&item.timeStart==="09:30"),"forced conflicting move is saved");
+        const allWeeks = {...schedule,days:[{table:[{...lesson,weeks:[]}]}]};
     assert.equal(getLessonsForWeek(allWeeks,0,1).length,1);
-    console.log("Schedule changes: auth, validation, conflicts, concurrent retries, move, re-move, cancellation, template identity, subgroup filtering and mocked all-device push passed.");
+    console.log("Schedule changes: auth, validation, conflict details and override, concurrent retries, move, re-move, cancellation, template identity, subgroup filtering and mocked all-device push passed.");
   } finally {
     webpush.sendNotification = originalSend;
     await (await client).close();
