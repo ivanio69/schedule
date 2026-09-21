@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
-type AdminTab = "schedule" | "people" | "individuals" | "seminars" | "rehearsals" | "notifications" | "announcements" | "analytics" | "statistics" | "diagnostics";
+type AdminTab = "schedule" | "people" | "individuals" | "seminars" | "rehearsals" | "notifications" | "announcements" | "quotes" | "analytics" | "statistics" | "diagnostics";
 
 type NavItem = {
   value: AdminTab;
   label: string;
   short: string;
-  icon: "calendar" | "people" | "person" | "book" | "music" | "bell" | "megaphone" | "analytics" | "chart" | "pulse";
+  icon: "calendar" | "people" | "person" | "book" | "music" | "bell" | "megaphone" | "quote" | "analytics" | "chart" | "pulse";
 };
 
 const GROUPS: { label: string; items: NavItem[] }[] = [
@@ -29,6 +29,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { value: "notifications", label: "Уведомления", short: "Push", icon: "bell" },
       { value: "announcements", label: "Объявления", short: "Объявл.", icon: "megaphone" },
+      { value: "quotes", label: "Цитаты дня", short: "Цитаты", icon: "quote" },
     ],
   },
   {
@@ -50,6 +51,7 @@ function Icon({ name }: { name: NavItem["icon"] }) {
   if (name === "music") return <svg {...common}><path d="M9 17V6l10-2v11"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/></svg>;
   if (name === "bell") return <svg {...common}><path d="M6 9a6 6 0 0 1 12 0c0 5 2 5 2 7H4c0-2 2-2 2-7ZM10 20h4"/></svg>;
   if (name === "megaphone") return <svg {...common}><path d="M4 13V9h4l10-4v12L8 13H4Z"/><path d="m8 13 1.5 6h3L11 14"/></svg>;
+  if (name === "quote") return <svg {...common}><path d="M5 7h6v6H7l-2 4v-4H5V7ZM13 7h6v6h-4l-2 4v-4h0V7Z"/></svg>;
   if (name === "analytics") return <svg {...common}><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/><path d="m4 8 6-4 6 6 4-3"/></svg>;
   if (name === "chart") return <svg {...common}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>;
   return <svg {...common}><path d="M3 12h4l2.2-6 4.1 12 2.2-6H21"/><path d="M4 4h16v16H4z" opacity=".18"/></svg>;
@@ -58,7 +60,7 @@ function Icon({ name }: { name: NavItem["icon"] }) {
 function resolveActive(pathname: string, tab: string | null): AdminTab {
   if (pathname.startsWith("/admin/rehearsals")) return "rehearsals";
   if (pathname.startsWith("/admin/individual")) return "individuals";
-  const values = new Set<AdminTab>(["schedule","people","individuals","seminars","rehearsals","notifications","announcements","analytics","statistics","diagnostics"]);
+  const values = new Set<AdminTab>(["schedule","people","individuals","seminars","rehearsals","notifications","announcements","quotes","analytics","statistics","diagnostics"]);
   return values.has(tab as AdminTab) ? tab as AdminTab : "schedule";
 }
 

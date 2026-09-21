@@ -12,6 +12,7 @@ import LoadingState from "@/components/LoadingState";
 import AdminDiagnostics from "@/components/AdminDiagnostics";
 import AdminAnnouncements from "@/components/AdminAnnouncements";
 import AdminAnalytics from "@/components/AdminAnalytics";
+import AdminDailyQuotes from "@/components/AdminDailyQuotes";
 
 type Lesson={class:string;professor:string;auditorium:string;timeStart:string;timeEnd:string;group:(number|"china")[];weeks:number[];[key:string]:unknown};
 type Schedule={semesterStart:number[];days:{table:Lesson[];[key:string]:unknown}[];[key:string]:unknown};
@@ -21,9 +22,9 @@ const WEEKS=Array.from({length:20},(_,i)=>i+1);
 const empty=():Lesson=>({class:"",professor:"",auditorium:"",timeStart:"09:00",timeEnd:"10:30",group:[1,2,"china"],weeks:[]});
 const normalize=(v:any):Schedule|null=>v&&Array.isArray(v.days)&&Array.isArray(v.semesterStart)?{...v,days:v.days.map((d:any)=>({...d,table:[...d.table].sort((a:Lesson,b:Lesson)=>a.timeStart.localeCompare(b.timeStart))}))}:null;
 const dateValue=(v:number[])=>v?.length===3?`${v[0]}-${String(v[1]+1).padStart(2,"0")}-${String(v[2]).padStart(2,"0")}`:"";
-type AdminSection = "rehearsals" | "schedule" | "people" | "individuals" | "seminars" | "notifications" | "announcements" | "analytics" | "statistics" | "diagnostics";
+type AdminSection = "rehearsals" | "schedule" | "people" | "individuals" | "seminars" | "notifications" | "announcements" | "quotes" | "analytics" | "statistics" | "diagnostics";
 type AdminStats={people:number;activePeople:number;pushUsers:number;pushDevices:number;pushDevicesByPerson:{personId:string;name:string;active:boolean;devices:number}[];lessons:number;seminarLists:number;seminarTopics:number;seminarBookings:number;individualLessons:number;individualSlots:number;rehearsals:number};
-const ADMIN_SECTIONS: AdminSection[] = ["schedule","people","individuals","seminars","rehearsals","notifications","announcements","analytics","statistics","diagnostics"];
+const ADMIN_SECTIONS: AdminSection[] = ["schedule","people","individuals","seminars","rehearsals","notifications","announcements","quotes","analytics","statistics","diagnostics"];
 const sectionFromLocation=():AdminSection=>{const tab=new URLSearchParams(window.location.search).get("tab") as AdminSection|null;return tab&&ADMIN_SECTIONS.includes(tab)?tab:"schedule"};
 export default function AdminPage(){
  const [scheduleMode,setScheduleMode]=useState<"date"|"template">("date");
