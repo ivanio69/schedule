@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getIndividualLessons, getIndividualSlots, getPeople, getProfileSettings, getRehearsals, getSchedule } from "@/lib/database";
 import { getRehearsalAudienceNames, getRehearsalParticipantMode } from "@/lib/rehearsals";
 import { getOccurrences, lessonMatchesChinaMode, type Rehearsal } from "@/lib/schedule";
-import { timesOverlap, type ConflictExisting, type ConflictRecord } from "@/lib/conflicts";
+import { buildConflictKey, timesOverlap, type ConflictExisting, type ConflictRecord } from "@/lib/conflicts";
 
 export const dynamic = "force-dynamic";
 
@@ -172,6 +172,13 @@ export async function POST(request: Request) {
         for (const existing of busy) {
           if (!timesOverlap(interval.timeStart, interval.timeEnd, existing.timeStart, existing.timeEnd)) continue;
           conflicts.push({
+            key: buildConflictKey({
+              personId: person.id,
+              candidateBlockId: interval.blockId,
+              candidateStart: interval.timeStart,
+              candidateEnd: interval.timeEnd,
+              existing,
+            }),
             personId: person.id,
             personName: person.name,
             candidateBlockId: interval.blockId,

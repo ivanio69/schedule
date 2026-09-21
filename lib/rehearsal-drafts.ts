@@ -11,6 +11,7 @@ export type RehearsalDraft = {
   date: string;
   notes: string;
   tags: string[];
+  ignoredConflictKeys: string[];
   timeStart: string;
   timeEnd: string;
   participantMode: RehearsalParticipantMode;

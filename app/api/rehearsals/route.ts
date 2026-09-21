@@ -13,6 +13,11 @@ function cleanTags(value: unknown) {
   if (!Array.isArray(value) || value.some(item => typeof item !== "string")) return null;
   return [...new Set(value.map(item => item.trim().toLowerCase().slice(0, 24)).filter(Boolean))].slice(0, 8);
 }
+function cleanConflictKeys(value: unknown) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.some(item => typeof item !== "string")) return null;
+  return [...new Set(value.map(item => item.trim().slice(0, 320)).filter(Boolean))].slice(0, 250);
+}
 
 async function normalizeParticipantNames(values: unknown, allowEmpty = true) {
   if (!Array.isArray(values) || values.length > 100 || values.some(value => typeof value !== "string")) return null;
@@ -48,7 +53,8 @@ async function normalizeInput(body: unknown, creatorId: string) {
   const responsible = cleanText(raw.responsible, 120);
   const notes = cleanNotes(raw.notes);
   const tags = cleanTags(raw.tags);
-  if (!subject || !responsible || !validDate(raw.date) || !tags) return null;
+  const ignoredConflictKeys = cleanConflictKeys(raw.ignoredConflictKeys);
+  if (!subject || !responsible || !validDate(raw.date) || !tags || !ignoredConflictKeys) return null;
 
   const creator = (await getPeople(true)).find(person => person.id === creatorId);
   if (!creator) return null;
@@ -94,6 +100,7 @@ async function normalizeInput(body: unknown, creatorId: string) {
     blocks,
     notes,
     tags,
+    ignoredConflictKeys,
   };
 }
 

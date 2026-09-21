@@ -14,12 +14,25 @@ export type ConflictExisting = {
 };
 
 export type ConflictRecord = {
+  key: string;
   personId: string;
   personName: string;
   candidateBlockId?: string;
   candidateLabel: string;
   existing: ConflictExisting;
 };
+
+export function buildConflictKey(input: { personId: string; candidateBlockId?: string; candidateStart: string; candidateEnd: string; existing: ConflictExisting }) {
+  return [
+    input.personId,
+    input.candidateBlockId ?? "all",
+    input.candidateStart,
+    input.candidateEnd,
+    input.existing.id,
+    input.existing.timeStart,
+    input.existing.timeEnd,
+  ].map(value => encodeURIComponent(value)).join("|");
+}
 
 export function timesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string) {
   return aStart < bEnd && aEnd > bStart;
