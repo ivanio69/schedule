@@ -246,28 +246,25 @@ body:has(.dev-environment-banner) .version-update-notice{top:calc(max(10px,env(s
 @media(max-width:560px){.version-update-notice{align-items:flex-start;gap:10px}.version-update-notice>div:last-child{flex-direction:column}.version-update-notice span{white-space:normal}}
 
 
-/* Hotfix: all dashboard stats stay in one row on phones. */
+/* Hotfix: "Следующая" stays separate; "Сегодня" and "Неделя" share one row. */
 @media (max-width: 650px) {
   body .dashboard-v2 .dashboard-stats,
   body .dashboard-v2 .dashboard-stats.has-next {
-    grid-template-columns: minmax(0, 1.6fr) 92px 92px !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
     align-items: stretch;
   }
   body .dashboard-v2 .dashboard-stats.has-next > article:first-child {
-    grid-column: auto !important;
+    grid-column: 1 / -1 !important;
     min-width: 0;
   }
   body .dashboard-v2 .dashboard-stats > article {
     min-width: 0;
-    padding: 13px 12px !important;
+    padding: 14px 13px !important;
   }
-  body .dashboard-v2 .dashboard-stat-today {
+  body .dashboard-v2 .dashboard-stat-today,
+  body .dashboard-v2 .dashboard-stat-week {
     width: auto;
     min-width: 0;
     max-width: none;
-  }
-  body .dashboard-v2 .dashboard-stats > article strong,
-  body .dashboard-v2 .dashboard-stats > article small {
-    overflow-wrap: anywhere;
   }
 }
