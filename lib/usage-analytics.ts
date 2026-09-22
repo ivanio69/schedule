@@ -1,6 +1,6 @@
 import { getDatabase, getPeople } from "@/lib/database";
 
-export type UsageRoute = "dashboard" | "schedule" | "seminars" | "individuals" | "settings" | "rehearsal-editor" | "other";
+export type UsageRoute = "dashboard" | "schedule" | "seminars" | "individuals" | "settings" | "rehearsal-editor" | "headman" | "other";
 export type UsageDevice = "mobile" | "tablet" | "desktop";
 export type UsageMode = "pwa" | "browser";
 export type UsageEvent =
@@ -35,7 +35,7 @@ type UsageSessionDocument = {
   routeViews?: Partial<Record<UsageRoute, number>>;
 };
 
-const ROUTES: UsageRoute[] = ["dashboard","schedule","seminars","individuals","settings","rehearsal-editor","other"];
+const ROUTES: UsageRoute[] = ["dashboard","schedule","seminars","individuals","settings","rehearsal-editor","headman","other"];
 const DEVICES: UsageDevice[] = ["mobile","tablet","desktop"];
 const MODES: UsageMode[] = ["pwa","browser"];
 

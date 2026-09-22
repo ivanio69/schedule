@@ -21,6 +21,13 @@ export default function NotificationPermission({ personId }: { personId: string 
       try {
         const registration = await navigator.serviceWorker.getRegistration("/");
         const subscription = await registration?.pushManager.getSubscription();
+        if (subscription && personId) {
+          await fetch("/api/push/subscription", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ personId, subscription: subscription.toJSON() }),
+          }).catch(() => null);
+        }
         if (alive) setState(subscription ? "enabled" : "unsubscribed");
       } catch { if (alive) setState("unsubscribed"); }
     };
