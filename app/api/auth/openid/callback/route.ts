@@ -47,6 +47,18 @@ export async function GET(request:NextRequest){
       );
     }
 
+    const botAccess=Boolean(tokens.scope?.split(/\s+/).includes("telegram:bot_access"));
+    const telegramId=claims.id===undefined||claims.id===null?"":String(claims.id);
+    const username=claims.preferred_username?.trim().replace(/^@/,"")??"";
+    const identityUpdate:Record<string,string>={telegramOidcSub:claims.sub};
+    if(telegramId)identityUpdate.telegramUserId=telegramId;
+    if(username)identityUpdate.telegramUsername=username;
+    if(botAccess&&telegramId){
+      identityUpdate.telegramChatId=telegramId;
+      identityUpdate.telegramLinkedAt=new Date().toISOString();
+    }
+    await (await getDatabase()).collection<Person>("people").updateOne({id:person.id},{$set:identityUpdate});
+
     const role=normalizePersonRole(person.role,person.adminLink);
     const success=new URL("/login",request.url);
     success.searchParams.set("openid","success");
