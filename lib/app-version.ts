@@ -12,6 +12,18 @@ export type AppChangelogEntry = {
 
 export const APP_CHANGELOG: AppChangelogEntry[] = [
   {
+    version: "5.2.0",
+    date: "22 сентября 2026",
+    title: "Telegram OpenID",
+    items: [
+      "Вход переведён на стандартный Telegram OpenID Connect: подтверждение аккаунта проходит на стороне Telegram без собственных 6-значных кодов приложения.",
+      "Используется Authorization Code Flow с PKCE, state и nonce; Telegram ID token проверяется по официальным JWKS, issuer и audience.",
+      "При первом входе профиль сопоставляется по имени пользователя Telegram, после чего закрепляется за стабильным OpenID sub.",
+      "Публичный список профилей и старые API собственных Telegram-кодов удалены из OpenID-варианта.",
+      "Страница входа упрощена до одной кнопки «Войти через Telegram» и сохранила анимации успешного входа и выхода.",
+    ],
+  },
+  {
     version: "5.1.0",
     date: "22 сентября 2026",
     title: "Вход через Telegram",
