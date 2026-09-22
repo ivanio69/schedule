@@ -844,6 +844,12 @@ export default function DashboardV2() {
             padding: 21px;
             border-radius: 19px;
           }
+          .dashboard-v2[data-no-pairs="true"] .dashboard-focus {
+            width: fit-content;
+            min-width: min(280px, 100%);
+            max-width: 360px;
+            margin-right: auto;
+          }
           .dashboard-stats.has-next {
             grid-template-columns: 1fr 1fr;
           }
