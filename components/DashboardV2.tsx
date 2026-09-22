@@ -845,9 +845,6 @@ export default function DashboardV2() {
             border-radius: 19px;
           }
           .dashboard-v2[data-no-pairs="true"] .dashboard-focus {
-            width: fit-content;
-            min-width: min(280px, 100%);
-            max-width: 360px;
             margin-right: auto;
           }
           .dashboard-stats.has-next {
@@ -917,7 +914,7 @@ export default function DashboardV2() {
       <DashboardAnnouncements personId={person.id} />
       <DashboardDailyQuote />
       {(noPairs || current || next) && (
-        <section className={`dashboard-focus${current ? " is-current" : ""}`}>
+        <section className={`dashboard-focus${current ? " is-current" : ""}${!current && noPairs ? " is-today" : ""}`}>
           <div className="dashboard-focus-top">
             <span>
               {current
