@@ -11,6 +11,7 @@ export type Person = {
   active: boolean;
   role?: PersonRole;
   adminLink?: boolean;
+  telegramUsername?: string;
   createdAt: string;
 };
 

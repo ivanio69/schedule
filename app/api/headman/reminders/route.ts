@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
 
   const title = "⚠️ Строгое напоминание";
   const message = type === "late"
-    ? "Староста просит не опаздывать: приходи вовремя и предупреждай заранее, если задерживаешься."
-    : "Староста просит не пропускать без предупреждения: отметь отсутствие и причину заранее.";
+    ? "злата злится. не опаздывай."
+    : "злата очень сильно злиться. предупреждай если прогуливаешь.";
   const delivery = await sendPush(recipients, null, { title, body: message, url: "/" });
   return NextResponse.json({ ok: true, recipients: recipients.length, delivery });
 }
