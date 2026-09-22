@@ -19,6 +19,7 @@ import type { SeminarList } from "@/lib/seminars";
 import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
 import DashboardDailyQuote from "@/components/DashboardDailyQuote";
+import AttendanceActions from "@/components/AttendanceActions";
 const PERSON_KEY = "schedule_person_id";
 const mins = (v: string) => {
   const [h, m] = v.split(":").map(Number);
@@ -369,6 +370,7 @@ export default function DashboardV2() {
       </main>
     );
   const noPairs = groups.length === 0;
+  const attendanceLessons = groups.filter(item => item.occurrence?.status !== "cancelled").map(item => ({ key: item.occurrence?.key ?? item.id ?? noteKey(todayKey,item.timeStart,item.class), title: item.class, start: item.timeStart, end: item.timeEnd }));
   return (
     <main data-no-pairs={noPairs ? "true" : undefined} className="dashboard-v2">
       <style jsx global>{`
@@ -893,6 +895,7 @@ export default function DashboardV2() {
         </div>
       </header>
       <DashboardAnnouncements personId={person.id} />
+      <AttendanceActions personId={person.id} date={todayKey} lessons={attendanceLessons} />
       <DashboardDailyQuote />
       {(noPairs || current || next) && (
         <section className={`dashboard-focus${current ? " is-current" : ""}`}>
