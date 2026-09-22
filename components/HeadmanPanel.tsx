@@ -15,7 +15,7 @@ type Overview={
   lessons:{key:string;title:string;start:string;end:string;auditorium:string;status:string|null}[];
 };
 type ReportFilter="today"|"upcoming"|"all";
-type HeadmanTab="today"|"reports"|"announcements"|"reminder";
+type HeadmanTab="today"|"reports"|"announcements"|"anger";
 
 const localDateKey=()=>{
   const date=new Date();
@@ -34,6 +34,7 @@ export default function HeadmanPanel(){
   const [angerSelected,setAngerSelected]=useState<string[]>([]);
   const [angerType,setAngerType]=useState<"late"|"absence">("late");
   const [selectedAbsence,setSelectedAbsence]=useState<AttendanceReport|null>(null);
+  const [quickAngerStatus,setQuickAngerStatus]=useState("");
 
   const load=async()=>{
     setLoading(true);
@@ -88,6 +89,27 @@ export default function HeadmanPanel(){
     setAngerSelected([]);
   };
 
+  const openAbsence=(report:AttendanceReport)=>{
+    setQuickAngerStatus("");
+    setSelectedAbsence(report);
+  };
+
+  const sendQuickAnger=async()=>{
+    if(!selectedAbsence||busy)return;
+    setBusy(true);
+    setQuickAngerStatus("");
+    try{
+      const response=await fetch("/api/headman/reminders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipients:[selectedAbsence.personId],type:"absence"})});
+      const data=await response.json().catch(()=>null);
+      if(!response.ok)throw new Error(data?.error??"Не удалось отправить");
+      setQuickAngerStatus("Отправлено · "+(data.delivery?.sent??0)+"/"+(data.delivery?.subscriptions??0));
+    }catch(error){
+      setQuickAngerStatus(error instanceof Error?error.message:"Не удалось отправить");
+    }finally{
+      setBusy(false);
+    }
+  };
+
   const sendAnger=async()=>{
     if(busy||!angerSelected.length)return;
     setBusy(true);
@@ -128,7 +150,7 @@ export default function HeadmanPanel(){
       <button className={tab==="today"?styles.active:""} onClick={()=>setTab("today")}><span>Сегодня</span>{affectedLessons>0&&<b>{affectedLessons}</b>}</button>
       <button className={tab==="reports"?styles.active:""} onClick={()=>setTab("reports")}><span>Отметки</span>{reports.length>0&&<b>{reports.length}</b>}</button>
       <button className={tab==="announcements"?styles.active:""} onClick={()=>setTab("announcements")}><span>Объявления</span></button>
-      <button className={tab==="reminder"?styles.active:""} onClick={()=>setTab("reminder")}><span>Напоминание</span></button>
+      <button className={tab==="anger"?styles.active:""} onClick={()=>setTab("anger")}><span>Гневная кнопка</span></button>
     </nav>
 
     {tab==="today"&&<section className={styles.todayView}>
@@ -144,7 +166,7 @@ export default function HeadmanPanel(){
           <div className={styles.lessonTime}><strong>{lesson.start}</strong><small>{current?"сейчас":lesson.end}</small></div>
           <div className={styles.lessonMain}><strong>{lesson.title}</strong><small>{lesson.auditorium||"—"}</small></div>
           <div className={styles.lessonPeople}>
-            {absence.length>0&&<div className={styles.absentGroup}><span>Не будет · {absence.length}</span><div className={styles.personLinks}>{absence.map(item=><button type="button" key={item.id} onClick={()=>setSelectedAbsence(item)}>{item.personName}</button>)}</div></div>}
+            {absence.length>0&&<div className={styles.absentGroup}><span>Не будет · {absence.length}</span><div className={styles.personLinks}>{absence.map(item=><button type="button" key={item.id} onClick={()=>openAbsence(item)}>{item.personName}</button>)}</div></div>}
             {late.length>0&&<div className={styles.lateGroup}><span>Опоздают · {late.length}</span><p>{late.map(item=>item.personName).join(" · ")}</p></div>}
             {!absence.length&&!late.length&&<span className={styles.clear}>Все без отметок</span>}
           </div>
@@ -161,16 +183,23 @@ export default function HeadmanPanel(){
         </div>
         <span>{visible.length}</span>
       </header>
-      <div className={styles.reports}>{visible.length?visible.map(report=><div className={styles.report} key={report.id}>
+      <div className={styles.reports}>{visible.length?visible.map(report=><div
+        className={styles.report+(report.kind==="absence"?" "+styles.reportClickable:"")}
+        key={report.id}
+        role={report.kind==="absence"?"button":undefined}
+        tabIndex={report.kind==="absence"?0:undefined}
+        onClick={report.kind==="absence"?()=>openAbsence(report):undefined}
+        onKeyDown={report.kind==="absence"?event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openAbsence(report)}}:undefined}
+      >
         <div className={styles.avatar}>{report.personName.trim().charAt(0).toUpperCase()}</div>
-        <div>{report.kind==="absence"?<button type="button" className={styles.reportPerson} onClick={()=>setSelectedAbsence(report)}>{report.personName}</button>:<strong>{report.personName}</strong>}<p>{reportText(report)}</p><small>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(report.updatedAt))}</small></div>
+        <div><strong>{report.personName}</strong><p>{reportText(report)}</p><small>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(report.updatedAt))}</small></div>
         <span className={styles.badge+" "+(report.kind==="late"?styles.badgeLate:styles.badgeAbsence)}>{report.kind==="late"?"ОПОЗДАНИЕ":"ОТСУТСТВИЕ"}</span>
       </div>):<div className={styles.empty}>Нет отметок</div>}</div>
     </section>}
 
     {tab==="announcements"&&<HeadmanAnnouncements people={people}/>}
 
-    {tab==="reminder"&&<section className={styles.reminder}>
+    {tab==="anger"&&<section className={styles.angerPanel}>
       <div className={styles.segment}>
         <button className={angerType==="late"?styles.active:""} onClick={()=>setReminderType("late")}>Опоздание</button>
         <button className={angerType==="absence"?styles.active:""} onClick={()=>setReminderType("absence")}>Прогул</button>
@@ -194,7 +223,12 @@ export default function HeadmanPanel(){
           <div><span>Отправлено</span><strong>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(selectedAbsence.createdAt))}</strong></div>
           {selectedAbsence.updatedAt!==selectedAbsence.createdAt&&<div><span>Обновлено</span><strong>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(selectedAbsence.updatedAt))}</strong></div>}
         </div>
-        {(()=>{const username=people.find(person=>person.id===selectedAbsence.personId)?.telegramUsername;return username?<a className={styles.telegramLink} href={"https://t.me/"+encodeURIComponent(username)} target="_blank" rel="noreferrer">Написать в Telegram ↗</a>:<div className={styles.telegramMissing}>Telegram не указан</div>})()}
+        <div className={styles.modalActions}>
+          <button type="button" className={styles.quickAnger} disabled={busy} onClick={()=>void sendQuickAnger()}>{busy?"Отправляю…":"😡 Гневная кнопка"}</button>
+          {(()=>{const username=people.find(person=>person.id===selectedAbsence.personId)?.telegramUsername;return username?<a className={styles.telegramLink} href={"https://t.me/"+encodeURIComponent(username)} target="_blank" rel="noreferrer">Написать в Telegram ↗</a>:<div className={styles.telegramMissing}>Telegram не указан</div>})()}
+        </div>
+        <p className={styles.quickAngerText}>«злата очень сильно злиться. предупреждай если прогуливаешь.»</p>
+        {quickAngerStatus&&<p className={styles.quickAngerStatus} role="status">{quickAngerStatus}</p>}
       </section>
     </div>,document.body)}
   </main>;
