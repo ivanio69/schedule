@@ -175,7 +175,10 @@ export async function getUsageAnalyticsReport(requestedDays = 14) {
     lastSeenAt: string | null;
   }>();
   const routeTotals = Object.fromEntries(ROUTES.map(route => [route, 0])) as Record<UsageRoute, number>;
-  const dailyMap = new Map<string, { sessions: number; activeSeconds: number; users: Set<string> }>();
+  const dailyMap = new Map<string, { sessions: number; activeSeconds: number; pageViews: number; users: Set<string> }>();
+  const deviceTotals = Object.fromEntries(DEVICES.map(device => [device, 0])) as Record<UsageDevice, number>;
+  const modeTotals = Object.fromEntries(MODES.map(mode => [mode, 0])) as Record<UsageMode, number>;
+  const sessionDurationTotals = { underMinute: 0, oneToFive: 0, fiveToFifteen: 0, fifteenPlus: 0 };
 
   for (const session of sessionDocs) {
     const current = perPerson.get(session.personId) ?? {
@@ -195,6 +198,12 @@ export async function getUsageAnalyticsReport(requestedDays = 14) {
     current.activeDays.add(session.startedAt.slice(0, 10));
     current.deviceCounts[session.device] = (current.deviceCounts[session.device] ?? 0) + 1;
     current.modeCounts[session.mode] = (current.modeCounts[session.mode] ?? 0) + 1;
+    deviceTotals[session.device] += 1;
+    modeTotals[session.mode] += 1;
+    if ((session.activeSeconds ?? 0) < 60) sessionDurationTotals.underMinute += 1;
+    else if ((session.activeSeconds ?? 0) < 300) sessionDurationTotals.oneToFive += 1;
+    else if ((session.activeSeconds ?? 0) < 900) sessionDurationTotals.fiveToFifteen += 1;
+    else sessionDurationTotals.fifteenPlus += 1;
     current.firstSeenAt = !current.firstSeenAt || session.startedAt < current.firstSeenAt ? session.startedAt : current.firstSeenAt;
     current.lastSeenAt = !current.lastSeenAt || session.lastSeenAt > current.lastSeenAt ? session.lastSeenAt : current.lastSeenAt;
     for (const route of ROUTES) {
@@ -205,9 +214,10 @@ export async function getUsageAnalyticsReport(requestedDays = 14) {
     perPerson.set(session.personId, current);
 
     const date = session.startedAt.slice(0, 10);
-    const daily = dailyMap.get(date) ?? { sessions: 0, activeSeconds: 0, users: new Set<string>() };
+    const daily = dailyMap.get(date) ?? { sessions: 0, activeSeconds: 0, pageViews: 0, users: new Set<string>() };
     daily.sessions += 1;
     daily.activeSeconds += session.activeSeconds ?? 0;
+    daily.pageViews += session.pageViews ?? 0;
     daily.users.add(session.personId);
     dailyMap.set(date, daily);
   }
@@ -234,8 +244,11 @@ export async function getUsageAnalyticsReport(requestedDays = 14) {
       activeDays: period?.activeDays.size ?? 0,
       firstSeenAt: period?.firstSeenAt ?? null,
       lastSeenAt: period?.lastSeenAt ?? null,
+      firstSeenOverallAt: stored?.firstSeenAt ?? null,
       lastSeenOverallAt: stored?.lastSeenAt ?? null,
       favoriteRoute,
+      routeViews,
+      pagesPerSession: sessions ? Math.round(((period?.pageViews ?? 0) / sessions) * 10) / 10 : 0,
       deviceCounts: period?.deviceCounts ?? {},
       modeCounts: period?.modeCounts ?? {},
       pushDevices: pushMap.get(person.id) ?? 0,
@@ -249,16 +262,37 @@ export async function getUsageAnalyticsReport(requestedDays = 14) {
   const returningUsers = users.filter(item => item.sessions > 1).length;
   const pushUsers = users.filter(item => item.pushDevices > 0).length;
   const pushDevices = users.reduce((sum, item) => sum + item.pushDevices, 0);
+  const inactiveUsers = Math.max(0, people.length - activeUsers);
+  const neverSeenUsers = users.filter(item => !item.lastSeenOverallAt).length;
+  const newUsers = users.filter(item => item.firstSeenOverallAt && item.firstSeenOverallAt >= sinceIso).length;
+  const averageActiveDays = activeUsers ? Math.round(users.reduce((sum, item) => sum + item.activeDays, 0) / activeUsers * 10) / 10 : 0;
+  const engagementRate = people.length ? Math.round(activeUsers / people.length * 100) : 0;
+  const returningRate = activeUsers ? Math.round(returningUsers / activeUsers * 100) : 0;
+  const pushCoverage = people.length ? Math.round(pushUsers / people.length * 100) : 0;
+  const pagesPerSession = totalSessions ? Math.round(totalPageViews / totalSessions * 10) / 10 : 0;
+  const averageActiveSecondsPerUser = activeUsers ? Math.round(totalActiveSeconds / activeUsers) : 0;
+  const pwaSessions = modeTotals.pwa;
+  const browserSessions = modeTotals.browser;
+  const pwaShare = totalSessions ? Math.round(pwaSessions / totalSessions * 100) : 0;
 
   const daily = Array.from({ length: periodDays }, (_, index) => {
     const date = new Date(now - (periodDays - 1 - index) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const row = dailyMap.get(date);
-    return { date, sessions: row?.sessions ?? 0, activeSeconds: row?.activeSeconds ?? 0, activeUsers: row?.users.size ?? 0 };
+    return { date, sessions: row?.sessions ?? 0, activeSeconds: row?.activeSeconds ?? 0, activeUsers: row?.users.size ?? 0, pageViews: row?.pageViews ?? 0 };
   });
 
-  const topRoutes = ROUTES.map(route => ({ route, views: routeTotals[route] }))
+  const topRoutes = ROUTES.map(route => ({ route, views: routeTotals[route], share: totalPageViews ? Math.round(routeTotals[route] / totalPageViews * 100) : 0 }))
     .filter(item => item.views > 0)
     .sort((a, b) => b.views - a.views);
+
+  const devices = DEVICES.map(device => ({ device, sessions: deviceTotals[device], share: totalSessions ? Math.round(deviceTotals[device] / totalSessions * 100) : 0 }));
+  const modes = MODES.map(mode => ({ mode, sessions: modeTotals[mode], share: totalSessions ? Math.round(modeTotals[mode] / totalSessions * 100) : 0 }));
+  const sessionDurations = [
+    { bucket: "underMinute" as const, sessions: sessionDurationTotals.underMinute },
+    { bucket: "oneToFive" as const, sessions: sessionDurationTotals.oneToFive },
+    { bucket: "fiveToFifteen" as const, sessions: sessionDurationTotals.fiveToFifteen },
+    { bucket: "fifteenPlus" as const, sessions: sessionDurationTotals.fifteenPlus },
+  ].map(item => ({ ...item, share: totalSessions ? Math.round(item.sessions / totalSessions * 100) : 0 }));
 
   const pushDevicesByPerson = users
     .map(user => ({ personId: user.personId, name: user.name, active: user.active, devices: user.pushDevices }))
@@ -275,12 +309,27 @@ export async function getUsageAnalyticsReport(requestedDays = 14) {
       averageSessionSeconds: totalSessions ? Math.round(totalActiveSeconds / totalSessions) : 0,
       totalPageViews,
       returningUsers,
+      returningRate,
+      inactiveUsers,
+      neverSeenUsers,
+      newUsers,
+      engagementRate,
+      averageActiveDays,
+      pagesPerSession,
+      averageActiveSecondsPerUser,
       pushUsers,
       pushDevices,
+      pushCoverage,
+      pwaSessions,
+      browserSessions,
+      pwaShare,
     },
     users,
     daily,
     topRoutes,
+    devices,
+    modes,
+    sessionDurations,
     pushDevicesByPerson,
   };
 }
