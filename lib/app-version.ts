@@ -12,6 +12,14 @@ export type AppChangelogEntry = {
 
 export const APP_CHANGELOG: AppChangelogEntry[] = [
   {
+    version: "5.2.1",
+    date: "22 сентября 2026",
+    title: "Хотфикс навигации расписания",
+    items: [
+      "Селекторы недели и дня поменяны местами: сначала выбирается неделя, ниже — день недели.",
+    ],
+  },
+  {
     version: "5.2.0",
     date: "22 сентября 2026",
     title: "Telegram OpenID",

@@ -1,10 +1,11 @@
-.day-tabs{align-items:stretch;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;margin-top:28px;padding:4px;width:100%;box-sizing:border-box}.day-tabs button{min-width:0;width:100%;min-height:48px;padding:0 6px;line-height:1.1}.day-tabs button span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.day-tabs button.is-active{box-shadow:0 4px 14px rgba(0,0,0,.16)}
-@media(max-width:600px){.day-tabs{gap:2px;margin-top:22px;padding:3px}.day-tabs button{flex:1 1 0;min-width:0;min-height:44px;padding:0 2px;font-size:11px}.day-tabs button.is-active{transform:translateY(-1px)}}
+.day-tabs{align-items:stretch;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;margin-top:0;padding:4px;width:100%;box-sizing:border-box}.day-tabs button{min-width:0;width:100%;min-height:48px;padding:0 6px;line-height:1.1}.day-tabs button span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.day-tabs button.is-active{box-shadow:0 4px 14px rgba(0,0,0,.16)}
+@media(max-width:600px){.day-tabs{gap:2px;margin-top:0;padding:3px}.day-tabs button{flex:1 1 0;min-width:0;min-height:44px;padding:0 2px;font-size:11px}.day-tabs button.is-active{transform:translateY(-1px)}}
 @media(max-width:380px){.day-tabs{gap:1px;padding:2px}.day-tabs button{min-height:42px;font-size:10px;padding:0 1px}}
 
 /* iOS Safari first-paint hotfix for the week selector. */
 .week-toolbar{
   position:relative;
+  margin:28px 2px 14px;
   z-index:1;
   min-height:44px;
   -webkit-transform:translate3d(0,0,0);
@@ -15,3 +16,5 @@
   will-change:transform;
 }
 .week-toolbar[data-ios-paint="settled"]{will-change:auto}
+
+@media(max-width:600px){.week-toolbar{margin-top:22px}}
