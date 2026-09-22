@@ -26,10 +26,10 @@ function clientClock(request: NextRequest) {
   };
 }
 
-async function pruneExpiredAbsences(date: string, time: string) {
+async function pruneExpiredAttendance(date: string, time: string) {
   const collection = (await getDatabase()).collection<AttendanceReport>("attendance_reports");
   const candidates = await collection.find(
-    { kind: "absence", dateTo: { $lte: date } },
+    { dateTo: { $lte: date } },
     { projection: { _id: 0 } }
   ).toArray();
   const ids = candidates.filter(report => attendanceReportExpired(report, date, time)).map(report => report.id);
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const person = await currentPerson(request);
     if (!person) return NextResponse.json({ error: "Выбери профиль заново" }, { status: 401 });
     const { date, time } = clientClock(request);
-    await pruneExpiredAbsences(date, time);
+    await pruneExpiredAttendance(date, time);
     const reports = await (await getDatabase()).collection<AttendanceReport>("attendance_reports")
       .find({ personId: person.id, dateTo: { $gte: date } }, { projection: { _id: 0 } })
       .sort({ dateFrom: 1, updatedAt: -1 })

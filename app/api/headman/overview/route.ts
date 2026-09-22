@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const db = await getDatabase();
   const attendanceCollection = db.collection<AttendanceReport>("attendance_reports");
   const expiryCandidates = await attendanceCollection.find(
-    { kind: "absence", dateTo: { $lte: date } },
+    { dateTo: { $lte: date } },
     { projection: { _id: 0 } }
   ).toArray();
   const expiredIds = expiryCandidates.filter(report => attendanceReportExpired(report, date, time)).map(report => report.id);
