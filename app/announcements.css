@@ -94,3 +94,7 @@
 @media(max-width:560px){
   .admin-unified .admin-announcement-create .admin-form-actions>.admin-primary{width:100%!important}
 }
+
+.dashboard-announcement-ack{margin-top:12px;border:1px solid color-mix(in srgb,var(--announcement-text) 30%,transparent);border-radius:10px;padding:9px 12px;color:var(--announcement-text);background:color-mix(in srgb,var(--announcement-text) 8%,transparent);font:inherit;font-size:10px;font-weight:800;cursor:pointer;transition:transform .16s ease,background .16s ease,opacity .16s ease}
+.dashboard-announcement-ack:hover:not(:disabled){transform:translateY(-1px);background:color-mix(in srgb,var(--announcement-text) 13%,transparent)}
+.dashboard-announcement-ack.is-done,.dashboard-announcement-ack:disabled{opacity:.7;cursor:default}

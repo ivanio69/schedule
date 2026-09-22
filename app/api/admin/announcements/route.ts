@@ -7,6 +7,7 @@ import {
   normalizeAnnouncementColor,
   type DashboardAnnouncement,
 } from "@/lib/announcements";
+import { decorateAnnouncementsWithAcknowledgements } from "@/lib/announcement-acknowledgements";
 import { sendPush } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
   if (!authenticated(request)) return NextResponse.json({ error: "Войди в панель администратора" }, { status: 401 });
   const announcements = await (await getDatabase()).collection<DashboardAnnouncement>("dashboard_announcements")
     .find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).limit(100).toArray();
-  return NextResponse.json({ announcements }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ announcements: await decorateAnnouncementsWithAcknowledgements(announcements) }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: NextRequest) {
@@ -85,11 +86,11 @@ export async function POST(request: NextRequest) {
     const backgroundColor = normalizeAnnouncementColor(body.backgroundColor, DEFAULT_ANNOUNCEMENT_BACKGROUND);
     const item: DashboardAnnouncement = {
       id: randomUUID(), title, body: message, audience, recipientIds, active: true,
-      startsAt, endsAt, accentColor, backgroundColor, createdAt: now, updatedAt: now
+      startsAt, endsAt, accentColor, backgroundColor, requiresAcknowledgement: body.requiresAcknowledgement === true, createdAt: now, updatedAt: now
     };
     await (await getDatabase()).collection<DashboardAnnouncement>("dashboard_announcements").insertOne(item);
     const push = await maybeSendPush(body.sendPush === true, recipientsForPush, title, message);
-    return NextResponse.json({ announcement: item, push });
+    return NextResponse.json({ announcement: (await decorateAnnouncementsWithAcknowledgements([item]))[0], push });
   } catch (error) {
     if (error instanceof Error && error.message === "Выбери хотя бы одного человека") {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -130,17 +131,18 @@ export async function PATCH(request: NextRequest) {
       ? current.backgroundColor ?? DEFAULT_ANNOUNCEMENT_BACKGROUND
       : normalizeAnnouncementColor(body.backgroundColor, DEFAULT_ANNOUNCEMENT_BACKGROUND);
     const active = typeof body.active === "boolean" ? body.active : current.active;
+    const requiresAcknowledgement = typeof body.requiresAcknowledgement === "boolean" ? body.requiresAcknowledgement : current.requiresAcknowledgement === true;
     const updatedAt = new Date().toISOString();
 
     const result = await collection.findOneAndUpdate(
       { id: body.id },
-      { $set: { title, body: message, audience, recipientIds, active, endsAt, accentColor, backgroundColor, updatedAt } },
+      { $set: { title, body: message, audience, recipientIds, active, endsAt, accentColor, backgroundColor, requiresAcknowledgement, updatedAt } },
       { returnDocument: "after", projection: { _id: 0 } }
     );
     if (!result) return NextResponse.json({ error: "Объявление не найдено" }, { status: 404 });
 
     const push = await maybeSendPush(body.sendPush === true, recipientsForPush, title, message);
-    return NextResponse.json({ announcement: result, push });
+    return NextResponse.json({ announcement: (await decorateAnnouncementsWithAcknowledgements([result]))[0], push });
   } catch (error) {
     if (error instanceof Error && error.message === "Выбери хотя бы одного человека") {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -154,6 +156,10 @@ export async function DELETE(request: NextRequest) {
   if (!authenticated(request)) return NextResponse.json({ error: "Войди в панель администратора" }, { status: 401 });
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Не указан ID" }, { status: 400 });
-  await (await getDatabase()).collection<DashboardAnnouncement>("dashboard_announcements").deleteOne({ id });
+  const db = await getDatabase();
+  await Promise.all([
+    db.collection<DashboardAnnouncement>("dashboard_announcements").deleteOne({ id }),
+    db.collection("announcement_acknowledgements").deleteMany({ announcementId: id }),
+  ]);
   return NextResponse.json({ ok: true });
 }
