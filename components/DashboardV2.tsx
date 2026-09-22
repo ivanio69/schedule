@@ -510,6 +510,9 @@ export default function DashboardV2() {
         .dashboard-stats.has-next {
           grid-template-columns: 2fr 1fr 1fr;
         }
+        .dashboard-stat-pair {
+          display: contents;
+        }
         .dashboard-stats article {
           display: grid;
           gap: 6px;
@@ -844,11 +847,21 @@ export default function DashboardV2() {
             padding: 21px;
             border-radius: 19px;
           }
+          .dashboard-stats,
           .dashboard-stats.has-next {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
           }
-          .dashboard-stats.has-next article:first-child {
+          .dashboard-stats.has-next > .dashboard-stat-next {
             grid-column: 1/-1;
+          }
+          .dashboard-stat-pair {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 9px;
+            grid-column: 1/-1;
+          }
+          .dashboard-stat-pair > article {
+            min-width: 0;
           }
           .dashboard-event-v2 {
             grid-template-columns: 58px minmax(0, 1fr) auto;
@@ -988,7 +1001,7 @@ export default function DashboardV2() {
           className={`dashboard-stats${showNextStat ? " has-next" : ""}`}
         >
           {showNextStat && (
-            <article>
+            <article className="dashboard-stat-next">
               <span>Следующая</span>
               <strong>{next?.title ?? "—"}</strong>
               <small>
@@ -998,16 +1011,18 @@ export default function DashboardV2() {
               </small>
             </article>
           )}
-          <article className="dashboard-stat-today">
-            <span>Сегодня</span>
-            <strong>{todayCount}</strong>
-            <small>занятий</small>
-          </article>
-          <article className="dashboard-stat-week">
-            <span>Неделя</span>
-            <strong>№ {week}</strong>
-            <small>{schedule ? formatWeekRange(schedule, week) : "—"}</small>
-          </article>
+          <div className="dashboard-stat-pair">
+            <article className="dashboard-stat-today">
+              <span>Сегодня</span>
+              <strong>{todayCount}</strong>
+              <small>занятий</small>
+            </article>
+            <article className="dashboard-stat-week">
+              <span>Неделя</span>
+              <strong>№ {week}</strong>
+              <small>{schedule ? formatWeekRange(schedule, week) : "—"}</small>
+            </article>
+          </div>
         </section>
       )}
 
