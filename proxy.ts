@@ -20,7 +20,7 @@ function staticPath(pathname:string){
 }
 function publicApi(request:NextRequest){
   const pathname=request.nextUrl.pathname;
-  if(pathname.startsWith("/api/auth/")||pathname==="/api/telegram/webhook"||pathname.startsWith("/api/environment")||pathname.startsWith("/api/build-version"))return true;
+  if(pathname.startsWith("/api/auth/")||pathname==="/api/telegram/webhook"||pathname.startsWith("/api/environment")||pathname.startsWith("/api/build-version")||pathname.startsWith("/api/cron/"))return true;
   if(pathname==="/api/calendar/apple"&&Boolean(request.nextUrl.searchParams.get("token")))return true;
   return false;
 }

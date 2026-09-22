@@ -17,6 +17,7 @@ type Diagnostics = {
   notes: Note[];
   runtime: null | { region:string|null;commitSha:string|null;deploymentUrl:string|null;productionUrl:string|null;node:string;uptimeSeconds:number };
   roles: null | { admin:number;headman:number;user:number };
+  cleanup?: null | { lastRunAt:string|null;totalDeleted:number;counts:Record<string,number> };
   counts: null | {
     people:number;activePeople:number;lessons:number;rehearsals:number;individualLessons:number;individualSlots:number;seminarLists:number;
     pushSubscriptions:number;pushUsers:number;calendarSubscriptions:number;usageSessions:number;analyticsUsers:number;announcements:number;
@@ -31,6 +32,7 @@ export default function AdminDiagnostics() {
   const [data, setData] = useState<Diagnostics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [cleaning, setCleaning] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);setError("");
@@ -46,10 +48,21 @@ export default function AdminDiagnostics() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  const runCleanup=async()=>{
+    if(cleaning)return;
+    setCleaning(true);setError("");
+    try{
+      const response=await fetch("/api/admin/maintenance/cleanup",{method:"POST",cache:"no-store"});
+      const payload=await response.json().catch(()=>null);
+      if(!response.ok)throw new Error(payload?.error??"Не удалось запустить очистку");
+      await load();
+    }catch(value){setError(value instanceof Error?value.message:"Не удалось запустить очистку")}
+    finally{setCleaning(false)}
+  };
   const counts=data?.counts;
 
   return <>
-    <AdminHeading title="Диагностика" description="Состояние данных, ролей, аналитики, Push и инфраструктуры без показа секретов." actions={<button className="admin-secondary" disabled={loading} onClick={() => void load()}>↻ Проверить снова</button>}/>
+    <AdminHeading title="Диагностика" description="Состояние данных, ролей, аналитики, Push и инфраструктуры без показа секретов." actions={<><button className="admin-secondary" disabled={loading||cleaning} onClick={() => void load()}>↻ Проверить снова</button><button className="admin-secondary" disabled={cleaning} onClick={()=>void runCleanup()}>{cleaning?"Очищаю…":"Очистить старое"}</button></>}/>
     {loading&&!data?<LoadingState compact label="Проверяем систему" detail="Пингуем базу и собираем состояние сервисов."/>:null}
     {data?<>
       <section className="admin-diagnostics-summary">
@@ -63,6 +76,8 @@ export default function AdminDiagnostics() {
         <header><div><p className="admin-eyebrow">Сервисы</p><h2>Состояние системы</h2></div><small>{new Intl.DateTimeFormat("ru-RU",{hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(new Date(data.generatedAt))}</small></header>
         <div>{data.checks.map(check=><article key={check.id} className={`is-${check.status}`}><span className="admin-diagnostics-dot" aria-hidden="true"/><div><strong>{check.label}</strong><small>{check.detail}</small></div><b>{statusText[check.status]}</b></article>)}</div>
       </section>
+
+      {data.cleanup?<section className="admin-card admin-diagnostics-cleanup"><header><div><p className="admin-eyebrow">Обслуживание</p><h2>Последняя автоочистка</h2></div><small>{data.cleanup.lastRunAt?new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(data.cleanup.lastRunAt)):"—"}</small></header><div className="admin-diagnostics-cleanup-grid"><article><span>Удалено всего</span><strong>{data.cleanup.totalDeleted}</strong></article>{Object.entries(data.cleanup.counts).filter(([,value])=>value>0).slice(0,7).map(([key,value])=><article key={key}><span>{key}</span><strong>{value}</strong></article>)}</div></section>:null}
 
       {data.notes?.length?<section className="admin-card admin-diagnostics-notes"><header><div><p className="admin-eyebrow">Инфраструктура</p><h2>Полезно знать</h2></div></header><div>{data.notes.map(note=><article key={note.id}><strong>{note.title}</strong><p>{note.detail}</p></article>)}</div></section>:null}
 
@@ -87,16 +102,16 @@ export default function AdminDiagnostics() {
       .admin-diagnostics-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:12px}
       .admin-diagnostics-summary article{display:grid;gap:5px;padding:16px 18px;border:1px solid var(--border);border-radius:15px;background:var(--surface)}
       .admin-diagnostics-summary span,.admin-diagnostics-summary small{color:var(--muted);font-size:10px}.admin-diagnostics-summary strong{font-size:20px}
-      .admin-diagnostics-checks,.admin-diagnostics-counts,.admin-diagnostics-notes,.admin-diagnostics-roles{margin-top:12px;overflow:hidden}
-      .admin-diagnostics-checks>header,.admin-diagnostics-counts>header,.admin-diagnostics-notes>header,.admin-diagnostics-roles>header{display:flex;align-items:center;justify-content:space-between;padding:17px 18px;border-bottom:1px solid var(--border)}
-      .admin-diagnostics-checks h2,.admin-diagnostics-counts h2,.admin-diagnostics-notes h2,.admin-diagnostics-roles h2{margin:0;font-size:18px}.admin-diagnostics-checks header small{color:var(--muted);font-size:10px}
+      .admin-diagnostics-checks,.admin-diagnostics-counts,.admin-diagnostics-notes,.admin-diagnostics-roles,.admin-diagnostics-cleanup{margin-top:12px;overflow:hidden}
+      .admin-diagnostics-checks>header,.admin-diagnostics-counts>header,.admin-diagnostics-notes>header,.admin-diagnostics-roles>header,.admin-diagnostics-cleanup>header{display:flex;align-items:center;justify-content:space-between;padding:17px 18px;border-bottom:1px solid var(--border)}
+      .admin-diagnostics-checks h2,.admin-diagnostics-counts h2,.admin-diagnostics-notes h2,.admin-diagnostics-roles h2,.admin-diagnostics-cleanup h2{margin:0;font-size:18px}.admin-diagnostics-cleanup header small{color:var(--muted);font-size:10px}.admin-diagnostics-cleanup-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)}.admin-diagnostics-cleanup-grid article{display:grid;gap:4px;padding:14px 16px;background:var(--surface)}.admin-diagnostics-cleanup-grid span{color:var(--muted);font-size:9px}.admin-diagnostics-cleanup-grid strong{font-size:18px}.admin-diagnostics-checks header small{color:var(--muted);font-size:10px}
       .admin-diagnostics-checks>div>article{display:grid;grid-template-columns:10px minmax(0,1fr) auto;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border)}.admin-diagnostics-checks>div>article:last-child{border-bottom:0}.admin-diagnostics-checks article>div{display:grid;gap:3px}.admin-diagnostics-checks article strong{font-size:12px}.admin-diagnostics-checks article small{color:var(--muted);font-size:10px;line-height:1.45}.admin-diagnostics-checks article>b{font-size:10px}
       .admin-diagnostics-dot{width:8px;height:8px;border-radius:50%;background:#72d18a;box-shadow:0 0 0 4px color-mix(in srgb,#72d18a 12%,transparent)}.is-warn .admin-diagnostics-dot{background:#f5c16c;box-shadow:0 0 0 4px color-mix(in srgb,#f5c16c 12%,transparent)}.is-error .admin-diagnostics-dot{background:#ff7f87;box-shadow:0 0 0 4px color-mix(in srgb,#ff7f87 12%,transparent)}.is-ok>b{color:#72d18a}.is-warn>b{color:#f5c16c}.is-error>b{color:#ff7f87}
       .admin-diagnostics-count-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)}.admin-diagnostics-count-grid article{display:grid;gap:4px;padding:15px;background:var(--surface)}.admin-diagnostics-count-grid span,.admin-diagnostics-count-grid small{color:var(--muted);font-size:10px}.admin-diagnostics-count-grid strong{font-size:18px}
       .admin-diagnostics-notes>div{display:grid;gap:0}.admin-diagnostics-notes article{padding:15px 18px;border-bottom:1px solid var(--border)}.admin-diagnostics-notes article:last-child{border-bottom:0}.admin-diagnostics-notes strong{font-size:12px}.admin-diagnostics-notes p{margin:5px 0 0;color:var(--muted);font-size:10px;line-height:1.55}
       .admin-diagnostics-roles>div{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border)}.admin-diagnostics-roles article{display:grid;gap:4px;padding:15px;background:var(--surface)}.admin-diagnostics-roles span{color:var(--muted);font-size:10px}.admin-diagnostics-roles strong{font-size:20px}
       @media(max-width:900px){.admin-diagnostics-summary{grid-template-columns:repeat(2,1fr)}}
-      @media(max-width:720px){.admin-diagnostics-summary{grid-template-columns:1fr}.admin-diagnostics-count-grid{grid-template-columns:repeat(2,1fr)}.admin-diagnostics-roles>div{grid-template-columns:1fr}.admin-diagnostics-checks>div>article{grid-template-columns:10px minmax(0,1fr)}.admin-diagnostics-checks article>b{grid-column:2}}
+      @media(max-width:720px){.admin-diagnostics-summary{grid-template-columns:1fr}.admin-diagnostics-cleanup-grid{grid-template-columns:repeat(2,1fr)}.admin-diagnostics-count-grid{grid-template-columns:repeat(2,1fr)}.admin-diagnostics-roles>div{grid-template-columns:1fr}.admin-diagnostics-checks>div>article{grid-template-columns:10px minmax(0,1fr)}.admin-diagnostics-checks article>b{grid-column:2}}
     `}</style>
   </>;
 }
