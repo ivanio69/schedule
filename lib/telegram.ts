@@ -56,6 +56,8 @@ export function telegramWebhookSecret() {
 function webhookBase(origin: string) {
   const explicit = process.env.TELEGRAM_WEBHOOK_URL?.trim();
   if (explicit) return explicit.replace(/\/$/, "");
+  const preview = process.env.VERCEL_URL?.trim();
+  if (preview && process.env.VERCEL_ENV === "preview") return "https://" + preview.replace(/^https?:\/\//, "").replace(/\/$/, "");
   const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
   if (production && process.env.VERCEL_ENV === "production") return "https://" + production.replace(/^https?:\/\//, "").replace(/\/$/, "");
   return origin.replace(/\/$/, "");

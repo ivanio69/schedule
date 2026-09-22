@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
   const person = (await getPeople(false)).find(item=>item.id===session.personId&&item.active);
   if (!person) return clear(NextResponse.json({ authenticated:false }, { status:401, headers:{ "Cache-Control":"no-store" } }));
   const role = normalizePersonRole(person.role, person.adminLink);
+  if (role !== session.role) return clear(NextResponse.json({ authenticated:false,error:"Роль профиля изменилась. Войди заново." }, { status:401,headers:{ "Cache-Control":"no-store" } }));
   return NextResponse.json({ authenticated:true, person:{ id:person.id,name:person.name,role } }, { headers:{ "Cache-Control":"no-store" } });
 }
 

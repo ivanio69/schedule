@@ -25,13 +25,14 @@ export default function AppNavigation(){
  const pathname=usePathname();
  const authenticated=useSyncExternalStore(subscribe,getSnapshot,getServerSnapshot);
  const inAdmin=pathname.startsWith("/admin");
+ const inLogin=pathname==="/login";
  const [rendered,setRendered]=useState(false);
  const [initialReady,setInitialReady]=useState(false);
  const [leavingAdmin,setLeavingAdmin]=useState(false);
  const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
 
  useEffect(()=>{
-   if(!authenticated){
+   if(!authenticated||inLogin){
      setInitialReady(false);
      return;
    }
@@ -57,12 +58,12 @@ export default function AppNavigation(){
      cancelAnimationFrame(firstFrame);
      cancelAnimationFrame(secondFrame);
    };
- },[authenticated,inAdmin,initialReady]);
+ },[authenticated,inAdmin,inLogin,initialReady]);
 
  useEffect(()=>{
    if(timer.current){clearTimeout(timer.current);timer.current=null;}
 
-   if(!authenticated || (!inAdmin && !initialReady)){
+   if(!authenticated || inLogin || (!inAdmin && !initialReady)){
      setRendered(false);
      setLeavingAdmin(false);
      document.body.classList.remove("has-app-navigation");
@@ -94,7 +95,7 @@ export default function AppNavigation(){
  // rendered is intentionally not a dependency: changing mount state must not
  // restart this effect and cancel the admin exit timer.
  // eslint-disable-next-line react-hooks/exhaustive-deps
- },[authenticated,inAdmin,initialReady]);
+ },[authenticated,inAdmin,inLogin,initialReady]);
 
  useEffect(()=>()=>document.body.classList.remove("has-app-navigation"),[]);
 
