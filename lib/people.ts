@@ -16,6 +16,8 @@ export type Person = {
   telegramUserId?: string;
   telegramLinkedAt?: string;
   telegramLinked?: boolean;
+  telegramOidcSub?: string;
+  telegramOpenIdLinked?: boolean;
   createdAt: string;
 };
 

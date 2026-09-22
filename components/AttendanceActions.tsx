@@ -19,17 +19,25 @@ export default function AttendanceActions({ date, lessons, reports, onReportsCha
   const [dateTo,setDateTo]=useState(date);
   const [busy,setBusy]=useState(false);
   const [status,setStatus]=useState("");
-  const minute=new Date().getHours()*60+new Date().getMinutes();
+  const clock=new Date();
+  const minute=clock.getHours()*60+clock.getMinutes();
+  const today=`${clock.getFullYear()}-${String(clock.getMonth()+1).padStart(2,"0")}-${String(clock.getDate()).padStart(2,"0")}`;
   const toMinutes=(value:string)=>{const [h,m]=value.split(":").map(Number);return h*60+m};
   const lateLesson=useMemo(()=>lessons.find(item=>toMinutes(item.start)<=minute&&toMinutes(item.end)>minute)??lessons.find(item=>toMinutes(item.start)>minute)??null,[lessons,minute]);
-  const selectedLesson=lessons.find(item=>item.key===lessonKey)??lessons[0]??null;
+  const absenceLessons=useMemo(()=>date>today?lessons:date<today?[]:lessons.filter(item=>toMinutes(item.end)>minute),[date,lessons,minute,today]);
+  const selectedLesson=absenceLessons.find(item=>item.key===lessonKey)??absenceLessons[0]??null;
   const openLate=()=>{if(!lateLesson)return;setLessonKey(lateLesson.key);setMode("late");setStatus("")};
-  const openAbsence=()=>{setLessonKey(lessons[0]?.key??"");setScope("lesson");setDateFrom(date);setDateTo(date);setMode("absence");setStatus("")};
+  const openAbsence=()=>{setLessonKey(absenceLessons[0]?.key??"");setScope("lesson");setDateFrom(date);setDateTo(date);setMode("absence");setStatus("")};
   const submit=async()=>{
     if(!mode||busy)return;
     setBusy(true);setStatus("");
     try{
-      const payload=mode==="late"?{kind:"late",date,lessonKey:lateLesson?.key}:{kind:"absence",scope,date,dateFrom:scope==="period"?dateFrom:date,dateTo:scope==="period"?dateTo:date,lessonKey:scope==="lesson"?selectedLesson?.key:undefined,reason,reasonText};
+      const now=new Date();
+      const clientDate=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+      const clientTime=`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+      const payload=mode==="late"
+        ?{kind:"late",date,lessonKey:lateLesson?.key,clientDate,clientTime}
+        :{kind:"absence",scope,date,dateFrom:scope==="period"?dateFrom:date,dateTo:scope==="period"?dateTo:date,lessonKey:scope==="lesson"?selectedLesson?.key:undefined,reason,reasonText,clientDate,clientTime};
       const response=await fetch("/api/attendance",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
       const data=await response.json().catch(()=>null);
       if(!response.ok)throw new Error(data?.error??"Не удалось отправить");
@@ -65,7 +73,7 @@ export default function AttendanceActions({ date, lessons, reports, onReportsCha
       <div className={styles.head}><div><span>СООБЩИТЬ СТАРОСТЕ</span><h2>{mode==="late"?"Я опоздаю":"Меня не будет"}</h2></div><button className={styles.close} type="button" onClick={()=>setMode(null)} aria-label="Закрыть">×</button></div>
       {mode==="late"?<p className={styles.copy}>{lateLesson?"Отметим опоздание на «"+lateLesson.title+"» · "+lateLesson.start+"–"+lateLesson.end:"Сегодня больше нет пар."}</p>:<>
         <div className={styles.choices}><button type="button" className={scope==="lesson"?styles.active:""} onClick={()=>setScope("lesson")}>Одна пара</button><button type="button" className={scope==="day"?styles.active:""} onClick={()=>setScope("day")}>Весь день</button><button type="button" className={scope==="period"?styles.active:""} onClick={()=>setScope("period")}>Период</button></div>
-        {scope==="lesson"&&<label className={styles.field}>Пара<select value={selectedLesson?.key??""} onChange={event=>setLessonKey(event.target.value)}>{lessons.map(item=><option key={item.key} value={item.key}>{item.start} · {item.title}</option>)}</select></label>}
+        {scope==="lesson"&&(absenceLessons.length?<label className={styles.field}>Пара<select value={selectedLesson?.key??""} onChange={event=>setLessonKey(event.target.value)}>{absenceLessons.map(item=><option key={item.key} value={item.key}>{item.start} · {item.title}</option>)}</select></label>:<p className={styles.copy}>Сегодня больше нет текущих или будущих пар.</p>)}
         {scope==="day"&&<p className={styles.copy}>Отсутствие на весь день · {date.split("-").reverse().join(".")}</p>}
         {scope==="period"&&<div className={styles.dates}><label className={styles.field}>С<input type="date" min={date} value={dateFrom} onChange={event=>setDateFrom(event.target.value)}/></label><label className={styles.field}>По<input type="date" min={dateFrom||date} value={dateTo} onChange={event=>setDateTo(event.target.value)}/></label></div>}
         <div className={styles.reasons}><button type="button" className={reason==="sick"?styles.active:""} onClick={()=>setReason("sick")}>Больничный</button><button type="button" className={reason==="event"?styles.active:""} onClick={()=>setReason("event")}>Мероприятие</button><button type="button" className={reason==="other"?styles.active:""} onClick={()=>setReason("other")}>Другое</button></div>

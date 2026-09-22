@@ -44,7 +44,7 @@ export function proxy(request: NextRequest) {
   const session=verifyAuthSessionToken(request.cookies.get(AUTH_COOKIE)?.value);
 
   if(!session&&!isLogin&&!isPublicApi)return unauthorized(request);
-  if(session&&isLogin){const home=request.nextUrl.clone();home.pathname="/";home.search="";return NextResponse.redirect(home)}
+  if(session&&isLogin&&request.nextUrl.searchParams.get("openid")!=="success"){const home=request.nextUrl.clone();home.pathname="/";home.search="";return NextResponse.redirect(home)}
   if(session&&(pathname.startsWith("/admin")||pathname.startsWith("/api/admin"))&&session.role!=="admin")return forbidden(request);
   if(session&&(pathname.startsWith("/headman")||pathname.startsWith("/api/headman"))&&session.role!=="headman"&&session.role!=="admin")return forbidden(request);
 

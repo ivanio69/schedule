@@ -18,9 +18,10 @@ function telegramUsername(value: unknown) {
 
 export async function GET(request: NextRequest) {
   if (!authorized(request)) return bad();
-  const people=(await getPeople(false)).map(({telegramChatId,telegramUserId,telegramLinkedAt,...person})=>({
+  const people=(await getPeople(false)).map(({telegramChatId,telegramUserId,telegramLinkedAt,telegramOidcSub,...person})=>({
     ...person,
     telegramLinked:Boolean(telegramChatId&&telegramUserId&&telegramLinkedAt),
+    telegramOpenIdLinked:Boolean(telegramOidcSub),
   }));
   return NextResponse.json({ people }, { headers: { "Cache-Control": "no-store" } });
 }

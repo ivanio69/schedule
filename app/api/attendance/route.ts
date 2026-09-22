@@ -107,6 +107,11 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
+    const fallbackNow = new Date();
+    const clientDate = validDate(body.clientDate) ? body.clientDate : fallbackNow.toISOString().slice(0,10);
+    const clientTime = typeof body.clientTime === "string" && /^\d{2}:\d{2}$/.test(body.clientTime)
+      ? body.clientTime
+      : fallbackNow.toISOString().slice(11,16);
     const schedule = await getSchedule();
     let report: AttendanceReport;
 
@@ -157,6 +162,9 @@ export async function POST(request: NextRequest) {
         const candidate = typeof body.lessonKey === "string" ? body.lessonKey : "";
         const lesson = getOccurrences(schedule, dateFrom).find(item => item.occurrence?.key === candidate && item.occurrence?.status !== "cancelled");
         if (!lesson) return NextResponse.json({ error: "Не удалось определить пару" }, { status: 400 });
+        if (dateFrom < clientDate || (dateFrom === clientDate && lesson.timeEnd <= clientTime)) {
+          return NextResponse.json({ error: "Нельзя отметить отсутствие на уже прошедшую пару" }, { status: 400 });
+        }
         lessonKey = candidate;
         lessonTitle = lesson.class;
         lessonStart = lesson.timeStart;

@@ -34,7 +34,7 @@ function maskUsername(value: string) {
 
 async function createLink(request: NextRequest, person: Person) {
   if (!person.telegramUsername) {
-    return NextResponse.json({ error: "Для этого профиля не указан имя пользователя Telegram. Обратись к администратору." }, { status: 409 });
+    return NextResponse.json({ error: "Для этого профиля не указано имя пользователя Telegram. Обратись к администратору." }, { status: 409 });
   }
   await ensureTelegramWebhook(new URL(request.url).origin);
   const bot = await getTelegramBot();
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     const person = (await getPeople(false)).find(item => item.id === personId && item.active);
     if (!person) return NextResponse.json({ error: "Профиль не найден" }, { status: 404 });
     if (!person.telegramUsername) {
-      return NextResponse.json({ error: "Для этого профиля не указан имя пользователя Telegram. Обратись к администратору." }, { status: 409 });
+      return NextResponse.json({ error: "Для этого профиля не указано имя пользователя Telegram. Обратись к администратору." }, { status: 409 });
     }
     if (!person.telegramChatId) return createLink(request, person);
 
