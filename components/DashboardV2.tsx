@@ -21,6 +21,7 @@ import DashboardAnnouncements from "@/components/DashboardAnnouncements";
 import DashboardDailyQuote from "@/components/DashboardDailyQuote";
 import AttendanceActions from "@/components/AttendanceActions";
 import type { AttendanceReport } from "@/lib/attendance";
+import { DEFAULT_DASHBOARD_SETTINGS, normalizeDashboardSettings, type DashboardSectionId, type DashboardSettings } from "@/lib/dashboard-settings";
 const PERSON_KEY = "schedule_person_id";
 const mins = (v: string) => {
   const [h, m] = v.split(":").map(Number);
@@ -77,6 +78,7 @@ export default function DashboardV2() {
     [noteText, setNoteText] = useState(""),
     [saving, setSaving] = useState(false),
     [chinaMode, setChinaMode] = useState(false),
+    [dashboardSettings, setDashboardSettings] = useState<DashboardSettings>(DEFAULT_DASHBOARD_SETTINGS),
     [loading, setLoading] = useState(true);
   const loadProfile = async (id: string) => {
     const [sr, ir] = await Promise.all([
@@ -92,6 +94,7 @@ export default function DashboardV2() {
       setPreferences(d.preferences ?? {});
       setNotes(d.notes ?? {});
       setChinaMode(d.chinaMode === true);
+      setDashboardSettings(normalizeDashboardSettings(d.dashboardSettings));
     }
     if (ir.ok) setIndividuals((await ir.json()).lessons ?? []);
   };
@@ -371,6 +374,8 @@ export default function DashboardV2() {
       />
     );
   if (!person) return <LoadingState screen label="Проверяем вход" detail="Подтверждаем Telegram-сессию."/>;
+  const dashboardVisible=(id:DashboardSectionId)=>!dashboardSettings.hidden.includes(id);
+  const dashboardOrder=(id:DashboardSectionId)=>dashboardSettings.order.indexOf(id);
   const noPairs = groups.length === 0;
   const attendanceLessons = groups.filter(item => item.occurrence?.status !== "cancelled").map(item => ({ key: item.occurrence?.key ?? item.id ?? noteKey(todayKey,item.timeStart,item.class), title: item.class, start: item.timeStart, end: item.timeEnd }));
   return (
@@ -543,6 +548,7 @@ export default function DashboardV2() {
           color: var(--muted);
           font-size: 10px;
         }
+        .dashboard-personalized-sections { display:flex; flex-direction:column; min-width:0; }
         .dashboard-timeline,
         .dashboard-seminars {
           margin-top: 28px;
@@ -932,8 +938,8 @@ export default function DashboardV2() {
           </p>
         </div>
       </header>
-      <DashboardAnnouncements personId={person.id} />
-      <DashboardDailyQuote />
+      {dashboardSettings.showAnnouncements && <DashboardAnnouncements personId={person.id} />}
+      {dashboardSettings.showQuote && <DashboardDailyQuote />}
       {(noPairs || current || next) && (
         <section className={`dashboard-focus${current ? " is-current" : ""}`}>
           <div className="dashboard-focus-top">
@@ -988,8 +994,9 @@ export default function DashboardV2() {
         </section>
       )}
       <AttendanceActions date={todayKey} lessons={attendanceLessons} reports={attendanceReports} onReportsChange={setAttendanceReports} />
-      {!noPairs && showTomorrow && (
-        <section className="dashboard-tomorrow">
+      <div className="dashboard-personalized-sections">
+      {dashboardVisible("tomorrow") && !noPairs && showTomorrow && (
+        <section className="dashboard-tomorrow" style={{order:dashboardOrder("tomorrow")}}>
           <div>
             <span>ЗАВТРА</span>
             <strong>
@@ -1006,10 +1013,11 @@ export default function DashboardV2() {
           <Link href="/schedule">Расписание →</Link>
         </section>
       )}
-      {!noPairs && <div className="dashboard-scholarship-slot" />}
-      {!noPairs && (
+      {dashboardVisible("summary") && !noPairs && <div className="dashboard-scholarship-slot" style={{order:dashboardOrder("summary")}} />}
+      {dashboardVisible("summary") && !noPairs && (
         <section
           className={`dashboard-stats${showNextStat ? " has-next" : ""}`}
+          style={{order:dashboardOrder("summary")}}
         >
           {showNextStat && (
             <article className="dashboard-stat-next">
@@ -1037,8 +1045,8 @@ export default function DashboardV2() {
         </section>
       )}
 
-      {!noPairs && (
-        <section className="dashboard-timeline">
+      {dashboardVisible("today") && !noPairs && (
+        <section className="dashboard-timeline" style={{order:dashboardOrder("today")}}>
           <div className="dashboard-section-head">
             <h2>Сегодня</h2>
             <span>{todayCount}</span>
@@ -1112,7 +1120,7 @@ export default function DashboardV2() {
           )}
         </section>
       )}
-      <section className="dashboard-seminars">
+      {dashboardVisible("seminars") && <section className="dashboard-seminars" style={{order:dashboardOrder("seminars")}}>
         <div className="dashboard-section-head">
           <h2>Мои семинары</h2>
           <Link href="/seminars">Все семинары →</Link>
@@ -1143,7 +1151,8 @@ export default function DashboardV2() {
             <Link href="/seminars">Выбрать тему</Link>
           </div>
         )}
-      </section>
+      </section>}
+      </div>
       {modalPortalReady &&
         createPortal(
           <AnimatePresence>

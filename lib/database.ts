@@ -7,6 +7,7 @@ import type { Rehearsal, ScheduleData, ScheduleChange } from "@/lib/schedule";
 import { ensureRehearsalAuthorParticipation, getRehearsalAudienceNames } from "@/lib/rehearsals";
 import type { AppearanceSettings } from "@/lib/appearance";
 import type { DigestSettings } from "@/lib/digest-settings";
+import type { DashboardSettings } from "@/lib/dashboard-settings";
 
 import { lessonKey } from "@/lib/schedule";
 
@@ -15,7 +16,7 @@ function initializeChinaSubgroup(schedule:ScheduleData):ScheduleData { return sc
 
 const DB_NAME = process.env.MONGODB_DB ?? "schedule";
 type ScheduleDocument = ScheduleData & { _id: string };
-export type ProfileSettings = { personId:string; preferences:Record<string,"1"|"2"|"both">; notes:Record<string,string>; notificationPreferences?:Record<string,boolean>; chinaMode?:boolean; appearance?:AppearanceSettings; digestSettings?:DigestSettings; updatedAt:string };
+export type ProfileSettings = { personId:string; preferences:Record<string,"1"|"2"|"both">; notes:Record<string,string>; notificationPreferences?:Record<string,boolean>; chinaMode?:boolean; appearance?:AppearanceSettings; digestSettings?:DigestSettings; dashboardSettings?:DashboardSettings; updatedAt:string };
 export async function getDatabase(){const mongo=await clientPromise;return mongo.db(DB_NAME)}
 export async function getSchedule():Promise<ScheduleData>{const db=await getDatabase();const c=db.collection<ScheduleDocument>("schedule");const stored=await c.findOne({_id:"current"});if(stored){const{_id:_ignored,...raw}=stored;const schedule=initializeChinaSubgroup(raw);if(!raw.chinaSubgroupInitialized)await c.replaceOne({_id:"current"},{...schedule,_id:"current"} as ScheduleDocument);return {...identifyLessons(schedule),changes:await db.collection<ScheduleChange>("schedule_changes").find({},{projection:{_id:0}}).toArray()}}const initial=initializeChinaSubgroup(table);await c.insertOne({...initial,_id:"current"} as ScheduleDocument);return identifyLessons(initial)}
 export async function saveSchedule(schedule:ScheduleData){const db=await getDatabase();await db.collection<ScheduleDocument>("schedule").replaceOne({_id:"current"},{semesterStart:schedule.semesterStart,days:schedule.days,chinaSubgroupInitialized:true},{upsert:true})}
@@ -37,4 +38,4 @@ export async function createRehearsal(input:Omit<Rehearsal,"id"|"createdAt"|"cre
 export async function deleteRehearsal(id:string,creatorId:string){const db=await getDatabase();return(await db.collection<Rehearsal>("rehearsals").deleteOne({id,creatorId})).deletedCount===1}
 export async function updateRehearsal(id:string,creatorId:string,input:Omit<Rehearsal,"id"|"createdAt"|"creatorId"|"creatorName">){return (await getDatabase()).collection<Rehearsal>("rehearsals").findOneAndUpdate({id,creatorId},{$set:input},{returnDocument:"after"})}
 export async function getProfileSettings(personId:string):Promise<ProfileSettings>{const db=await getDatabase();const stored=await db.collection<ProfileSettings>("profile_settings").findOne({personId});return stored??{personId,preferences:{},notes:{},updatedAt:new Date(0).toISOString()}}
-export async function saveProfileSettings(personId:string,input:Pick<ProfileSettings,"preferences"|"notes"> & {notificationPreferences?:Record<string,boolean>;chinaMode?:boolean;appearance?:AppearanceSettings;digestSettings?:DigestSettings}){const db=await getDatabase();const settings:ProfileSettings={personId,preferences:input.preferences,notes:input.notes,notificationPreferences:input.notificationPreferences,chinaMode:input.chinaMode,appearance:input.appearance,digestSettings:input.digestSettings,updatedAt:new Date().toISOString()};await db.collection<ProfileSettings>("profile_settings").replaceOne({personId},settings,{upsert:true});return settings}
+export async function saveProfileSettings(personId:string,input:Pick<ProfileSettings,"preferences"|"notes"> & {notificationPreferences?:Record<string,boolean>;chinaMode?:boolean;appearance?:AppearanceSettings;digestSettings?:DigestSettings;dashboardSettings?:DashboardSettings}){const db=await getDatabase();const settings:ProfileSettings={personId,preferences:input.preferences,notes:input.notes,notificationPreferences:input.notificationPreferences,chinaMode:input.chinaMode,appearance:input.appearance,digestSettings:input.digestSettings,dashboardSettings:input.dashboardSettings,updatedAt:new Date().toISOString()};await db.collection<ProfileSettings>("profile_settings").replaceOne({personId},settings,{upsert:true});return settings}
