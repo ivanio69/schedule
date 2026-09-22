@@ -4,7 +4,7 @@ import { getDatabase, getPeople, getSchedule } from "@/lib/database";
 import { getOccurrences } from "@/lib/schedule";
 import { normalizePersonRole } from "@/lib/people";
 import { sendPush } from "@/lib/push";
-import { ATTENDANCE_REASON_LABELS, type AttendanceReason, type AttendanceReport, type AttendanceScope } from "@/lib/attendance";
+import { ATTENDANCE_REASON_LABELS, attendanceReportExpired, type AttendanceReason, type AttendanceReport, type AttendanceScope } from "@/lib/attendance";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,27 @@ const validDate = (value: unknown): value is string =>
 
 function reasonFrom(value: unknown): AttendanceReason | null {
   return value === "sick" || value === "event" || value === "other" ? value : null;
+}
+
+function clientClock(request: NextRequest) {
+  const url = new URL(request.url);
+  const date = url.searchParams.get("date");
+  const time = url.searchParams.get("time");
+  const fallback = new Date();
+  return {
+    date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : fallback.toISOString().slice(0,10),
+    time: time && /^\d{2}:\d{2}$/.test(time) ? time : fallback.toISOString().slice(11,16),
+  };
+}
+
+async function pruneExpiredAbsences(date: string, time: string) {
+  const collection = (await getDatabase()).collection<AttendanceReport>("attendance_reports");
+  const candidates = await collection.find(
+    { kind: "absence", dateTo: { $lte: date } },
+    { projection: { _id: 0 } }
+  ).toArray();
+  const ids = candidates.filter(report => attendanceReportExpired(report, date, time)).map(report => report.id);
+  if (ids.length) await collection.deleteMany({ id: { $in: ids } });
 }
 
 async function currentPerson(request: NextRequest) {
@@ -26,9 +47,10 @@ export async function GET(request: NextRequest) {
   try {
     const person = await currentPerson(request);
     if (!person) return NextResponse.json({ error: "Выбери профиль заново" }, { status: 401 });
-    const today = new Date().toISOString().slice(0, 10);
+    const { date, time } = clientClock(request);
+    await pruneExpiredAbsences(date, time);
     const reports = await (await getDatabase()).collection<AttendanceReport>("attendance_reports")
-      .find({ personId: person.id, dateTo: { $gte: today } }, { projection: { _id: 0 } })
+      .find({ personId: person.id, dateTo: { $gte: date } }, { projection: { _id: 0 } })
       .sort({ dateFrom: 1, updatedAt: -1 })
       .toArray();
     return NextResponse.json({ reports }, { headers: { "Cache-Control": "no-store" } });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDatabase, getPeople, getSchedule } from "@/lib/database";
 import { getRoleSessionPerson } from "@/lib/role-session";
 import { getOccurrences } from "@/lib/schedule";
-import type { AttendanceReport } from "@/lib/attendance";
+import { attendanceReportExpired, type AttendanceReport } from "@/lib/attendance";
 
 export const dynamic = "force-dynamic";
 
@@ -12,15 +12,26 @@ export async function GET(request: NextRequest) {
   const actor = await getRoleSessionPerson(request, ["headman", "admin"]);
   if (!actor) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
 
-  const requestedDate = new URL(request.url).searchParams.get("date");
+  const url = new URL(request.url);
+  const requestedDate = url.searchParams.get("date");
+  const requestedTime = url.searchParams.get("time");
   const date = validDate(requestedDate) ? requestedDate! : new Date().toISOString().slice(0, 10);
+  const time = requestedTime && /^\d{2}:\d{2}$/.test(requestedTime) ? requestedTime : new Date().toISOString().slice(11,16);
   const cutoff = new Date(date + "T00:00:00Z");
   cutoff.setUTCDate(cutoff.getUTCDate() - 30);
   const cutoffKey = cutoff.toISOString().slice(0, 10);
 
   const db = await getDatabase();
+  const attendanceCollection = db.collection<AttendanceReport>("attendance_reports");
+  const expiryCandidates = await attendanceCollection.find(
+    { kind: "absence", dateTo: { $lte: date } },
+    { projection: { _id: 0 } }
+  ).toArray();
+  const expiredIds = expiryCandidates.filter(report => attendanceReportExpired(report, date, time)).map(report => report.id);
+  if (expiredIds.length) await attendanceCollection.deleteMany({ id: { $in: expiredIds } });
+
   const [reports, people, schedule] = await Promise.all([
-    db.collection<AttendanceReport>("attendance_reports")
+    attendanceCollection
       .find({ dateTo: { $gte: cutoffKey } }, { projection: { _id: 0 } })
       .sort({ updatedAt: -1 })
       .limit(500)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
 import styles from "./HeadmanPanel.module.css";
 import type { Person } from "@/lib/people";
@@ -25,6 +26,7 @@ const shortDate=(value:string)=>value.split("-").reverse().join(".");
 const displayToday=()=>new Intl.DateTimeFormat("ru-RU",{weekday:"long",day:"numeric",month:"long"}).format(new Date());
 
 export default function HeadmanPanel(){
+  const reducedMotion=useReducedMotion();
   const [overview,setOverview]=useState<Overview|null>(null);
   const [loading,setLoading]=useState(true);
   const [tab,setTab]=useState<HeadmanTab>("today");
@@ -39,7 +41,9 @@ export default function HeadmanPanel(){
   const load=async()=>{
     setLoading(true);
     try{
-      const response=await fetch("/api/headman/overview?date="+encodeURIComponent(localDateKey()),{cache:"no-store"});
+      const clock=new Date();
+      const time=String(clock.getHours()).padStart(2,"0")+":"+String(clock.getMinutes()).padStart(2,"0");
+      const response=await fetch("/api/headman/overview?date="+encodeURIComponent(localDateKey())+"&time="+encodeURIComponent(time),{cache:"no-store"});
       const data=await response.json();
       if(!response.ok)throw new Error(data.error??"Не удалось загрузить панель");
       setOverview(data);
@@ -51,6 +55,10 @@ export default function HeadmanPanel(){
   };
 
   useEffect(()=>{void load()},[]);
+  useEffect(()=>{
+    const timer=setInterval(()=>void load(),60000);
+    return()=>clearInterval(timer);
+  },[]);
 
   const today=localDateKey();
   const people=overview?.people??[];
@@ -214,8 +222,8 @@ export default function HeadmanPanel(){
       {status&&<p className={styles.status} role="status">{status}</p>}
     </section>}
 
-    {selectedReport&&typeof document!=="undefined"&&createPortal(<div className={styles.modalOverlay} role="presentation" onMouseDown={()=>setSelectedReport(null)}>
-      <section className={styles.detailModal+" "+(selectedReport.kind==="late"?styles.detailModalLate:styles.detailModalAbsence)} role="dialog" aria-modal="true" aria-label={(selectedReport.kind==="late"?"Опоздание: ":"Отсутствие: ")+selectedReport.personName} onMouseDown={event=>event.stopPropagation()}>
+    {typeof document!=="undefined"&&createPortal(<AnimatePresence>{selectedReport&&<motion.div className={styles.modalOverlay} role="presentation" onMouseDown={()=>setSelectedReport(null)} initial={reducedMotion?false:{opacity:0,backdropFilter:"blur(0px)"}} animate={{opacity:1,backdropFilter:"blur(8px)"}} exit={reducedMotion?undefined:{opacity:0,backdropFilter:"blur(0px)"}} transition={{duration:.18}}>
+      <motion.section className={styles.detailModal+" "+(selectedReport.kind==="late"?styles.detailModalLate:styles.detailModalAbsence)} role="dialog" aria-modal="true" aria-label={(selectedReport.kind==="late"?"Опоздание: ":"Отсутствие: ")+selectedReport.personName} onMouseDown={event=>event.stopPropagation()} initial={reducedMotion?false:{opacity:0,y:14,scale:.985,filter:"blur(5px)"}} animate={{opacity:1,y:0,scale:1,filter:"blur(0px)"}} exit={reducedMotion?undefined:{opacity:0,y:10,scale:.98,filter:"blur(8px)"}} transition={{duration:.18,ease:[.22,1,.36,1]}}>
         <header><div><span>{selectedReport.kind==="late"?"ОПОЗДАНИЕ":"ОТСУТСТВИЕ"}</span><h2>{selectedReport.personName}</h2></div><button type="button" onClick={()=>setSelectedReport(null)} aria-label="Закрыть">×</button></header>
         <div className={styles.detailGrid}>
           <div><span>Когда</span><strong>{selectedReport.kind==="late"?(selectedReport.lessonTitle??"Пара")+" · "+(selectedReport.lessonStart??""):selectedReport.scope==="lesson"?(selectedReport.lessonTitle??"Пара")+" · "+(selectedReport.lessonStart??""):selectedReport.scope==="day"?"Весь день · "+shortDate(selectedReport.dateFrom):shortDate(selectedReport.dateFrom)+"–"+shortDate(selectedReport.dateTo)}</strong></div>
@@ -229,7 +237,7 @@ export default function HeadmanPanel(){
         </div>
         <p className={styles.quickAngerText}>«{selectedReport.kind==="late"?"злата злится. не опаздывай.":"злата очень сильно злиться. предупреждай если прогуливаешь."}»</p>
         {quickAngerStatus&&<p className={styles.quickAngerStatus} role="status">{quickAngerStatus}</p>}
-      </section>
-    </div>,document.body)}
+      </motion.section>
+    </motion.div>}</AnimatePresence>,document.body)}
   </main>;
 }

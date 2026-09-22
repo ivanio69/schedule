@@ -97,7 +97,10 @@ export default function DashboardV2() {
     if (ir.ok) setIndividuals((await ir.json()).lessons ?? []);
   };
   const loadAttendance = async () => {
-    const response = await fetch("/api/attendance", { cache: "no-store" });
+    const clock = new Date();
+    const clockDate = dateKey(clock);
+    const clockTime = `${String(clock.getHours()).padStart(2,"0")}:${String(clock.getMinutes()).padStart(2,"0")}`;
+    const response = await fetch(`/api/attendance?date=${encodeURIComponent(clockDate)}&time=${encodeURIComponent(clockTime)}`, { cache: "no-store" });
     if (response.ok) setAttendanceReports((await response.json()).reports ?? []);
   };
   const loadRehearsals = async (id: string, date: string) => {
@@ -143,6 +146,11 @@ export default function DashboardV2() {
     const t = setInterval(() => setNow(new Date()), 10000);
     return () => clearInterval(t);
   }, []);
+  useEffect(() => {
+    if (!person) return;
+    const t = setInterval(() => void loadAttendance(), 60000);
+    return () => clearInterval(t);
+  }, [person?.id]);
   const today = todayIndex(),
     week = schedule ? getCurrentWeek(schedule, now) : 1,
     todayKey = dateKey(today >= 0 ? dayDate(today) : now);

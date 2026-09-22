@@ -32,3 +32,12 @@ export function attendanceReasonText(report: Pick<AttendanceReport, "reason" | "
   const label = ATTENDANCE_REASON_LABELS[report.reason];
   return report.reason === "other" && report.reasonText ? label + ": " + report.reasonText : label;
 }
+
+export function attendanceReportExpired(report: AttendanceReport, date: string, time: string) {
+  if (report.kind !== "absence") return false;
+  if (report.dateTo < date) return true;
+  if (report.dateTo > date) return false;
+  if (report.scope !== "lesson") return false;
+  if (!report.lessonEnd) return false;
+  return report.lessonEnd <= time;
+}
