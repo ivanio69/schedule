@@ -5,7 +5,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const people = (await getPeople(true)).map(({ telegramUsername: _telegramUsername, ...person }) => person;
+    const people = (await getPeople(true)).map(person => ({
+      id: person.id,
+      name: person.name,
+      active: person.active,
+      role: person.role,
+      createdAt: person.createdAt,
+    }));
     return NextResponse.json({ people }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Failed to load people", error);

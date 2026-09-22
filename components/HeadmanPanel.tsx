@@ -25,7 +25,7 @@ export default function HeadmanPanel(){
   const reasonCounts={sick:reports.filter(r=>r.reason==="sick"&&r.dateTo>=today).length,event:reports.filter(r=>r.reason==="event"&&r.dateTo>=today).length,other:reports.filter(r=>r.reason==="other"&&r.dateTo>=today).length};
   const lessonRows=(overview?.lessons??[]).map(lesson=>{
     const rawAbsence=reports.filter(report=>report.kind==="absence"&&report.dateFrom<=today&&report.dateTo>=today&&(report.scope!=="lesson"||report.lessonKey===lesson.key));
-    const absence=[...new Map(rawAbsence.sort((a,b)=>(a.scope==="lesson"?0:a.scope==="day"?1:2)-(b.scope==="lesson"?0:b.scope==="day"?1:2)).map(report=>[report.personId,report])).values()];
+    const absence=[...new Map(rawAbsence.sort((a,b)=>(a.scope==="lesson"?0:a.scope==="day"?1:2)-(b.scope==="lesson"?0:b.scope==="day"?1:2)).map(report=>[report.personId,report] as const)).values()];
     const absentIds=new Set(absence.map(report=>report.personId));
     const late=reports.filter(report=>report.kind==="late"&&report.dateFrom===today&&report.lessonKey===lesson.key&&!absentIds.has(report.personId));
     return {lesson,absence,late};
