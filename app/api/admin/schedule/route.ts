@@ -35,15 +35,6 @@ function validateSchedule(value: unknown): value is ScheduleData {
   }));
 }
 
-export async function POST(request: NextRequest) {
-  if (!ADMIN_PASSWORD || !SESSION_SECRET) return NextResponse.json({ error: "Admin auth is not configured" }, { status: 503 });
-  const body = await request.json().catch(() => null) as { password?: unknown } | null;
-  if (!body || body.password !== ADMIN_PASSWORD) return unauthorized();
-  const response = NextResponse.json({ ok: true });
-  response.cookies.set(COOKIE_NAME, sessionToken()!, { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 8 });
-  return response;
-}
-
 export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) return unauthorized();
   try {

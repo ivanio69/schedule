@@ -47,7 +47,7 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
         throw new Error(data.error ?? "Не удалось сохранить изменение");
       }
       close();
-      setMessage(data.warning ?? (data.delivery.subscriptions ? `Сохранено. Push-сервис принял уведомления для ${data.delivery.sent} из ${data.delivery.subscriptions} устройств.${data.delivery.failed ? " Часть отправок не удалась — используйте раздел «Уведомления»." : ""}` : "Сохранено. Нет устройств с включёнными уведомлениями об отменах и переносах."));
+      setMessage(data.warning ?? (data.delivery?.subscriptions ? `Сохранено. Push-сервис принял уведомления для ${data.delivery.sent ?? 0} из ${data.delivery.subscriptions} устройств.${data.delivery.failed ? " Часть отправок не удалась — используйте раздел «Уведомления»." : ""}` : "Сохранено. Нет устройств с включёнными уведомлениями об отменах и переносах."));
       try { await reload(); } catch { setError("Изменение сохранено. Обновите страницу, чтобы увидеть актуальное расписание."); }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Ошибка сети. Обновите расписание перед повторной попыткой.");
@@ -62,7 +62,7 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
       </div>
       <button className="admin-secondary" disabled={busy} onClick={() => { close(); setWeek(getCurrentWeek(schedule)); setDay(Math.min((new Date().getDay()+6)%7,5)); }}>Текущая неделя</button>
     </div>
-    <div className={styles.days} aria-label="День недели">{DAY_NAMES.map((name, i) => <button key={name} aria-pressed={day === i} disabled={busy} onClick={() => { close(); setDay(i); }}><strong>{name}</strong><span>{getScheduleDate(schedule, week, i).slice(5).split("-").reverse().join(".")}</span><small>{getOccurrences(schedule, getScheduleDate(schedule, week, i)).length} пар</small></button>)}</div>
+    <div className={styles.days} aria-label="День недели">{DAY_NAMES.map((name, i) => <button key={name} aria-pressed={day === i} disabled={busy} onClick={() => { close(); setDay(i); }}><strong>{name}</strong><span>{getScheduleDate(schedule, week, i).slice(5).split("-").reverse().join(".")}</span><small>{getOccurrences(schedule, getScheduleDate(schedule, week, i)).filter(lesson => lesson.occurrence?.status !== "cancelled").length} пар</small></button>)}</div>
     <p className={styles.hint}>Перенос и отмена действуют только на выбранную пару. Уведомление получат подписчики, включившие отмены и переносы в настройках.</p>
     {message && <p className={styles.notice} role="status">{message}</p>}
     {error && <p className={styles.error} role="alert">{error}</p>}
@@ -70,11 +70,12 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
     <div className={styles.list}>{lessons.map(lesson => {
       const key = lesson.occurrence!.date + lesson.occurrence!.key;
       const active = editing?.lesson.occurrence?.key === lesson.occurrence!.key && editing?.lesson.occurrence?.date === lesson.occurrence!.date;
-      return <article className={styles.card} key={key}>
+      const status = lesson.occurrence?.status;
+      return <article className={`${styles.card}${status === "cancelled" ? ` ${styles.cardCancelled}` : status === "moved" ? ` ${styles.cardMoved}` : ""}`} key={key}>
         <div className={styles.summary}>
           <div className={styles.time}><strong>{lesson.timeStart}</strong><span>{lesson.timeEnd}</span></div>
-          <div className={styles.subject}><h2>{lesson.class}</h2><p>{[lesson.professor, lesson.auditorium && `Ауд. ${lesson.auditorium}`, lesson.group.length === 1 ? `Подгруппа ${lesson.group[0]}` : "Вся группа"].filter(Boolean).join(" · ")}</p>{lesson.occurrence!.revision > 0 && <small className={styles.badge}>Перенесена</small>}</div>
-          <div className={styles.actions}><button className="admin-secondary" disabled={busy} aria-expanded={active && editing.kind === "move"} onClick={e => { lastTrigger.current = e.currentTarget; setError(""); setMoveConflicts([]); setEditing({ lesson, kind: "move" }); }}>Перенести</button><button className="admin-danger" disabled={busy} aria-expanded={active && editing.kind === "cancel"} onClick={e => { lastTrigger.current = e.currentTarget; setError(""); setMoveConflicts([]); setEditing({ lesson, kind: "cancel" }); }}>Отменить пару</button></div>
+          <div className={styles.subject}><h2>{lesson.class}</h2><p>{[lesson.professor, lesson.auditorium && `Ауд. ${lesson.auditorium}`, lesson.group.length === 1 ? `Подгруппа ${lesson.group[0]}` : "Вся группа"].filter(Boolean).join(" · ")}</p>{status && <small className={`${styles.badge}${status === "cancelled" ? ` ${styles.badgeCancelled}` : ""}`}>{status === "cancelled" ? "Отменена" : "Перенесена"}</small>}</div>
+          <div className={styles.actions}>{status === "cancelled" ? <span className={styles.cancelledState}>Пара отменена</span> : <><button className="admin-secondary" disabled={busy} aria-expanded={active && editing.kind === "move"} onClick={e => { lastTrigger.current = e.currentTarget; setError(""); setMoveConflicts([]); setEditing({ lesson, kind: "move" }); }}>Перенести</button><button className="admin-danger" disabled={busy} aria-expanded={active && editing.kind === "cancel"} onClick={e => { lastTrigger.current = e.currentTarget; setError(""); setMoveConflicts([]); setEditing({ lesson, kind: "cancel" }); }}>Отменить пару</button></>}</div>
         </div>
         {active && <form key={editing.kind} className={styles.form} onSubmit={submit} onChange={() => { if (moveConflicts.length) setMoveConflicts([]); }}>
           <h3>{editing.kind === "move" ? "Куда перенести пару?" : "Подтвердите отмену пары"}</h3>

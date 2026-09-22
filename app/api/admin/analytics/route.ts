@@ -13,7 +13,8 @@ function authenticated(request: NextRequest) {
 export async function GET(request: NextRequest) {
   if (!authenticated(request)) return NextResponse.json({ error: "Войди в панель администратора" }, { status: 401 });
   try {
-    const analytics = await getUsageAnalyticsReport();
+    const requestedDays = Number(request.nextUrl.searchParams.get("days") ?? "14");
+    const analytics = await getUsageAnalyticsReport(requestedDays);
     return NextResponse.json({ analytics }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Failed to load usage analytics", error);

@@ -26,13 +26,43 @@ export default function AppNavigation(){
  const authenticated=useSyncExternalStore(subscribe,getSnapshot,getServerSnapshot);
  const inAdmin=pathname.startsWith("/admin");
  const [rendered,setRendered]=useState(false);
+ const [initialReady,setInitialReady]=useState(false);
  const [leavingAdmin,setLeavingAdmin]=useState(false);
  const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
 
  useEffect(()=>{
+   if(!authenticated){
+     setInitialReady(false);
+     return;
+   }
+   if(inAdmin || initialReady) return;
+
+   let firstFrame=0;
+   let secondFrame=0;
+   const revealWhenReady=()=>{
+     if(document.querySelector(".app-loading-state.is-screen")) return;
+     cancelAnimationFrame(firstFrame);
+     cancelAnimationFrame(secondFrame);
+     firstFrame=requestAnimationFrame(()=>{
+       secondFrame=requestAnimationFrame(()=>setInitialReady(true));
+     });
+   };
+
+   const observer=new MutationObserver(revealWhenReady);
+   observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["class"]});
+   revealWhenReady();
+
+   return()=>{
+     observer.disconnect();
+     cancelAnimationFrame(firstFrame);
+     cancelAnimationFrame(secondFrame);
+   };
+ },[authenticated,inAdmin,initialReady]);
+
+ useEffect(()=>{
    if(timer.current){clearTimeout(timer.current);timer.current=null;}
 
-   if(!authenticated){
+   if(!authenticated || (!inAdmin && !initialReady)){
      setRendered(false);
      setLeavingAdmin(false);
      document.body.classList.remove("has-app-navigation");
@@ -64,7 +94,7 @@ export default function AppNavigation(){
  // rendered is intentionally not a dependency: changing mount state must not
  // restart this effect and cancel the admin exit timer.
  // eslint-disable-next-line react-hooks/exhaustive-deps
- },[authenticated,inAdmin]);
+ },[authenticated,inAdmin,initialReady]);
 
  useEffect(()=>()=>document.body.classList.remove("has-app-navigation"),[]);
 

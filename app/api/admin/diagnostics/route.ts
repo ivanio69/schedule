@@ -6,6 +6,7 @@ import versionInfo from "@/version.json";
 
 type CheckStatus = "ok" | "warn" | "error";
 type Check = { id: string; label: string; status: CheckStatus; detail: string };
+type Note = { id: string; title: string; detail: string };
 
 function authenticated(request: NextRequest) {
   const secret = process.env.ADMIN_SESSION_SECRET ?? process.env.ADMIN_PASSWORD;
@@ -16,9 +17,15 @@ function authenticated(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!authenticated(request)) return NextResponse.json({ error: "Войди в панель администратора" }, { status: 401 });
+  if (!authenticated(request)) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
 
   const checks: Check[] = [];
+  const notes: Note[] = [{
+    id: "vercel-build-rate-limit",
+    title: "Vercel build rate limiting",
+    detail: "При частых preview-деплоях Vercel может отклонить новую сборку с build-rate-limit. Это лимит платформы, а не ошибка кода. После освобождения окна лимита следующий деплой запускается обычно.",
+  }];
+
   try {
     const db = await getDatabase();
     const pingStarted = performance.now();
@@ -31,7 +38,24 @@ export async function GET(request: NextRequest) {
       detail: `Доступна · ping ${databaseLatencyMs} мс`,
     });
 
-    const [people, schedule, pushSubscriptions, rehearsals, individualLessons, individualSlots, seminarLists, calendarSubscriptions] = await Promise.all([
+    const [
+      people,
+      schedule,
+      pushSubscriptions,
+      rehearsals,
+      individualLessons,
+      individualSlots,
+      seminarLists,
+      calendarSubscriptions,
+      usageSessions,
+      analyticsUsers,
+      announcements,
+      activeAnnouncements,
+      quotes,
+      activeQuotes,
+      scheduleChanges,
+      profileSettings,
+    ] = await Promise.all([
       getPeople(),
       getSchedule(),
       db.collection("push_subscriptions").find({}, { projection: { _id: 0, personId: 1, updatedAt: 1 } }).toArray(),
@@ -40,6 +64,14 @@ export async function GET(request: NextRequest) {
       db.collection("individual_slots").countDocuments(),
       db.collection("seminars").countDocuments(),
       db.collection("calendar_subscriptions").countDocuments(),
+      db.collection("usage_analytics_sessions").countDocuments(),
+      db.collection("usage_analytics_users").countDocuments(),
+      db.collection("dashboard_announcements").countDocuments(),
+      db.collection("dashboard_announcements").countDocuments({ active: true }),
+      db.collection("daily_quotes").countDocuments(),
+      db.collection("daily_quotes").countDocuments({ active: true }),
+      db.collection("schedule_changes").countDocuments(),
+      db.collection("profile_settings").countDocuments(),
     ]);
 
     const activeIds = new Set(people.filter(person => person.active).map(person => person.id));
@@ -51,6 +83,11 @@ export async function GET(request: NextRequest) {
     }).length;
     const pushUsers = new Set(pushSubscriptions.map(item => item.personId).filter((id): id is string => typeof id === "string" && activeIds.has(id))).size;
     const lessons = schedule.days.reduce((total, day) => total + day.table.length, 0);
+    const roleCounts = {
+      admin: people.filter(person => person.role === "admin").length,
+      headman: people.filter(person => person.role === "headman").length,
+      user: people.filter(person => person.role !== "admin" && person.role !== "headman").length,
+    };
 
     const vapidPublic = Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
     const vapidPrivate = Boolean(process.env.VAPID_PRIVATE_KEY);
@@ -67,12 +104,28 @@ export async function GET(request: NextRequest) {
       detail: `${pushSubscriptions.length} устройств · ${pushUsers} активных пользователей · устаревших ${stalePush} · без активного профиля ${orphanPush}`,
     });
 
-    const adminSecret = Boolean(process.env.ADMIN_SESSION_SECRET ?? process.env.ADMIN_PASSWORD);
+    const sessionSecret = Boolean(process.env.ADMIN_SESSION_SECRET ?? process.env.ADMIN_PASSWORD);
     checks.push({
-      id: "admin-secret",
-      label: "Админ-сессия",
-      status: adminSecret ? "ok" : "error",
-      detail: adminSecret ? "Секрет сессии настроен" : "Нет ADMIN_SESSION_SECRET / ADMIN_PASSWORD",
+      id: "role-access",
+      label: "Роли и админ-доступ",
+      status: !sessionSecret || roleCounts.admin === 0 ? "error" : "ok",
+      detail: sessionSecret
+        ? `Админов ${roleCounts.admin} · старост ${roleCounts.headman} · пользователей ${roleCounts.user}`
+        : "Нет секрета для подписи role-сессии",
+    });
+
+    checks.push({
+      id: "analytics-data",
+      label: "Аналитика",
+      status: usageSessions > 0 ? "ok" : "warn",
+      detail: `${usageSessions} сессий · ${analyticsUsers} профилей с историей`,
+    });
+
+    checks.push({
+      id: "content-data",
+      label: "Контент дашборда",
+      status: "ok",
+      detail: `Объявления ${activeAnnouncements}/${announcements} активных · цитаты ${activeQuotes}/${quotes} активных`,
     });
 
     const githubToken = Boolean(process.env.GITHUB_TOKEN);
@@ -84,11 +137,12 @@ export async function GET(request: NextRequest) {
     });
 
     const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    const gitSha = process.env.VERCEL_GIT_COMMIT_SHA ?? "";
     checks.push({
       id: "vercel",
       label: "Vercel",
       status: productionUrl || process.env.VERCEL_ENV !== "production" ? "ok" : "warn",
-      detail: `Среда: ${process.env.VERCEL_ENV ?? "local"}${process.env.VERCEL_REGION ? ` · регион ${process.env.VERCEL_REGION}` : ""}${productionUrl ? " · production URL найден" : ""}`,
+      detail: `Среда: ${process.env.VERCEL_ENV ?? "local"}${process.env.VERCEL_REGION ? ` · регион ${process.env.VERCEL_REGION}` : ""}${gitSha ? ` · commit ${gitSha.slice(0,7)}` : ""}`,
     });
 
     return NextResponse.json({
@@ -100,6 +154,16 @@ export async function GET(request: NextRequest) {
         environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
         databaseLatencyMs,
         checks,
+        notes,
+        runtime: {
+          region: process.env.VERCEL_REGION ?? null,
+          commitSha: gitSha || null,
+          deploymentUrl: process.env.VERCEL_URL ?? null,
+          productionUrl: productionUrl ?? null,
+          node: process.version,
+          uptimeSeconds: Math.round(process.uptime()),
+        },
+        roles: roleCounts,
         counts: {
           people: people.length,
           activePeople: activeIds.size,
@@ -111,6 +175,14 @@ export async function GET(request: NextRequest) {
           pushSubscriptions: pushSubscriptions.length,
           pushUsers,
           calendarSubscriptions,
+          usageSessions,
+          analyticsUsers,
+          announcements,
+          activeAnnouncements,
+          quotes,
+          activeQuotes,
+          scheduleChanges,
+          profileSettings,
         },
       },
     }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
@@ -126,6 +198,9 @@ export async function GET(request: NextRequest) {
         environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
         databaseLatencyMs: null,
         checks,
+        notes,
+        runtime: null,
+        roles: null,
         counts: null,
       },
     }, { status: 500, headers: { "Cache-Control": "private, no-store, max-age=0" } });

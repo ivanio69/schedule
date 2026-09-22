@@ -1,7 +1,15 @@
+export type PersonRole = "user" | "headman" | "admin";
+
+export function normalizePersonRole(role: unknown, legacyAdminLink?: unknown): PersonRole {
+  if (role === "admin" || role === "headman" || role === "user") return role;
+  return legacyAdminLink === true ? "admin" : "user";
+}
+
 export type Person = {
   id: string;
   name: string;
   active: boolean;
+  role?: PersonRole;
   adminLink?: boolean;
   createdAt: string;
 };
