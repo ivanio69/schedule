@@ -844,9 +844,6 @@ export default function DashboardV2() {
             padding: 21px;
             border-radius: 19px;
           }
-          .dashboard-v2[data-no-pairs="true"] .dashboard-focus {
-            margin-right: auto;
-          }
           .dashboard-stats.has-next {
             grid-template-columns: 1fr 1fr;
           }
@@ -914,7 +911,7 @@ export default function DashboardV2() {
       <DashboardAnnouncements personId={person.id} />
       <DashboardDailyQuote />
       {(noPairs || current || next) && (
-        <section className={`dashboard-focus${current ? " is-current" : ""}${!current && noPairs ? " is-today" : ""}`}>
+        <section className={`dashboard-focus${current ? " is-current" : ""}`}>
           <div className="dashboard-focus-top">
             <span>
               {current
@@ -1001,12 +998,12 @@ export default function DashboardV2() {
               </small>
             </article>
           )}
-          <article>
+          <article className="dashboard-stat-today">
             <span>Сегодня</span>
             <strong>{todayCount}</strong>
             <small>занятий</small>
           </article>
-          <article>
+          <article className="dashboard-stat-week">
             <span>Неделя</span>
             <strong>№ {week}</strong>
             <small>{schedule ? formatWeekRange(schedule, week) : "—"}</small>
