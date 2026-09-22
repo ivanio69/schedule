@@ -43,12 +43,12 @@ export async function POST(request: NextRequest) {
   const tokenHash = authHmac("telegram-link:" + match[1]);
   const link = await db.collection<LinkDoc>("auth_telegram_links").findOne({ tokenHash });
   if (!link || link.expiresAt <= new Date().toISOString()) {
-    await sendTelegramMessage(String(chatId), "Ссылка для привязки истекла. Вернись в приложение и запроси новую.");
+    await sendTelegramMessage(String(chatId), "⌛ <b>Ссылка для привязки истекла</b>\n\nВернись в приложение и запроси новую.");
     return NextResponse.json({ ok:true });
   }
 
   if (!username || username !== link.expectedUsername) {
-    await sendTelegramMessage(String(chatId), "Этот Telegram не совпадает с username, указанным для выбранного профиля. Проверь аккаунт или обратись к администратору.");
+    await sendTelegramMessage(String(chatId), "⚠️ <b>Не удалось привязать Telegram</b>\n\nИмя пользователя этого аккаунта не совпадает с именем пользователя, указанным для выбранного профиля. Проверь аккаунт или обратись к администратору.");
     return NextResponse.json({ ok:true });
   }
 
@@ -58,6 +58,6 @@ export async function POST(request: NextRequest) {
     { $set:{ telegramChatId:String(chatId), telegramUserId:String(telegramUserId), telegramLinkedAt:now } },
   );
   await db.collection<LinkDoc>("auth_telegram_links").updateOne({ id:link.id }, { $set:{ linkedAt:now } });
-  await sendTelegramMessage(String(chatId), "Telegram привязан к Расписанию 214Р. Вернись в приложение — код входа придёт сюда.");
+  await sendTelegramMessage(String(chatId), "✅ <b>Telegram привязан</b>\n\nТеперь коды входа в <b>Расписание 214Р</b> будут приходить сюда. Вернись в приложение — первый код отправится автоматически.");
   return NextResponse.json({ ok:true });
 }

@@ -34,11 +34,11 @@ function maskUsername(value: string) {
 
 async function createLink(request: NextRequest, person: Person) {
   if (!person.telegramUsername) {
-    return NextResponse.json({ error: "Для этого профиля не указан Telegram username. Обратись к администратору." }, { status: 409 });
+    return NextResponse.json({ error: "Для этого профиля не указан имя пользователя Telegram. Обратись к администратору." }, { status: 409 });
   }
   await ensureTelegramWebhook(new URL(request.url).origin);
   const bot = await getTelegramBot();
-  if (!bot.username) throw new TelegramApiError("У Telegram-бота нет username", 503);
+  if (!bot.username) throw new TelegramApiError("У Telegram-бота нет имени пользователя", 503);
 
   const db = await getDatabase();
   const rawToken = randomBytes(24).toString("base64url");
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     const person = (await getPeople(false)).find(item => item.id === personId && item.active);
     if (!person) return NextResponse.json({ error: "Профиль не найден" }, { status: 404 });
     if (!person.telegramUsername) {
-      return NextResponse.json({ error: "Для этого профиля не указан Telegram username. Обратись к администратору." }, { status: 409 });
+      return NextResponse.json({ error: "Для этого профиля не указан имя пользователя Telegram. Обратись к администратору." }, { status: 409 });
     }
     if (!person.telegramChatId) return createLink(request, person);
 
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     try {
       await sendTelegramMessage(
         person.telegramChatId,
-        "Код входа в Расписание 214Р: " + code + "\n\nКод действует 10 минут. Никому его не сообщай.",
+        "🔐 <b>Вход в Расписание 214Р</b>\n\nТвой код подтверждения:\n<code>" + code + "</code>\n\n⏱ Код действует <b>10 минут</b>.\nНикому его не сообщай.",
       );
     } catch (error) {
       await db.collection<AuthCodeDoc>("auth_codes").deleteOne({ id });

@@ -42,6 +42,7 @@ export async function sendTelegramMessage(chatId: string, text: string) {
   return telegramApi("sendMessage", {
     chat_id: chatId,
     text,
+    parse_mode: "HTML",
     disable_web_page_preview: true,
   });
 }

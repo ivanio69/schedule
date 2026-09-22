@@ -33,6 +33,7 @@ export default function LoginPage(){
   const[resendAt,setResendAt]=useState(0);
   const[now,setNow]=useState(Date.now());
   const[nextPath,setNextPath]=useState("/");
+  const[success,setSuccess]=useState(false);
 
   useEffect(()=>{
     const raw=new URLSearchParams(window.location.search).get("next")??"/";
@@ -101,7 +102,9 @@ export default function LoginPage(){
       if(!response.ok)throw new Error(data.error??"Не удалось войти");
       localStorage.setItem("schedule_person_id",data.person.id);
       window.dispatchEvent(new Event("schedule-auth-change"));
-      window.location.href=nextPath;
+      setSuccess(true);
+      await new Promise(resolve=>window.setTimeout(resolve,reducedMotion?80:420));
+      window.location.replace(nextPath);
     }catch(cause){setError(cause instanceof Error?cause.message:"Не удалось войти")}
     finally{setBusy(false)}
   };
@@ -109,9 +112,10 @@ export default function LoginPage(){
   const back=()=>{setStep("choose");setRequestId("");setLinkId("");setBotUrl("");setCode("");setError("")};
   const resendSeconds=Math.max(0,Math.ceil((resendAt-now)/1000));
 
-  return <main className={styles.page}>
-    <div className={styles.glow} aria-hidden="true"/>
-    <motion.section className={styles.shell} initial={reducedMotion?false:{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{duration:.28}}>
+  return <motion.main className={styles.page} animate={success&&!reducedMotion?{backgroundColor:"rgba(0,0,0,.2)"}:{}} transition={{duration:.3}}>
+    <motion.div className={styles.glow} aria-hidden="true" animate={success&&!reducedMotion?{scale:1.12,opacity:.35}:{scale:1,opacity:1}} transition={{duration:.42}}/>
+    <AnimatePresence>{success&&<motion.div className={styles.loginSuccess} initial={reducedMotion?false:{opacity:0,scale:.9,filter:"blur(10px)"}} animate={{opacity:1,scale:1,filter:"blur(0px)"}} exit={{opacity:0}}><span>✓</span><strong>Вход выполнен</strong></motion.div>}</AnimatePresence>
+    <motion.section className={styles.shell} initial={reducedMotion?false:{opacity:0,y:22,scale:.975,filter:"blur(10px)"}} animate={success&&!reducedMotion?{opacity:0,y:-10,scale:.965,filter:"blur(14px)"}:{opacity:1,y:0,scale:1,filter:"blur(0px)"}} transition={{duration:success?.34:.42,ease:[.22,1,.36,1]}}>
       <header className={styles.head}>
         <div className={styles.mark}>214Р</div>
         <div><span>РАСПИСАНИЕ</span><h1>{step==="choose"?"Вход":step==="link"?"Привяжи Telegram":"Код из Telegram"}</h1></div>
@@ -129,7 +133,7 @@ export default function LoginPage(){
 
         {step==="link"&&selected&&<motion.div key="link" className={styles.content} initial={reducedMotion?false:{opacity:0,x:8}} animate={{opacity:1,x:0}} exit={reducedMotion?undefined:{opacity:0,x:8}}>
           <div className={styles.identity}><i>{selected.name[0]}</i><div><strong>{selected.name}</strong><span>{telegram}</span></div></div>
-          <p className={styles.lead}>Это первый вход через бота. Открой Telegram и нажми <b>Start</b>. Бот проверит username и привяжет этот аккаунт.</p>
+          <p className={styles.lead}>Это первый вход через бота. Открой Telegram и нажми <b>Start</b>. Бот проверит имя пользователя и привяжет этот аккаунт.</p>
           <a className={styles.telegramButton} href={botUrl} target="_blank" rel="noreferrer">Открыть Telegram-бота ↗</a>
           <div className={styles.waiting}><span/><div><strong>Ждём привязку</strong><small>После Start код отправится автоматически</small></div></div>
           <button type="button" className={styles.secondary} onClick={()=>void requestCode()} disabled={busy}>{busy?"Проверяем…":"Я уже привязал Telegram"}</button>
@@ -148,5 +152,5 @@ export default function LoginPage(){
       {error&&<p className={styles.error} role="alert">{error}</p>}
       <footer><span>Код действует 10 минут</span><span>До подтверждения приложение закрыто</span></footer>
     </motion.section>
-  </main>;
+  </motion.main>;
 }
