@@ -33,7 +33,7 @@ export default function HeadmanPanel(){
   const [busy,setBusy]=useState(false);
   const [angerSelected,setAngerSelected]=useState<string[]>([]);
   const [angerType,setAngerType]=useState<"late"|"absence">("late");
-  const [selectedAbsence,setSelectedAbsence]=useState<AttendanceReport|null>(null);
+  const [selectedReport,setSelectedReport]=useState<AttendanceReport|null>(null);
   const [quickAngerStatus,setQuickAngerStatus]=useState("");
 
   const load=async()=>{
@@ -89,17 +89,17 @@ export default function HeadmanPanel(){
     setAngerSelected([]);
   };
 
-  const openAbsence=(report:AttendanceReport)=>{
+  const openReport=(report:AttendanceReport)=>{
     setQuickAngerStatus("");
-    setSelectedAbsence(report);
+    setSelectedReport(report);
   };
 
   const sendQuickAnger=async()=>{
-    if(!selectedAbsence||busy)return;
+    if(!selectedReport||busy)return;
     setBusy(true);
     setQuickAngerStatus("");
     try{
-      const response=await fetch("/api/headman/reminders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipients:[selectedAbsence.personId],type:"absence"})});
+      const response=await fetch("/api/headman/reminders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipients:[selectedReport.personId],type:selectedReport.kind==="late"?"late":"absence"})});
       const data=await response.json().catch(()=>null);
       if(!response.ok)throw new Error(data?.error??"Не удалось отправить");
       setQuickAngerStatus("Отправлено · "+(data.delivery?.sent??0)+"/"+(data.delivery?.subscriptions??0));
@@ -166,8 +166,8 @@ export default function HeadmanPanel(){
           <div className={styles.lessonTime}><strong>{lesson.start}</strong><small>{current?"сейчас":lesson.end}</small></div>
           <div className={styles.lessonMain}><strong>{lesson.title}</strong><small>{lesson.auditorium||"—"}</small></div>
           <div className={styles.lessonPeople}>
-            {absence.length>0&&<div className={styles.absentGroup}><span>Не будет · {absence.length}</span><div className={styles.personLinks}>{absence.map(item=><button type="button" key={item.id} onClick={()=>openAbsence(item)}>{item.personName}</button>)}</div></div>}
-            {late.length>0&&<div className={styles.lateGroup}><span>Опоздают · {late.length}</span><p>{late.map(item=>item.personName).join(" · ")}</p></div>}
+            {absence.length>0&&<div className={styles.absentGroup}><span>Не будет · {absence.length}</span><div className={styles.personLinks}>{absence.map(item=><button type="button" key={item.id} onClick={()=>openReport(item)}>{item.personName}</button>)}</div></div>}
+            {late.length>0&&<div className={styles.lateGroup}><span>Опоздают · {late.length}</span><div className={styles.lateLinks}>{late.map(item=><button type="button" key={item.id} onClick={()=>openReport(item)}>{item.personName}</button>)}</div></div>}
             {!absence.length&&!late.length&&<span className={styles.clear}>Все без отметок</span>}
           </div>
         </article>):<div className={styles.empty}>Сегодня пар нет</div>}
@@ -184,12 +184,12 @@ export default function HeadmanPanel(){
         <span>{visible.length}</span>
       </header>
       <div className={styles.reports}>{visible.length?visible.map(report=><div
-        className={styles.report+(report.kind==="absence"?" "+styles.reportClickable:"")}
+        className={styles.report+" "+styles.reportClickable+(report.kind==="late"?" "+styles.reportLateClickable:" "+styles.reportAbsenceClickable)}
         key={report.id}
-        role={report.kind==="absence"?"button":undefined}
-        tabIndex={report.kind==="absence"?0:undefined}
-        onClick={report.kind==="absence"?()=>openAbsence(report):undefined}
-        onKeyDown={report.kind==="absence"?event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openAbsence(report)}}:undefined}
+        role="button"
+        tabIndex={0}
+        onClick={()=>openReport(report)}
+        onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openReport(report)}}}
       >
         <div className={styles.avatar}>{report.personName.trim().charAt(0).toUpperCase()}</div>
         <div><strong>{report.personName}</strong><p>{reportText(report)}</p><small>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(report.updatedAt))}</small></div>
@@ -214,20 +214,20 @@ export default function HeadmanPanel(){
       {status&&<p className={styles.status} role="status">{status}</p>}
     </section>}
 
-    {selectedAbsence&&typeof document!=="undefined"&&createPortal(<div className={styles.modalOverlay} role="presentation" onMouseDown={()=>setSelectedAbsence(null)}>
-      <section className={styles.absenceModal} role="dialog" aria-modal="true" aria-label={"Отсутствие: "+selectedAbsence.personName} onMouseDown={event=>event.stopPropagation()}>
-        <header><div><span>ОТСУТСТВИЕ</span><h2>{selectedAbsence.personName}</h2></div><button type="button" onClick={()=>setSelectedAbsence(null)} aria-label="Закрыть">×</button></header>
-        <div className={styles.absenceDetails}>
-          <div><span>Когда</span><strong>{selectedAbsence.scope==="lesson"?(selectedAbsence.lessonTitle??"Пара")+" · "+(selectedAbsence.lessonStart??""):selectedAbsence.scope==="day"?"Весь день · "+shortDate(selectedAbsence.dateFrom):shortDate(selectedAbsence.dateFrom)+"–"+shortDate(selectedAbsence.dateTo)}</strong></div>
-          <div><span>Причина</span><strong>{attendanceReasonText(selectedAbsence)||"Не указана"}</strong></div>
-          <div><span>Отправлено</span><strong>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(selectedAbsence.createdAt))}</strong></div>
-          {selectedAbsence.updatedAt!==selectedAbsence.createdAt&&<div><span>Обновлено</span><strong>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(selectedAbsence.updatedAt))}</strong></div>}
+    {selectedReport&&typeof document!=="undefined"&&createPortal(<div className={styles.modalOverlay} role="presentation" onMouseDown={()=>setSelectedReport(null)}>
+      <section className={styles.detailModal+" "+(selectedReport.kind==="late"?styles.detailModalLate:styles.detailModalAbsence)} role="dialog" aria-modal="true" aria-label={(selectedReport.kind==="late"?"Опоздание: ":"Отсутствие: ")+selectedReport.personName} onMouseDown={event=>event.stopPropagation()}>
+        <header><div><span>{selectedReport.kind==="late"?"ОПОЗДАНИЕ":"ОТСУТСТВИЕ"}</span><h2>{selectedReport.personName}</h2></div><button type="button" onClick={()=>setSelectedReport(null)} aria-label="Закрыть">×</button></header>
+        <div className={styles.detailGrid}>
+          <div><span>Когда</span><strong>{selectedReport.kind==="late"?(selectedReport.lessonTitle??"Пара")+" · "+(selectedReport.lessonStart??""):selectedReport.scope==="lesson"?(selectedReport.lessonTitle??"Пара")+" · "+(selectedReport.lessonStart??""):selectedReport.scope==="day"?"Весь день · "+shortDate(selectedReport.dateFrom):shortDate(selectedReport.dateFrom)+"–"+shortDate(selectedReport.dateTo)}</strong></div>
+          {selectedReport.kind==="absence"&&<div><span>Причина</span><strong>{attendanceReasonText(selectedReport)||"Не указана"}</strong></div>}
+          <div><span>Отправлено</span><strong>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(selectedReport.createdAt))}</strong></div>
+          {selectedReport.updatedAt!==selectedReport.createdAt&&<div><span>Обновлено</span><strong>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(selectedReport.updatedAt))}</strong></div>}
         </div>
         <div className={styles.modalActions}>
           <button type="button" className={styles.quickAnger} disabled={busy} onClick={()=>void sendQuickAnger()}>{busy?"Отправляю…":"😡 Гневная кнопка"}</button>
-          {(()=>{const username=people.find(person=>person.id===selectedAbsence.personId)?.telegramUsername;return username?<a className={styles.telegramLink} href={"https://t.me/"+encodeURIComponent(username)} target="_blank" rel="noreferrer">Написать в Telegram ↗</a>:<div className={styles.telegramMissing}>Telegram не указан</div>})()}
+          {(()=>{const username=people.find(person=>person.id===selectedReport.personId)?.telegramUsername;return username?<a className={styles.telegramLink} href={"https://t.me/"+encodeURIComponent(username)} target="_blank" rel="noreferrer">Написать в Telegram ↗</a>:<div className={styles.telegramMissing}>Telegram не указан</div>})()}
         </div>
-        <p className={styles.quickAngerText}>«злата очень сильно злиться. предупреждай если прогуливаешь.»</p>
+        <p className={styles.quickAngerText}>«{selectedReport.kind==="late"?"злата злится. не опаздывай.":"злата очень сильно злиться. предупреждай если прогуливаешь."}»</p>
         {quickAngerStatus&&<p className={styles.quickAngerStatus} role="status">{quickAngerStatus}</p>}
       </section>
     </div>,document.body)}
