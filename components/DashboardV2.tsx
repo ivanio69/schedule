@@ -502,13 +502,24 @@ export default function DashboardV2() {
           color: var(--text);
         }
         .dashboard-stats {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
+          display: flex;
+          align-items: stretch;
           gap: 9px;
           margin-top: 9px;
         }
-        .dashboard-stats.has-next {
-          grid-template-columns: 2fr 1fr 1fr;
+        .dashboard-stat-next {
+          flex: 2 1 0;
+          min-width: 0;
+        }
+        .dashboard-stat-pair {
+          display: grid;
+          flex: 2 1 0;
+          min-width: 0;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 9px;
+        }
+        .dashboard-stats:not(.has-next) .dashboard-stat-pair {
+          flex-basis: 100%;
         }
         .dashboard-stats article {
           display: grid;
@@ -844,11 +855,24 @@ export default function DashboardV2() {
             padding: 21px;
             border-radius: 19px;
           }
+          .dashboard-stats,
           .dashboard-stats.has-next {
-            grid-template-columns: 1fr 1fr;
+            display: block;
           }
-          .dashboard-stats.has-next article:first-child {
-            grid-column: 1/-1;
+          .dashboard-stat-next {
+            width: 100%;
+            margin-bottom: 9px;
+          }
+          .dashboard-stat-pair {
+            display: grid;
+            width: 100%;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+          }
+          .dashboard-stat-pair > article {
+            width: 100%;
+            min-width: 0;
+            grid-column: auto !important;
           }
           .dashboard-event-v2 {
             grid-template-columns: 58px minmax(0, 1fr) auto;
@@ -988,7 +1012,7 @@ export default function DashboardV2() {
           className={`dashboard-stats${showNextStat ? " has-next" : ""}`}
         >
           {showNextStat && (
-            <article>
+            <article className="dashboard-stat-next">
               <span>Следующая</span>
               <strong>{next?.title ?? "—"}</strong>
               <small>
@@ -998,16 +1022,18 @@ export default function DashboardV2() {
               </small>
             </article>
           )}
-          <article>
-            <span>Сегодня</span>
-            <strong>{todayCount}</strong>
-            <small>занятий</small>
-          </article>
-          <article>
-            <span>Неделя</span>
-            <strong>№ {week}</strong>
-            <small>{schedule ? formatWeekRange(schedule, week) : "—"}</small>
-          </article>
+          <div className="dashboard-stat-pair">
+            <article className="dashboard-stat-today">
+              <span>Сегодня</span>
+              <strong>{todayCount}</strong>
+              <small>занятий</small>
+            </article>
+            <article className="dashboard-stat-week">
+              <span>Неделя</span>
+              <strong>№ {week}</strong>
+              <small>{schedule ? formatWeekRange(schedule, week) : "—"}</small>
+            </article>
+          </div>
         </section>
       )}
 
