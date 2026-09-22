@@ -246,18 +246,28 @@ body:has(.dev-environment-banner) .version-update-notice{top:calc(max(10px,env(s
 @media(max-width:560px){.version-update-notice{align-items:flex-start;gap:10px}.version-update-notice>div:last-child{flex-direction:column}.version-update-notice span{white-space:normal}}
 
 
-/* Hotfix: keep the "Сегодня · N занятий" stat compact on phones. */
+/* Hotfix: all dashboard stats stay in one row on phones. */
 @media (max-width: 650px) {
   body .dashboard-v2 .dashboard-stats,
   body .dashboard-v2 .dashboard-stats.has-next {
-    grid-template-columns: 132px minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1.6fr) 92px 92px !important;
+    align-items: stretch;
   }
   body .dashboard-v2 .dashboard-stats.has-next > article:first-child {
-    grid-column: 1 / -1;
+    grid-column: auto !important;
+    min-width: 0;
+  }
+  body .dashboard-v2 .dashboard-stats > article {
+    min-width: 0;
+    padding: 13px 12px !important;
   }
   body .dashboard-v2 .dashboard-stat-today {
-    width: 132px;
-    min-width: 132px;
-    max-width: 132px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+  body .dashboard-v2 .dashboard-stats > article strong,
+  body .dashboard-v2 .dashboard-stats > article small {
+    overflow-wrap: anywhere;
   }
 }
