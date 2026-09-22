@@ -1,7 +1,7 @@
 .dashboard-daily-quote-reveal{display:grid;grid-template-rows:0fr;transition:grid-template-rows .46s cubic-bezier(.22,1,.36,1)}
 .dashboard-daily-quote-reveal.is-visible{grid-template-rows:1fr}
 .dashboard-daily-quote-reveal-inner{min-height:0;overflow:hidden}
-.dashboard-daily-quote{position:relative;display:grid;gap:7px;margin:15px 8px 2px;padding:12px 76px 13px 10px;color:var(--muted);animation:dashboard-quote-in .38s .08s cubic-bezier(.22,1,.36,1) both}
+.dashboard-daily-quote{position:relative;display:grid;gap:6px;margin:7px 8px 0;padding:6px 76px 7px 10px;color:var(--muted);animation:dashboard-quote-in .38s .08s cubic-bezier(.22,1,.36,1) both}
 .dashboard-daily-quote::before{content:"“";position:absolute;z-index:0;right:4px;top:-15px;color:color-mix(in srgb,var(--muted) 14%,transparent);font-family:Georgia,"Times New Roman",serif;font-size:94px;font-weight:700;line-height:1;pointer-events:none}
 .dashboard-daily-quote>span,.dashboard-daily-quote blockquote,.dashboard-daily-quote footer{position:relative;z-index:1}
 .dashboard-daily-quote>span{display:block;color:color-mix(in srgb,var(--muted) 78%,transparent);font-size:9px;font-weight:800;letter-spacing:.12em}
@@ -18,5 +18,5 @@
 .daily-quotes-list>article>div:last-child{display:flex;align-items:flex-start;flex-wrap:wrap;gap:7px}
 @keyframes dashboard-quote-in{from{opacity:0;transform:translateY(6px);filter:blur(3px)}to{opacity:1;transform:none;filter:blur(0)}}
 .daily-quotes-list .admin-empty{margin:0;padding:28px 18px}
-@media(max-width:720px){.dashboard-daily-quote{gap:6px;margin:12px 3px 1px;padding:10px 54px 11px 6px}.dashboard-daily-quote::before{right:0;top:-9px;font-size:72px}.dashboard-daily-quote blockquote{font-size:14px;line-height:1.52}.dashboard-daily-quote footer{font-size:10px}.daily-quotes-list>header{padding:13px 14px}.daily-quotes-list>article{grid-template-columns:1fr;gap:10px;padding:13px 14px}.daily-quotes-list>article>div:last-child>*{flex:1 1 auto}}
+@media(max-width:720px){.dashboard-daily-quote{gap:5px;margin:6px 3px 0;padding:5px 54px 6px 6px}.dashboard-daily-quote::before{right:0;top:-9px;font-size:72px}.dashboard-daily-quote blockquote{font-size:14px;line-height:1.52}.dashboard-daily-quote footer{font-size:10px}.daily-quotes-list>header{padding:13px 14px}.daily-quotes-list>article{grid-template-columns:1fr;gap:10px;padding:13px 14px}.daily-quotes-list>article>div:last-child>*{flex:1 1 auto}}
 @media(prefers-reduced-motion:reduce){.dashboard-daily-quote-reveal{transition:none!important}.dashboard-daily-quote{animation:none!important}}
