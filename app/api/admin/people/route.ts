@@ -18,7 +18,11 @@ function telegramUsername(value: unknown) {
 
 export async function GET(request: NextRequest) {
   if (!authorized(request)) return bad();
-  return NextResponse.json({ people: await getPeople(false) }, { headers: { "Cache-Control": "no-store" } });
+  const people=(await getPeople(false)).map(({telegramChatId,telegramUserId,telegramLinkedAt,...person})=>({
+    ...person,
+    telegramLinked:Boolean(telegramChatId&&telegramUserId&&telegramLinkedAt),
+  }));
+  return NextResponse.json({ people }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: NextRequest) {
@@ -26,7 +30,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (!body || typeof body.name !== "string" || !body.name.trim()) return NextResponse.json({ error: "Укажите имя" }, { status: 400 });
   const username = telegramUsername(body.telegramUsername);
-  if (username === null) return NextResponse.json({ error: "Telegram username: 5–32 символа, латиница, цифры или _" }, { status: 400 });
+  if (username === null) return NextResponse.json({ error: "Имя пользователя Telegram: 5–32 символа, латиница, цифры или _" }, { status: 400 });
   const person = await savePerson({ name: body.name.trim().slice(0,120), active: body.active !== false, role: normalizePersonRole(body.role), telegramUsername: username || undefined });
   return NextResponse.json({ person }, { status: 201 });
 }
@@ -36,7 +40,7 @@ export async function PUT(request: NextRequest) {
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (!body || typeof body.id !== "string" || typeof body.name !== "string" || !body.name.trim()) return NextResponse.json({ error: "Проверьте данные человека" }, { status: 400 });
   const username = telegramUsername(body.telegramUsername);
-  if (username === null) return NextResponse.json({ error: "Telegram username: 5–32 символа, латиница, цифры или _" }, { status: 400 });
+  if (username === null) return NextResponse.json({ error: "Имя пользователя Telegram: 5–32 символа, латиница, цифры или _" }, { status: 400 });
   const person = await savePerson({ name: body.name.trim().slice(0,120), active: body.active !== false, role: normalizePersonRole(body.role), telegramUsername: username || undefined }, body.id);
   return NextResponse.json({ person });
 }

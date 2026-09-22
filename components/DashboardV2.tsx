@@ -62,8 +62,7 @@ type Event = {
 export default function DashboardV2() {
   const reducedMotion = useReducedMotion();
   const [modalPortalReady, setModalPortalReady] = useState(false);
-  const [people, setPeople] = useState<Person[]>([]),
-    [person, setPerson] = useState<Person | null>(null),
+  const [person, setPerson] = useState<Person | null>(null),
     [schedule, setSchedule] = useState<ScheduleData | null>(null),
     [individuals, setIndividuals] = useState<IndividualLesson[]>([]),
     [rehearsals, setRehearsals] = useState<Rehearsal[]>([]),
@@ -114,33 +113,32 @@ export default function DashboardV2() {
     setModalPortalReady(true);
   }, []);
   useEffect(() => {
-    const id = localStorage.getItem(PERSON_KEY),
-      today = dateKey(new Date());
-    Promise.all([
-      fetch("/api/people", { cache: "no-store" }).then((r) => r.json()),
-      fetch(
-        `/api/schedule?date=${today}&personId=${encodeURIComponent(id ?? "")}`,
-        { cache: "no-store" },
-      ).then((r) => r.json()),
-      fetch("/api/seminars", { cache: "no-store" }).then((r) => r.json()),
-    ])
-      .then(([p, s, seminarData]) => {
-        const list = p.people ?? [];
-        const chosen = list.find((x: Person) => x.id === id) ?? null;
-        setPeople(list);
-        setPerson(chosen);
-        setSchedule(s.schedule ?? null);
-        setRehearsals(s.rehearsals ?? []);
-        setSeminars(seminarData.lists ?? []);
-        if (chosen) { void loadProfile(chosen.id); void loadAttendance(); }
-        else if (s.schedule)
-          setPreferences(
-            Object.fromEntries(
-              getSubgroupSubjects(s.schedule).map((x) => [x.name, "both"]),
-            ),
-          );
-      })
-      .finally(() => setLoading(false));
+    let cancelled=false;
+    void (async()=>{
+      try{
+        const authResponse=await fetch("/api/auth/session",{cache:"no-store"});
+        if(!authResponse.ok){window.location.replace("/login");return;}
+        const auth=await authResponse.json();
+        const current=auth.person as {id:string;name:string;role?:Person["role"]};
+        if(!current?.id){window.location.replace("/login");return;}
+        localStorage.setItem(PERSON_KEY,current.id);
+        const today=dateKey(new Date());
+        const [s,seminarData]=await Promise.all([
+          fetch(`/api/schedule?date=${today}&personId=${encodeURIComponent(current.id)}`,{cache:"no-store"}).then(r=>r.json()),
+          fetch("/api/seminars",{cache:"no-store"}).then(r=>r.json()),
+        ]);
+        if(cancelled)return;
+        setPerson({id:current.id,name:current.name,active:true,role:current.role,createdAt:""});
+        setSchedule(s.schedule??null);
+        setRehearsals(s.rehearsals??[]);
+        setSeminars(seminarData.lists??[]);
+        void loadProfile(current.id);
+        void loadAttendance();
+      }finally{
+        if(!cancelled)setLoading(false);
+      }
+    })();
+    return()=>{cancelled=true};
   }, []);
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 10000);
@@ -336,15 +334,6 @@ export default function DashboardV2() {
     : current
       ? countdown(current.end)
       : "";
-  const select = (p: Person) => {
-    localStorage.setItem(PERSON_KEY, p.id);
-    window.dispatchEvent(new Event("schedule-auth-change"));
-    setPerson(p);
-    void loadProfile(p.id);
-    setAttendanceReports([]);
-    void loadAttendance();
-    void loadRehearsals(p.id, dateKey(new Date()));
-  };
   const openNote = (e: Event) => {
     setNoteEvent(e);
     setNoteText(notes[e.key] ?? "");
@@ -381,27 +370,7 @@ export default function DashboardV2() {
         detail="Собираем пары, семинары и личные занятия."
       />
     );
-  if (!person)
-    return (
-      <main className="dashboard-v2 dashboard-choose">
-        <p className="dashboard-kicker">214Р · РАСПИСАНИЕ</p>
-        <h1>
-          Кто сегодня
-          <br />
-          учится?
-        </h1>
-        <p>Выбери своё имя.</p>
-        <div className="dashboard-people">
-          {people.map((p) => (
-            <button key={p.id} onClick={() => select(p)}>
-              <span>{p.name[0]}</span>
-              <strong>{p.name}</strong>
-              <b>→</b>
-            </button>
-          ))}
-        </div>
-      </main>
-    );
+  if (!person) return <LoadingState screen label="Проверяем вход" detail="Подтверждаем Telegram-сессию."/>;
   const noPairs = groups.length === 0;
   const attendanceLessons = groups.filter(item => item.occurrence?.status !== "cancelled").map(item => ({ key: item.occurrence?.key ?? item.id ?? noteKey(todayKey,item.timeStart,item.class), title: item.class, start: item.timeStart, end: item.timeEnd }));
   return (

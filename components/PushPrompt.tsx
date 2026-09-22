@@ -24,7 +24,7 @@ export default function PushPrompt(){
  useEffect(()=>{
   let alive=true;let lastBound="";
   const evaluate=()=>{
-   if(!supported())return setShow(false);
+   if(pathname==="/login"||!supported())return setShow(false);
    const personId=localStorage.getItem(PERSON_KEY)??"";
    if(Notification.permission==="granted"){
     setShow(false);

@@ -6,33 +6,31 @@ const PERSON_KEY = "schedule_person_id";
 
 export default function ProfileSessionSync() {
   useEffect(() => {
-    let sequence = 0;
-    const sync = () => {
-      const current = ++sequence;
-      const personId = localStorage.getItem(PERSON_KEY);
-      const request = personId
-        ? fetch("/api/profile-session", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ personId }),
-            cache: "no-store",
-            keepalive: true,
-          })
-        : fetch("/api/profile-session", { method: "DELETE", cache: "no-store", keepalive: true });
-      void request.catch(() => {}).then(() => {
-        if (current !== sequence) return;
-      });
+    let alive = true;
+    const sync = async () => {
+      try {
+        const response = await fetch("/api/auth/session", { cache:"no-store" });
+        if (!alive) return;
+        if (!response.ok) {
+          if (localStorage.getItem(PERSON_KEY)) {
+            localStorage.removeItem(PERSON_KEY);
+            window.dispatchEvent(new Event("schedule-auth-change"));
+          }
+          return;
+        }
+        const data = await response.json();
+        const id = typeof data?.person?.id === "string" ? data.person.id : "";
+        if (id && localStorage.getItem(PERSON_KEY) !== id) {
+          localStorage.setItem(PERSON_KEY, id);
+          window.dispatchEvent(new Event("schedule-auth-change"));
+        }
+      } catch {}
     };
-
-    sync();
-    window.addEventListener("storage", sync);
-    window.addEventListener("schedule-auth-change", sync);
-    return () => {
-      sequence += 1;
-      window.removeEventListener("storage", sync);
-      window.removeEventListener("schedule-auth-change", sync);
-    };
+    void sync();
+    const visible=()=>{if(document.visibilityState==="visible")void sync()};
+    window.addEventListener("focus",sync);
+    document.addEventListener("visibilitychange",visible);
+    return()=>{alive=false;window.removeEventListener("focus",sync);document.removeEventListener("visibilitychange",visible)};
   }, []);
-
   return null;
 }
