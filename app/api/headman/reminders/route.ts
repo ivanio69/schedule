@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   const recipients = [...new Set(requested)].filter(id => validIds.has(id) && id !== actor.id).slice(0, 40);
   if (!type || !recipients.length) return NextResponse.json({ error: "Выбери людей и тип напоминания" }, { status: 400 });
 
-  const title = "⚠️ Строгое напоминание";
+  const title = "Письмо от Златы";
   const message = type === "late"
     ? "злата злится. не опаздывай."
     : "злата очень сильно злиться. предупреждай если прогуливаешь.";
