@@ -15,6 +15,7 @@ type Overview={
   lessons:{key:string;title:string;start:string;end:string;auditorium:string;status:string|null}[];
 };
 type ReportFilter="today"|"upcoming"|"all";
+type HeadmanTab="today"|"reports"|"announcements"|"reminder";
 
 const localDateKey=()=>{
   const date=new Date();
@@ -26,6 +27,7 @@ const displayToday=()=>new Intl.DateTimeFormat("ru-RU",{weekday:"long",day:"nume
 export default function HeadmanPanel(){
   const [overview,setOverview]=useState<Overview|null>(null);
   const [loading,setLoading]=useState(true);
+  const [tab,setTab]=useState<HeadmanTab>("today");
   const [filter,setFilter]=useState<ReportFilter>("today");
   const [status,setStatus]=useState("");
   const [busy,setBusy]=useState(false);
@@ -57,21 +59,25 @@ export default function HeadmanPanel(){
   const absentToday=reports.filter(report=>report.kind==="absence"&&appliesToday(report));
   const absentPeopleToday=new Set(absentToday.map(report=>report.personId)).size;
   const latePeopleToday=new Set(lateToday.map(report=>report.personId)).size;
-  const periodReports=reports.filter(report=>report.kind==="absence"&&report.scope==="period"&&report.dateTo>=today);
+  const visible=useMemo(()=>reports.filter(report=>filter==="all"||filter==="today"?filter==="all"||report.dateFrom<=today&&report.dateTo>=today:report.dateTo>=today),[reports,filter,today]);
+
   const now=new Date();
   const nowMinutes=now.getHours()*60+now.getMinutes();
   const toMinutes=(value:string)=>{const [hours,minutes]=value.split(":").map(Number);return hours*60+minutes};
-  const visible=useMemo(()=>reports.filter(report=>filter==="all"||filter==="today"?filter==="all"||report.dateFrom<=today&&report.dateTo>=today:report.dateTo>=today),[reports,filter,today]);
 
   const lessonRows=(overview?.lessons??[]).map(lesson=>{
     const rawAbsence=reports.filter(report=>report.kind==="absence"&&report.dateFrom<=today&&report.dateTo>=today&&(report.scope!=="lesson"||report.lessonKey===lesson.key));
     const absence=[...new Map(rawAbsence.sort((a,b)=>(a.scope==="lesson"?0:a.scope==="day"?1:2)-(b.scope==="lesson"?0:b.scope==="day"?1:2)).map(report=>[report.personId,report] as const)).values()];
     const absentIds=new Set(absence.map(report=>report.personId));
     const late=reports.filter(report=>report.kind==="late"&&report.dateFrom===today&&report.lessonKey===lesson.key&&!absentIds.has(report.personId));
-    return {lesson,absence,late};
+    const current=toMinutes(lesson.start)<=nowMinutes&&toMinutes(lesson.end)>nowMinutes;
+    return {lesson,absence,late,current};
   });
 
+  const currentLesson=lessonRows.find(item=>item.current);
+  const affectedLessons=lessonRows.filter(item=>item.absence.length||item.late.length).length;
   const toggle=(setter:Dispatch<SetStateAction<string[]>>,id:string)=>setter(current=>current.includes(id)?current.filter(item=>item!==id):[...current,id]);
+
   const candidates=angerType==="late"
     ? [...new Set(lateToday.map(item=>item.personId))].filter(id=>id!==overview?.actor.id)
     : [...new Set(absentToday.map(item=>item.personId))].filter(id=>id!==overview?.actor.id);
@@ -110,64 +116,74 @@ export default function HeadmanPanel(){
   if(loading&&!overview)return <main className={styles.page}><div className={styles.loading}>Загружаем…</div></main>;
 
   return <main className={styles.page}>
-    <header className={styles.head}>
-      <div><h1>Сегодня</h1><span>{displayToday()}</span></div>
+    <header className={styles.topbar}>
+      <div>
+        <strong>Староста</strong>
+        <span>{displayToday()}</span>
+      </div>
       <button className={styles.refresh} type="button" disabled={loading} onClick={()=>void load()} aria-label="Обновить">↻</button>
     </header>
 
-    <section className={styles.quickStats}>
-      <div><strong>{absentPeopleToday}</strong><span>не будет</span></div>
-      <div><strong>{latePeopleToday}</strong><span>опоздают</span></div>
-      {periodReports.length>0&&<div><strong>{periodReports.length}</strong><span>длительных</span></div>}
-    </section>
+    <nav className={styles.tabs} aria-label="Разделы панели старосты">
+      <button className={tab==="today"?styles.active:""} onClick={()=>setTab("today")}><span>Сегодня</span>{affectedLessons>0&&<b>{affectedLessons}</b>}</button>
+      <button className={tab==="reports"?styles.active:""} onClick={()=>setTab("reports")}><span>Отметки</span>{reports.length>0&&<b>{reports.length}</b>}</button>
+      <button className={tab==="announcements"?styles.active:""} onClick={()=>setTab("announcements")}><span>Объявления</span></button>
+      <button className={tab==="reminder"?styles.active:""} onClick={()=>setTab("reminder")}><span>Напоминание</span></button>
+    </nav>
 
-    <section className={styles.todayLessons}>
-      <header><h2>Пары</h2><span>{lessonRows.length}</span></header>
-      <div className={styles.lessonList}>
-        {lessonRows.length?lessonRows.map(({lesson,absence,late})=>{const current=toMinutes(lesson.start)<=nowMinutes&&toMinutes(lesson.end)>nowMinutes;return <article className={styles.lessonRow+(current?" "+styles.currentLesson:"")} key={lesson.key}>
+    {tab==="today"&&<section className={styles.todayView}>
+      <div className={styles.todaySummary}>
+        <div><strong>{absentPeopleToday}</strong><span>не будет</span></div>
+        <div><strong>{latePeopleToday}</strong><span>опоздают</span></div>
+        <div><strong>{affectedLessons}</strong><span>пар с отметками</span></div>
+        {currentLesson&&<div className={styles.currentSummary}><span>сейчас</span><strong>{currentLesson.lesson.start} · {currentLesson.lesson.title}</strong></div>}
+      </div>
+
+      <section className={styles.todayLessons}>
+        {lessonRows.length?lessonRows.map(({lesson,absence,late,current})=><article className={styles.lessonRow+(current?" "+styles.currentLesson:"")} key={lesson.key}>
           <div className={styles.lessonTime}><strong>{lesson.start}</strong><small>{current?"сейчас":lesson.end}</small></div>
           <div className={styles.lessonMain}><strong>{lesson.title}</strong><small>{lesson.auditorium||"—"}</small></div>
           <div className={styles.lessonPeople}>
-            {absence.length>0&&<div className={styles.absentGroup}><span>НЕ БУДЕТ · {absence.length}</span><div className={styles.personLinks}>{absence.map(item=><button type="button" key={item.id} onClick={()=>setSelectedAbsence(item)}>{item.personName}</button>)}</div></div>}
-            {late.length>0&&<div className={styles.lateGroup}><span>ОПОЗДАЮТ · {late.length}</span><p>{late.map(item=>item.personName).join(" · ")}</p></div>}
-            {!absence.length&&!late.length&&<span className={styles.clear}>Отметок нет</span>}
+            {absence.length>0&&<div className={styles.absentGroup}><span>Не будет · {absence.length}</span><div className={styles.personLinks}>{absence.map(item=><button type="button" key={item.id} onClick={()=>setSelectedAbsence(item)}>{item.personName}</button>)}</div></div>}
+            {late.length>0&&<div className={styles.lateGroup}><span>Опоздают · {late.length}</span><p>{late.map(item=>item.personName).join(" · ")}</p></div>}
+            {!absence.length&&!late.length&&<span className={styles.clear}>Все без отметок</span>}
           </div>
-        </article>}):<div className={styles.empty}>Сегодня пар нет</div>}
-      </div>
-    </section>
-
-    <section className={styles.workGrid}>
-      <article className={styles.panel}>
-        <header className={styles.panelHead}>
-          <strong>Отметки</strong>
-          <div className={styles.filters}>
-            <button className={filter==="today"?styles.active:""} onClick={()=>setFilter("today")}>Сегодня</button>
-            <button className={filter==="upcoming"?styles.active:""} onClick={()=>setFilter("upcoming")}>Актуальные</button>
-            <button className={filter==="all"?styles.active:""} onClick={()=>setFilter("all")}>Все</button>
-          </div>
-        </header>
-        <div className={styles.reports}>{visible.length?visible.map(report=><div className={styles.report} key={report.id}>
-          <div className={styles.avatar}>{report.personName.trim().charAt(0).toUpperCase()}</div>
-          <div>{report.kind==="absence"?<button type="button" className={styles.reportPerson} onClick={()=>setSelectedAbsence(report)}>{report.personName}</button>:<strong>{report.personName}</strong>}<p>{reportText(report)}</p><small>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(report.updatedAt))}</small></div>
-          <span className={styles.badge+" "+(report.kind==="late"?styles.badgeLate:styles.badgeAbsence)}>{report.kind==="late"?"ОПОЗДАНИЕ":"ОТСУТСТВИЕ"}</span>
-        </div>):<div className={styles.empty}>Нет отметок</div>}</div>
-      </article>
-
-      <section className={styles.reminder}>
-        <header><strong>Напоминание</strong></header>
-        <div className={styles.segment}><button className={angerType==="late"?styles.active:""} onClick={()=>setReminderType("late")}>Опоздание</button><button className={angerType==="absence"?styles.active:""} onClick={()=>setReminderType("absence")}>Прогул</button></div>
-        <div className={styles.reminderPreview}>«{reminderPreview}»</div>
-        <div className={styles.reminderTools}>
-          <button type="button" disabled={!candidates.length} onClick={()=>setAngerSelected(candidates)}>По отметкам · {candidates.length}</button>
-          {angerSelected.length>0&&<button type="button" onClick={()=>setAngerSelected([])}>Снять выбор</button>}
-        </div>
-        <div className={styles.peopleChips}>{people.filter(person=>person.id!==overview?.actor.id).map(person=><button type="button" key={person.id} className={angerSelected.includes(person.id)?styles.active:""} onClick={()=>toggle(setAngerSelected,person.id)}>{person.name}</button>)}</div>
-        <button className={styles.sendReminder} disabled={busy||!angerSelected.length} onClick={()=>void sendAnger()}>Отправить · {angerSelected.length}</button>
-        {status&&<p className={styles.status} role="status">{status}</p>}
+        </article>):<div className={styles.empty}>Сегодня пар нет</div>}
       </section>
-    </section>
+    </section>}
 
-    <HeadmanAnnouncements people={people}/>
+    {tab==="reports"&&<section className={styles.panel}>
+      <header className={styles.panelHead}>
+        <div className={styles.filters}>
+          <button className={filter==="today"?styles.active:""} onClick={()=>setFilter("today")}>Сегодня</button>
+          <button className={filter==="upcoming"?styles.active:""} onClick={()=>setFilter("upcoming")}>Актуальные</button>
+          <button className={filter==="all"?styles.active:""} onClick={()=>setFilter("all")}>Все</button>
+        </div>
+        <span>{visible.length}</span>
+      </header>
+      <div className={styles.reports}>{visible.length?visible.map(report=><div className={styles.report} key={report.id}>
+        <div className={styles.avatar}>{report.personName.trim().charAt(0).toUpperCase()}</div>
+        <div>{report.kind==="absence"?<button type="button" className={styles.reportPerson} onClick={()=>setSelectedAbsence(report)}>{report.personName}</button>:<strong>{report.personName}</strong>}<p>{reportText(report)}</p><small>{new Intl.DateTimeFormat("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(report.updatedAt))}</small></div>
+        <span className={styles.badge+" "+(report.kind==="late"?styles.badgeLate:styles.badgeAbsence)}>{report.kind==="late"?"ОПОЗДАНИЕ":"ОТСУТСТВИЕ"}</span>
+      </div>):<div className={styles.empty}>Нет отметок</div>}</div>
+    </section>}
+
+    {tab==="announcements"&&<HeadmanAnnouncements people={people}/>}
+
+    {tab==="reminder"&&<section className={styles.reminder}>
+      <div className={styles.segment}>
+        <button className={angerType==="late"?styles.active:""} onClick={()=>setReminderType("late")}>Опоздание</button>
+        <button className={angerType==="absence"?styles.active:""} onClick={()=>setReminderType("absence")}>Прогул</button>
+      </div>
+      <div className={styles.reminderPreview}>«{reminderPreview}»</div>
+      <div className={styles.reminderTools}>
+        <button type="button" disabled={!candidates.length} onClick={()=>setAngerSelected(candidates)}>Выбрать по отметкам · {candidates.length}</button>
+        {angerSelected.length>0&&<button type="button" onClick={()=>setAngerSelected([])}>Очистить</button>}
+      </div>
+      <div className={styles.peopleChips}>{people.filter(person=>person.id!==overview?.actor.id).map(person=><button type="button" key={person.id} className={angerSelected.includes(person.id)?styles.active:""} onClick={()=>toggle(setAngerSelected,person.id)}>{person.name}</button>)}</div>
+      <button className={styles.sendReminder} disabled={busy||!angerSelected.length} onClick={()=>void sendAnger()}>Отправить · {angerSelected.length}</button>
+      {status&&<p className={styles.status} role="status">{status}</p>}
+    </section>}
 
     {selectedAbsence&&typeof document!=="undefined"&&createPortal(<div className={styles.modalOverlay} role="presentation" onMouseDown={()=>setSelectedAbsence(null)}>
       <section className={styles.absenceModal} role="dialog" aria-modal="true" aria-label={"Отсутствие: "+selectedAbsence.personName} onMouseDown={event=>event.stopPropagation()}>
