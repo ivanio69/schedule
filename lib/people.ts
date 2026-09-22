@@ -12,6 +12,10 @@ export type Person = {
   role?: PersonRole;
   adminLink?: boolean;
   telegramUsername?: string;
+  telegramChatId?: string;
+  telegramUserId?: string;
+  telegramLinkedAt?: string;
+  telegramLinked?: boolean;
   createdAt: string;
 };
 
