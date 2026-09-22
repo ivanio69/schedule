@@ -1,51 +1,22 @@
-import { getDatabase, getIndividualLessons, getPeople, getProfileSettings, getRehearsals, getSchedule, type ProfileSettings } from "@/lib/database";
+import { getDatabase, getIndividualLessons, getPeople, getRehearsals, getSchedule, type ProfileSettings } from "@/lib/database";
 import { getOccurrences, lessonMatchesChinaMode, type GroupPreference, type ScheduleData } from "@/lib/schedule";
 import { getRehearsalAudienceNames } from "@/lib/rehearsals";
 import { normalizeDigestSettings } from "@/lib/digest-settings";
 import { sendPush } from "@/lib/push";
 import type { Person } from "@/lib/people";
 
-export type DigestMode = "morning" | "evening";
-export type DigestPlan = {
-  key: string;
-  personId: string;
-  mode: DigestMode;
-  localDate: string;
-  scheduledTime: string;
-  timeZone: string;
-  runAt: number;
-};
-
+type DigestMode = "morning" | "evening";
 type DigestEvent = { start:string;title:string;kind:"lesson"|"individual"|"rehearsal";cancelled?:boolean };
 
-export function localClock(now: Date, timeZone: string) {
+function localClock(now: Date, timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(now);
   const value = (type:string) => parts.find(part=>part.type===type)?.value ?? "";
   return { date: `${value("year")}-${value("month")}-${value("day")}`, time: `${value("hour")}:${value("minute")}` };
 }
-
-const addDay=(date:string)=>{
-  const value=new Date(date+"T00:00:00Z");
-  value.setUTCDate(value.getUTCDate()+1);
-  return value.toISOString().slice(0,10);
-};
+const minutes=(value:string)=>{const [h,m]=value.split(":").map(Number);return h*60+m};
+const addDay=(date:string)=>{const value=new Date(date+"T00:00:00Z");value.setUTCDate(value.getUTCDate()+1);return value.toISOString().slice(0,10)};
+const due=(current:string,target:string)=>{const now=minutes(current),wanted=minutes(target);return now>=wanted&&now<wanted+15};
 const short=(value:string,max=230)=>value.length<=max?value:value.slice(0,max-1).trimEnd()+"…";
-
-function localPartsAsUtc(epoch:number,timeZone:string){
-  const parts=new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(new Date(epoch));
-  const n=(type:string)=>Number(parts.find(part=>part.type===type)?.value??0);
-  return Date.UTC(n("year"),n("month")-1,n("day"),n("hour"),n("minute"),n("second"));
-}
-
-export function zonedTimeToEpoch(date:string,time:string,timeZone:string){
-  const intended=Date.parse(`${date}T${time}:00Z`);
-  let guess=intended;
-  for(let index=0;index<4;index++){
-    const represented=localPartsAsUtc(guess,timeZone);
-    guess+=intended-represented;
-  }
-  return guess;
-}
 
 function visibleLessons(schedule:ScheduleData,date:string,settings:ProfileSettings){
   return getOccurrences(schedule,date).filter(lesson=>{
@@ -58,20 +29,9 @@ function visibleLessons(schedule:ScheduleData,date:string,settings:ProfileSettin
 
 async function eventsFor(person:Person,date:string,schedule:ScheduleData,settings:ProfileSettings):Promise<DigestEvent[]>{
   const [individuals,rehearsals]=await Promise.all([getIndividualLessons(person.id,date),getRehearsals(date)]);
-  const lessons=visibleLessons(schedule,date,settings).map<DigestEvent>(lesson=>({
-    start:lesson.timeStart,
-    title:lesson.occurrence?.status==="cancelled"?"Отменена: "+lesson.class:lesson.class,
-    kind:"lesson",
-    cancelled:lesson.occurrence?.status==="cancelled",
-  }));
-  const ownIndividuals=individuals.map<DigestEvent>(lesson=>({
-    start:lesson.timeStart,
-    title:lesson.subject||"Индивидуальное",
-    kind:"individual",
-  }));
-  const ownRehearsals=rehearsals
-    .filter(item=>item.isGlobal||item.creatorId===person.id||getRehearsalAudienceNames(item).includes(person.name))
-    .map<DigestEvent>(item=>({start:item.timeStart,title:item.subject||"Репетиция",kind:"rehearsal"}));
+  const lessons=visibleLessons(schedule,date,settings).map<DigestEvent>(lesson=>({start:lesson.timeStart,title:lesson.occurrence?.status==="cancelled"?"Отменена: "+lesson.class:lesson.class,kind:"lesson",cancelled:lesson.occurrence?.status==="cancelled"}));
+  const ownIndividuals=individuals.map<DigestEvent>(lesson=>({start:lesson.timeStart,title:lesson.subject||"Индивидуальное",kind:"individual"}));
+  const ownRehearsals=rehearsals.filter(item=>item.isGlobal||item.creatorId===person.id||getRehearsalAudienceNames(item).includes(person.name)).map<DigestEvent>(item=>({start:item.timeStart,title:item.subject||"Репетиция",kind:"rehearsal"}));
   return [...lessons,...ownIndividuals,...ownRehearsals].sort((a,b)=>a.start.localeCompare(b.start)||a.title.localeCompare(b.title,"ru"));
 }
 
@@ -84,83 +44,41 @@ function payload(mode:DigestMode,date:string,events:DigestEvent[]){
   return{title:`${dayLabel} · ${events.length} событий`,body:short(preview+more),url:"/"};
 }
 
-export async function buildDigestPlans(now=new Date()):Promise<DigestPlan[]>{
+export async function runDigestDelivery(now=new Date()){
   const db=await getDatabase();
-  const [people,profileDocs]=await Promise.all([
+  const [people,schedule,profileDocs]=await Promise.all([
     getPeople(true),
+    getSchedule(),
     db.collection<ProfileSettings>("profile_settings").find({}).toArray(),
   ]);
   const profiles=new Map(profileDocs.map(item=>[item.personId,item]));
-  const plans:DigestPlan[]=[];
+  let dueProfiles=0,claimed=0,sent=0,failed=0;
   for(const person of people){
-    const settings=normalizeDigestSettings(profiles.get(person.id)?.digestSettings);
-    const clock=localClock(now,settings.timeZone);
+    const profile=profiles.get(person.id)??{personId:person.id,preferences:{},notes:{},updatedAt:new Date(0).toISOString()};
+    const digest=normalizeDigestSettings(profile.digestSettings);
+    const clock=localClock(now,digest.timeZone);
     for(const mode of ["morning","evening"] as DigestMode[]){
-      const enabled=mode==="morning"?settings.morningEnabled:settings.eveningEnabled;
-      const scheduledTime=mode==="morning"?settings.morningTime:settings.eveningTime;
-      if(!enabled)continue;
-      let localDate=clock.date;
-      let runAt=zonedTimeToEpoch(localDate,scheduledTime,settings.timeZone);
-      if(runAt<=now.getTime()+60_000){
-        localDate=addDay(localDate);
-        runAt=zonedTimeToEpoch(localDate,scheduledTime,settings.timeZone);
+      const enabled=mode==="morning"?digest.morningEnabled:digest.eveningEnabled;
+      const time=mode==="morning"?digest.morningTime:digest.eveningTime;
+      if(!enabled||!due(clock.time,time))continue;
+      dueProfiles++;
+      const key=`${person.id}:${mode}:${clock.date}`;
+      const claim=await db.collection("digest_deliveries").updateOne({key},{$setOnInsert:{key,personId:person.id,mode,localDate:clock.date,timeZone:digest.timeZone,createdAt:new Date().toISOString(),status:"pending"}},{upsert:true});
+      if(claim.upsertedCount!==1)continue;
+      claimed++;
+      const targetDate=mode==="morning"?clock.date:addDay(clock.date);
+      try{
+        const events=await eventsFor(person,targetDate,schedule,profile);
+        const delivery=await sendPush([person.id],null,payload(mode,targetDate,events));
+        sent+=delivery.sent;
+        if(delivery.sent===0&&delivery.subscriptions>0)failed+=delivery.failed;
+        await db.collection("digest_deliveries").updateOne({key},{$set:{status:delivery.sent>0?"sent":delivery.subscriptions===0?"no_devices":"failed",sent:delivery.sent,failed:delivery.failed,subscriptions:delivery.subscriptions,targetDate,updatedAt:new Date().toISOString()}});
+      }catch(error){
+        failed++;
+        await db.collection("digest_deliveries").updateOne({key},{$set:{status:"failed",updatedAt:new Date().toISOString()}});
+        console.error("Digest delivery failed",person.id,mode,error);
       }
-      plans.push({
-        key:`${person.id}:${mode}:${localDate}:${scheduledTime}`,
-        personId:person.id,
-        mode,
-        localDate,
-        scheduledTime,
-        timeZone:settings.timeZone,
-        runAt,
-      });
     }
   }
-  return plans;
-}
-
-export async function claimDigestPlan(plan:DigestPlan){
-  const result=await (await getDatabase()).collection("digest_schedules").updateOne(
-    {key:plan.key},
-    {$setOnInsert:{...plan,status:"scheduled",createdAt:new Date().toISOString()}},
-    {upsert:true},
-  );
-  return result.upsertedCount===1;
-}
-
-export async function deliverDigestPlan(plan:DigestPlan){
-  const [people,profile,schedule]=await Promise.all([
-    getPeople(true),
-    getProfileSettings(plan.personId),
-    getSchedule(),
-  ]);
-  const person=people.find(item=>item.id===plan.personId);
-  if(!person)return{status:"inactive" as const};
-  const current=normalizeDigestSettings(profile.digestSettings);
-  const enabled=plan.mode==="morning"?current.morningEnabled:current.eveningEnabled;
-  const currentTime=plan.mode==="morning"?current.morningTime:current.eveningTime;
-  if(!enabled||currentTime!==plan.scheduledTime||current.timeZone!==plan.timeZone)return{status:"stale" as const};
-  const targetDate=plan.mode==="morning"?plan.localDate:addDay(plan.localDate);
-  const db=await getDatabase();
-  const deliveryKey=`${plan.personId}:${plan.mode}:${plan.localDate}`;
-  const claim=await db.collection("digest_deliveries").updateOne(
-    {key:deliveryKey},
-    {$setOnInsert:{key:deliveryKey,personId:plan.personId,mode:plan.mode,localDate:plan.localDate,timeZone:plan.timeZone,createdAt:new Date().toISOString(),status:"pending"}},
-    {upsert:true},
-  );
-  if(claim.upsertedCount!==1)return{status:"duplicate" as const};
-  try{
-    const events=await eventsFor(person,targetDate,schedule,profile);
-    const delivery=await sendPush([person.id],null,payload(plan.mode,targetDate,events));
-    const status=delivery.sent>0?"sent":delivery.subscriptions===0?"no_devices":"failed";
-    await db.collection("digest_deliveries").updateOne({key:deliveryKey},{$set:{status,sent:delivery.sent,failed:delivery.failed,subscriptions:delivery.subscriptions,targetDate,updatedAt:new Date().toISOString()}});
-    await db.collection("digest_schedules").updateOne({key:plan.key},{$set:{status,completedAt:new Date().toISOString()}});
-    return{status,delivery,targetDate,events:events.length};
-  }catch(error){
-    await Promise.all([
-      db.collection("digest_deliveries").updateOne({key:deliveryKey},{$set:{status:"failed",updatedAt:new Date().toISOString()}}),
-      db.collection("digest_schedules").updateOne({key:plan.key},{$set:{status:"failed",completedAt:new Date().toISOString()}}),
-    ]);
-    throw error;
-  }
+  return{dueProfiles,claimed,sent,failed,checked:people.length,at:now.toISOString()};
 }

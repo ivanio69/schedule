@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import { withWorkflow } from "workflow/next";
 import versionInfo from "./version.json";
 
 const gitRef = process.env.VERCEL_GIT_COMMIT_REF
@@ -28,4 +27,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withWorkflow(nextConfig);
+export default nextConfig;
