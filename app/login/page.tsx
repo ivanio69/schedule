@@ -187,7 +187,6 @@ export default function LoginPage(){
           <a className={styles.telegramButton+" "+(!ready?styles.disabled:"")} href={ready?startUrl:undefined}>Войти через Telegram <b>↗</b></a>
           <div className={styles.or}><span>или</span></div>
           <button type="button" className={styles.otpButton} onClick={openOtp}>Войти по 6-значному коду</button>
-          <p className={styles.securityNote}>OpenID не требует вводить код в приложении. OTP оставлен как резервный вариант.</p>
         </motion.div>}
 
         {method==="otp"&&otpStep==="choose"&&<motion.div key="otp-choose" className={styles.content} initial={reducedMotion?false:{opacity:0,x:10}} animate={{opacity:1,x:0}} exit={reducedMotion?undefined:{opacity:0,x:10}}>
@@ -220,7 +219,7 @@ export default function LoginPage(){
       </AnimatePresence>
 
       {error&&<motion.p className={styles.error} role="alert" initial={{opacity:0,y:5}} animate={{opacity:1,y:0}}>{error}</motion.p>}
-      <footer><span>{method==="openid"?"OpenID Connect":"Одноразовый код · 10 минут"}</span><span>Доступ только после подтверждения Telegram</span></footer>
+      <footer><span>{method==="openid"?"OpenID Connect":"Одноразовый код · 10 минут"}</span></footer>
     </motion.section>
   </motion.main>;
 }
