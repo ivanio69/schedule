@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import AdminHeading from "@/components/AdminHeading";
 import LoadingState from "@/components/LoadingState";
 
-type RouteKey = "dashboard" | "schedule" | "seminars" | "individuals" | "settings" | "rehearsal-editor" | "other";
+type RouteKey = "dashboard" | "schedule" | "seminars" | "individuals" | "settings" | "rehearsal-editor" | "headman" | "other";
 type DeviceKey = "mobile" | "tablet" | "desktop";
 type ModeKey = "pwa" | "browser";
 type Period = 7 | 14 | 30 | 90;
@@ -37,7 +37,7 @@ type AnalyticsResponse = {
   pushDevicesByPerson:{personId:string;name:string;active:boolean;devices:number}[];
 };
 
-const ROUTE_LABELS:Record<RouteKey,string>={dashboard:"Дашборд",schedule:"Расписание",seminars:"Семинары",individuals:"Индивидуальные",settings:"Настройки","rehearsal-editor":"Редактор репетиций",other:"Другое"};
+const ROUTE_LABELS:Record<RouteKey,string>={dashboard:"Дашборд",schedule:"Расписание",seminars:"Семинары",individuals:"Индивидуальные",settings:"Настройки","rehearsal-editor":"Редактор репетиций",headman:"Панель старосты",other:"Другое"};
 const DEVICE_LABELS:Record<DeviceKey,string>={mobile:"Телефоны",tablet:"Планшеты",desktop:"Компьютеры"};
 const MODE_LABELS:Record<ModeKey,string>={pwa:"PWA",browser:"Браузер"};
 const DURATION_LABELS={underMinute:"до 1 минуты",oneToFive:"1–5 минут",fiveToFifteen:"5–15 минут",fifteenPlus:"15+ минут"} as const;

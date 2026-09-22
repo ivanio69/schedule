@@ -16,6 +16,7 @@ function routeFromPath(pathname: string): UsageRoute | null {
   if (pathname.startsWith("/seminars")) return "seminars";
   if (pathname.startsWith("/individual")) return "individuals";
   if (pathname.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/headman")) return "headman";
   if (pathname.startsWith("/rehearsal")) return "rehearsal-editor";
   return "other";
 }
