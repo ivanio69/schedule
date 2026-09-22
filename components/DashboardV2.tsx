@@ -849,18 +849,20 @@ export default function DashboardV2() {
           }
           .dashboard-stats,
           .dashboard-stats.has-next {
-            grid-template-columns: 1fr;
+            display: block;
           }
-          .dashboard-stats.has-next > .dashboard-stat-next {
-            grid-column: 1/-1;
+          .dashboard-stat-next {
+            width: 100%;
+            margin-bottom: 9px;
           }
           .dashboard-stat-pair {
             display: grid;
+            width: 100%;
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
             gap: 9px;
-            grid-column: 1/-1;
           }
           .dashboard-stat-pair > article {
+            width: 100%;
             min-width: 0;
           }
           .dashboard-event-v2 {
