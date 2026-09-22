@@ -20,6 +20,7 @@ import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
 import DashboardDailyQuote from "@/components/DashboardDailyQuote";
 import AttendanceActions from "@/components/AttendanceActions";
+import type { AttendanceReport } from "@/lib/attendance";
 const PERSON_KEY = "schedule_person_id";
 const mins = (v: string) => {
   const [h, m] = v.split(":").map(Number);
@@ -54,6 +55,9 @@ type Event = {
   key: string;
   status?: "cancelled" | "moved";
   reason?: string;
+  attendanceKey?: string;
+  attendance?: "late" | "absence";
+  attendanceReason?: string;
 };
 export default function DashboardV2() {
   const reducedMotion = useReducedMotion();
@@ -64,6 +68,7 @@ export default function DashboardV2() {
     [individuals, setIndividuals] = useState<IndividualLesson[]>([]),
     [rehearsals, setRehearsals] = useState<Rehearsal[]>([]),
     [seminars, setSeminars] = useState<SeminarList[]>([]),
+    [attendanceReports, setAttendanceReports] = useState<AttendanceReport[]>([]),
     [preferences, setPreferences] = useState<Record<string, GroupPreference>>(
       {},
     ),
@@ -90,6 +95,10 @@ export default function DashboardV2() {
       setChinaMode(d.chinaMode === true);
     }
     if (ir.ok) setIndividuals((await ir.json()).lessons ?? []);
+  };
+  const loadAttendance = async () => {
+    const response = await fetch("/api/attendance", { cache: "no-store" });
+    if (response.ok) setAttendanceReports((await response.json()).reports ?? []);
   };
   const loadRehearsals = async (id: string, date: string) => {
     const r = await fetch(
@@ -120,7 +129,7 @@ export default function DashboardV2() {
         setSchedule(s.schedule ?? null);
         setRehearsals(s.rehearsals ?? []);
         setSeminars(seminarData.lists ?? []);
-        if (chosen) void loadProfile(chosen.id);
+        if (chosen) { void loadProfile(chosen.id); void loadAttendance(); }
         else if (s.schedule)
           setPreferences(
             Object.fromEntries(
@@ -157,6 +166,20 @@ export default function DashboardV2() {
           key: noteKey(todayKey, x.timeStart, x.class),
           status: x.occurrence?.status,
           reason: x.occurrence?.reason,
+          attendanceKey: x.occurrence?.key ?? x.id,
+          ...(() => {
+            const report = attendanceReports.find(item =>
+              item.kind === "absence" &&
+              item.dateFrom <= todayKey &&
+              item.dateTo >= todayKey &&
+              (item.scope !== "lesson" || item.lessonKey === (x.occurrence?.key ?? x.id))
+            ) ?? attendanceReports.find(item =>
+              item.kind === "late" &&
+              item.dateFrom === todayKey &&
+              item.lessonKey === (x.occurrence?.key ?? x.id)
+            );
+            return report ? { attendance: report.kind, attendanceReason: report.reasonText ?? report.reason } : {};
+          })(),
         })),
         ...individuals
           .filter((x) => x.date === todayKey)
@@ -185,7 +208,7 @@ export default function DashboardV2() {
             key: x.id,
           })),
       ].sort((a, b) => mins(a.start) - mins(b.start)),
-    [groups, individuals, rehearsals, todayKey],
+    [groups, individuals, rehearsals, todayKey, attendanceReports],
   );
   const currentMin = now.getHours() * 60 + now.getMinutes(),
     activeEvents = events.filter((e) => e.status !== "cancelled"),
@@ -310,6 +333,8 @@ export default function DashboardV2() {
     window.dispatchEvent(new Event("schedule-auth-change"));
     setPerson(p);
     void loadProfile(p.id);
+    setAttendanceReports([]);
+    void loadAttendance();
     void loadRehearsals(p.id, dateKey(new Date()));
   };
   const openNote = (e: Event) => {
@@ -581,6 +606,18 @@ export default function DashboardV2() {
         .dashboard-event-v2.rehearsal {
           border-color: rgba(154, 230, 180, 0.35);
         }
+        .dashboard-event-v2.attendance-late {
+          border-color: color-mix(in srgb,#e9a23b 48%,var(--border));
+          background: color-mix(in srgb,#e9a23b 6%,var(--surface));
+          box-shadow: inset 3px 0 color-mix(in srgb,#e9a23b 80%,transparent);
+        }
+        .dashboard-event-v2.attendance-absence {
+          border-color: color-mix(in srgb,#e36d6d 44%,var(--border));
+          background: color-mix(in srgb,#e36d6d 6%,var(--surface));
+          box-shadow: inset 3px 0 color-mix(in srgb,#e36d6d 78%,transparent);
+        }
+        .dashboard-event-v2.attendance-late .dashboard-event-content > span { color:#e9a23b; }
+        .dashboard-event-v2.attendance-absence .dashboard-event-content > span { color:#e98383; }
         .dashboard-event-time {
           display: grid;
           gap: 3px;
@@ -949,7 +986,7 @@ export default function DashboardV2() {
           )}
         </section>
       )}
-      <AttendanceActions personId={person.id} date={todayKey} lessons={attendanceLessons} />
+      <AttendanceActions date={todayKey} lessons={attendanceLessons} reports={attendanceReports} onReportsChange={setAttendanceReports} />
       {!noPairs && showTomorrow && (
         <section className="dashboard-tomorrow">
           <div>
@@ -1006,7 +1043,7 @@ export default function DashboardV2() {
           {events.length ? (
             events.map((e) => (
               <article
-                className={`dashboard-event-v2 ${e.kind} ${current === e ? "current" : ""} ${past(e) ? "past" : ""}${e.status ? ` is-${e.status}` : ""}`}
+                className={`dashboard-event-v2 ${e.kind} ${current === e ? "current" : ""} ${past(e) ? "past" : ""}${e.status ? ` is-${e.status}` : ""}${e.attendance ? ` attendance-${e.attendance}` : ""}`}
                 key={e.key}
               >
                 <div className="dashboard-event-time">
@@ -1019,7 +1056,11 @@ export default function DashboardV2() {
                       ? "ОТМЕНЕНА"
                       : e.status === "moved"
                         ? "ПЕРЕНЕСЕНА"
-                        : e.kind === "individual"
+                        : e.attendance === "absence"
+                          ? "МЕНЯ НЕ БУДЕТ"
+                          : e.attendance === "late"
+                            ? "ОПОЗДАЮ"
+                            : e.kind === "individual"
                           ? "ИНДИВИДУАЛЬНО"
                           : e.kind === "rehearsal"
                             ? "РЕПЕТИЦИЯ"
@@ -1029,6 +1070,11 @@ export default function DashboardV2() {
                   <p>
                     {e.subtitle} · {e.detail}
                   </p>
+                  {e.attendance && (
+                    <small className="dashboard-change-reason">
+                      {e.attendance === "late" ? "Староста предупреждена об опоздании" : "Староста предупреждена об отсутствии"}
+                    </small>
+                  )}
                   {e.status && (
                     <small className="dashboard-change-reason">
                       {e.reason?.trim()

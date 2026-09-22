@@ -15,6 +15,63 @@ function reasonFrom(value: unknown): AttendanceReason | null {
   return value === "sick" || value === "event" || value === "other" ? value : null;
 }
 
+async function currentPerson(request: NextRequest) {
+  const profileId = request.cookies.get("schedule_profile")?.value ?? "";
+  if (!profileId) return null;
+  const people = await getPeople(false);
+  return people.find(item => item.id === profileId && item.active) ?? null;
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const person = await currentPerson(request);
+    if (!person) return NextResponse.json({ error: "Выбери профиль заново" }, { status: 401 });
+    const today = new Date().toISOString().slice(0, 10);
+    const reports = await (await getDatabase()).collection<AttendanceReport>("attendance_reports")
+      .find({ personId: person.id, dateTo: { $gte: today } }, { projection: { _id: 0 } })
+      .sort({ dateFrom: 1, updatedAt: -1 })
+      .toArray();
+    return NextResponse.json({ reports }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("Failed to load attendance reports", error);
+    return NextResponse.json({ error: "Не удалось загрузить отметки" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const person = await currentPerson(request);
+    if (!person) return NextResponse.json({ error: "Выбери профиль заново" }, { status: 401 });
+    const id = new URL(request.url).searchParams.get("id") ?? "";
+    if (!id) return NextResponse.json({ error: "Не указана отметка" }, { status: 400 });
+
+    const db = await getDatabase();
+    const report = await db.collection<AttendanceReport>("attendance_reports").findOne({ id, personId: person.id });
+    if (!report) return NextResponse.json({ error: "Отметка не найдена" }, { status: 404 });
+    await db.collection<AttendanceReport>("attendance_reports").deleteOne({ id, personId: person.id });
+
+    const people = await getPeople(false);
+    const headmanIds = people
+      .filter(item => item.active && normalizePersonRole(item.role, item.adminLink) === "headman")
+      .map(item => item.id);
+    const detail = report.kind === "late"
+      ? "опоздание на «" + (report.lessonTitle ?? "пару") + "»"
+      : report.scope === "lesson"
+        ? "отсутствие на «" + (report.lessonTitle ?? "паре") + "»"
+        : report.scope === "day"
+          ? "отсутствие на " + report.dateFrom
+          : "отсутствие с " + report.dateFrom + " по " + report.dateTo;
+    const delivery = headmanIds.length
+      ? await sendPush(headmanIds, null, { title: "Отметка отменена", body: person.name + " отменил(а) " + detail + ".", url: "/headman" })
+      : { subscriptions: 0, sent: 0, failed: 0 };
+
+    return NextResponse.json({ ok: true, id, delivery });
+  } catch (error) {
+    console.error("Failed to delete attendance report", error);
+    return NextResponse.json({ error: "Не удалось отменить отметку" }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const profileId = request.cookies.get("schedule_profile")?.value ?? "";

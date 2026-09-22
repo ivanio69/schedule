@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
 import styles from "./AttendanceActions.module.css";
-import type { AttendanceReason, AttendanceScope } from "@/lib/attendance";
+import { attendanceReasonText, type AttendanceReason, type AttendanceReport, type AttendanceScope } from "@/lib/attendance";
 
 export type AttendanceLessonOption = { key:string; title:string; start:string; end:string };
 
-export default function AttendanceActions({ date, lessons }: { personId:string; date:string; lessons:AttendanceLessonOption[] }) {
+export default function AttendanceActions({ date, lessons, reports, onReportsChange }: { date:string; lessons:AttendanceLessonOption[]; reports:AttendanceReport[]; onReportsChange:(reports:AttendanceReport[])=>void }) {
   const reducedMotion = useReducedMotion();
   const [mode,setMode]=useState<"late"|"absence"|null>(null);
   const [scope,setScope]=useState<AttendanceScope>("lesson");
@@ -34,13 +34,33 @@ export default function AttendanceActions({ date, lessons }: { personId:string; 
       const data=await response.json().catch(()=>null);
       if(!response.ok)throw new Error(data?.error??"Не удалось отправить");
       const sentMode=mode;setMode(null);
+      if(data?.report)onReportsChange([data.report,...reports.filter(item=>item.key!==data.report.key)]);
       setStatus(sentMode==="late"?"Староста получила отметку об опоздании.":"Староста получила отметку об отсутствии.");
     }catch(error){setStatus(error instanceof Error?error.message:"Не удалось отправить отметку")}
     finally{setBusy(false)}
   };
+  const cancelReport=async(report:AttendanceReport)=>{
+    if(busy)return;
+    setBusy(true);setStatus("");
+    try{
+      const response=await fetch("/api/attendance?id="+encodeURIComponent(report.id),{method:"DELETE"});
+      const data=await response.json().catch(()=>null);
+      if(!response.ok)throw new Error(data?.error??"Не удалось отменить");
+      onReportsChange(reports.filter(item=>item.id!==report.id));
+      setStatus("Отметка отменена. Староста получила обновление.");
+    }catch(error){setStatus(error instanceof Error?error.message:"Не удалось отменить отметку")}
+    finally{setBusy(false)}
+  };
+  const reportLabel=(report:AttendanceReport)=>{
+    if(report.kind==="late")return "Опоздаю · "+(report.lessonStart??"")+" · "+(report.lessonTitle??"Пара");
+    const reason=attendanceReasonText(report);
+    if(report.scope==="lesson")return "Не будет · "+(report.lessonStart??"")+" · "+(report.lessonTitle??"Пара")+" · "+reason;
+    if(report.scope==="day")return "Не будет весь день · "+report.dateFrom.split("-").reverse().join(".")+" · "+reason;
+    return "Не будет "+report.dateFrom.split("-").reverse().join(".")+"–"+report.dateTo.split("-").reverse().join(".")+" · "+reason;
+  };
   const ready=mode==="late"?!!lateLesson:scope==="lesson"?!!selectedLesson:scope==="period"?!!dateFrom&&!!dateTo&&dateFrom<=dateTo:true;
   return <>
-    <section className={styles.root} aria-label="Сообщить старосте"><button type="button" className={styles.action+" "+styles.late} disabled={!lateLesson||busy} onClick={openLate}>⏱ Я опоздаю</button><button type="button" className={styles.action+" "+styles.absence} disabled={busy} onClick={openAbsence}>— Меня не будет</button>{status&&<p className={styles.status} role="status">{status}</p>}</section>
+    <section className={styles.root} aria-label="Сообщить старосте"><button type="button" className={styles.action+" "+styles.late} disabled={!lateLesson||busy} onClick={openLate}>⏱ Я опоздаю</button><button type="button" className={styles.action+" "+styles.absence} disabled={busy} onClick={openAbsence}>— Меня не будет</button>{reports.length>0&&<div className={styles.reports}><span>МОИ ОТМЕТКИ</span>{reports.map(report=><div className={styles.report} key={report.id}><div><strong>{reportLabel(report)}</strong><small>Староста уведомлена</small></div><button type="button" disabled={busy} onClick={()=>void cancelReport(report)}>Отменить</button></div>)}</div>}{status&&<p className={styles.status} role="status">{status}</p>}</section>
     {typeof document!=="undefined"&&createPortal(<AnimatePresence>{mode&&<motion.div className={styles.overlay} onMouseDown={()=>!busy&&setMode(null)} initial={reducedMotion?false:{opacity:0}} animate={{opacity:1}} exit={reducedMotion?undefined:{opacity:0}}><motion.section className={styles.modal} onMouseDown={event=>event.stopPropagation()} initial={reducedMotion?false:{opacity:0,y:12,scale:.985}} animate={{opacity:1,y:0,scale:1}} exit={reducedMotion?undefined:{opacity:0,y:8,scale:.99}}>
       <div className={styles.head}><div><span>СООБЩИТЬ СТАРОСТЕ</span><h2>{mode==="late"?"Я опоздаю":"Меня не будет"}</h2></div><button className={styles.close} type="button" onClick={()=>setMode(null)} aria-label="Закрыть">×</button></div>
       {mode==="late"?<p className={styles.copy}>{lateLesson?"Отметим опоздание на «"+lateLesson.title+"» · "+lateLesson.start+"–"+lateLesson.end:"Сегодня больше нет пар."}</p>:<>
