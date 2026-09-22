@@ -895,7 +895,6 @@ export default function DashboardV2() {
         </div>
       </header>
       <DashboardAnnouncements personId={person.id} />
-      <AttendanceActions personId={person.id} date={todayKey} lessons={attendanceLessons} />
       <DashboardDailyQuote />
       {(noPairs || current || next) && (
         <section className={`dashboard-focus${current ? " is-current" : ""}`}>
@@ -950,6 +949,7 @@ export default function DashboardV2() {
           )}
         </section>
       )}
+      <AttendanceActions personId={person.id} date={todayKey} lessons={attendanceLessons} />
       {!noPairs && showTomorrow && (
         <section className="dashboard-tomorrow">
           <div>
