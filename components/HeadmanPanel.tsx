@@ -58,6 +58,9 @@ export default function HeadmanPanel(){
   const absentPeopleToday=new Set(absentToday.map(report=>report.personId)).size;
   const latePeopleToday=new Set(lateToday.map(report=>report.personId)).size;
   const periodReports=reports.filter(report=>report.kind==="absence"&&report.scope==="period"&&report.dateTo>=today);
+  const now=new Date();
+  const nowMinutes=now.getHours()*60+now.getMinutes();
+  const toMinutes=(value:string)=>{const [hours,minutes]=value.split(":").map(Number);return hours*60+minutes};
   const visible=useMemo(()=>reports.filter(report=>filter==="all"||filter==="today"?filter==="all"||report.dateFrom<=today&&report.dateTo>=today:report.dateTo>=today),[reports,filter,today]);
 
   const lessonRows=(overview?.lessons??[]).map(lesson=>{
@@ -115,21 +118,21 @@ export default function HeadmanPanel(){
     <section className={styles.quickStats}>
       <div><strong>{absentPeopleToday}</strong><span>не будет</span></div>
       <div><strong>{latePeopleToday}</strong><span>опоздают</span></div>
-      <div><strong>{periodReports.length}</strong><span>длительных</span></div>
+      {periodReports.length>0&&<div><strong>{periodReports.length}</strong><span>длительных</span></div>}
     </section>
 
     <section className={styles.todayLessons}>
       <header><h2>Пары</h2><span>{lessonRows.length}</span></header>
       <div className={styles.lessonList}>
-        {lessonRows.length?lessonRows.map(({lesson,absence,late})=><article className={styles.lessonRow} key={lesson.key}>
-          <div className={styles.lessonTime}><strong>{lesson.start}</strong><small>{lesson.end}</small></div>
+        {lessonRows.length?lessonRows.map(({lesson,absence,late})=>{const current=toMinutes(lesson.start)<=nowMinutes&&toMinutes(lesson.end)>nowMinutes;return <article className={styles.lessonRow+(current?" "+styles.currentLesson:"")} key={lesson.key}>
+          <div className={styles.lessonTime}><strong>{lesson.start}</strong><small>{current?"сейчас":lesson.end}</small></div>
           <div className={styles.lessonMain}><strong>{lesson.title}</strong><small>{lesson.auditorium||"—"}</small></div>
           <div className={styles.lessonPeople}>
             {absence.length>0&&<div className={styles.absentGroup}><span>НЕ БУДЕТ · {absence.length}</span><div className={styles.personLinks}>{absence.map(item=><button type="button" key={item.id} onClick={()=>setSelectedAbsence(item)}>{item.personName}</button>)}</div></div>}
             {late.length>0&&<div className={styles.lateGroup}><span>ОПОЗДАЮТ · {late.length}</span><p>{late.map(item=>item.personName).join(" · ")}</p></div>}
             {!absence.length&&!late.length&&<span className={styles.clear}>Отметок нет</span>}
           </div>
-        </article>):<div className={styles.empty}>Сегодня пар нет</div>}
+        </article>}):<div className={styles.empty}>Сегодня пар нет</div>}
       </div>
     </section>
 
