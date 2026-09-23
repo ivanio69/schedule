@@ -49,6 +49,12 @@ html[data-accent="blue"]{--accent:#76aef8;--accent-text:#10213a}
 html[data-accent="violet"]{--accent:#aa8df5;--accent-text:#24183d}
 html[data-accent="amber"]{--accent:#edb761;--accent-text:#30210a}
 html[data-accent="rose"]{--accent:#ed8ca1;--accent-text:#38151d}
+
+/* Automatic accent follows the color of the sky for each time of day. */
+html[data-accent-mode="time"][data-accent="violet"]{--accent:#48699f;--accent-text:#f7f9ff}
+html[data-accent-mode="time"][data-accent="amber"]{--accent:#f2a06d;--accent-text:#35180b}
+html[data-accent-mode="time"][data-accent="blue"]{--accent:#73c7f5;--accent-text:#0e2737}
+html[data-accent-mode="time"][data-accent="rose"]{--accent:#c77eaa;--accent-text:#321425}
 html{
   --accent-soft:color-mix(in srgb,var(--accent) 15%,transparent);
   --bg:color-mix(in srgb,var(--base-bg) 89%,var(--accent) 11%);
