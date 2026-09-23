@@ -6,10 +6,10 @@ import { sendPush } from "@/lib/push";
 import type { Person } from "@/lib/people";
 
 type DigestMode = "morning" | "evening";
-type DigestEvent = { start:string;title:string;kind:"lesson"|"individual"|"rehearsal";cancelled?:boolean;professor?:string };
+type DigestEvent = { start:string;end:string;title:string;kind:"lesson"|"individual"|"rehearsal";cancelled?:boolean;professor?:string };
 
 const addDay=(date:string)=>{const value=new Date(date+"T00:00:00Z");value.setUTCDate(value.getUTCDate()+1);return value.toISOString().slice(0,10)};
-const short=(value:string,max=230)=>value.length<=max?value:value.slice(0,max-1).trimEnd()+"…";
+const short=(value:string,max=320)=>value.length<=max?value:value.slice(0,max-1).trimEnd()+"…";
 
 function visibleLessons(schedule:ScheduleData,date:string,settings:ProfileSettings){
   return getOccurrences(schedule,date).filter(lesson=>{
@@ -22,9 +22,9 @@ function visibleLessons(schedule:ScheduleData,date:string,settings:ProfileSettin
 
 async function eventsFor(person:Person,date:string,schedule:ScheduleData,settings:ProfileSettings):Promise<DigestEvent[]>{
   const [individuals,rehearsals]=await Promise.all([getIndividualLessons(person.id,date),getRehearsals(date)]);
-  const lessons=visibleLessons(schedule,date,settings).map<DigestEvent>(lesson=>({start:lesson.timeStart,title:lesson.occurrence?.status==="cancelled"?"Отменена: "+lesson.class:lesson.class,kind:"lesson",cancelled:lesson.occurrence?.status==="cancelled"}));
-  const ownIndividuals=individuals.map<DigestEvent>(lesson=>({start:lesson.timeStart,title:lesson.subject||"Индивидуальное",kind:"individual",professor:lesson.professor?.trim()||undefined}));
-  const ownRehearsals=rehearsals.filter(item=>item.isGlobal||item.creatorId===person.id||getRehearsalAudienceNames(item).includes(person.name)).map<DigestEvent>(item=>({start:item.timeStart,title:item.subject||"Репетиция",kind:"rehearsal"}));
+  const lessons=visibleLessons(schedule,date,settings).map<DigestEvent>(lesson=>({start:lesson.timeStart,end:lesson.timeEnd,title:lesson.occurrence?.status==="cancelled"?"Отменена: "+lesson.class:lesson.class,kind:"lesson",cancelled:lesson.occurrence?.status==="cancelled"}));
+  const ownIndividuals=individuals.map<DigestEvent>(lesson=>({start:lesson.timeStart,end:lesson.timeEnd,title:lesson.subject||"Индивидуальное",kind:"individual",professor:lesson.professor?.trim()||undefined}));
+  const ownRehearsals=rehearsals.filter(item=>item.isGlobal||item.creatorId===person.id||getRehearsalAudienceNames(item).includes(person.name)).map<DigestEvent>(item=>({start:item.timeStart,end:item.timeEnd,title:item.subject||"Репетиция",kind:"rehearsal"}));
   return [...lessons,...ownIndividuals,...ownRehearsals].sort((a,b)=>a.start.localeCompare(b.start)||a.title.localeCompare(b.title,"ru"));
 }
 
@@ -64,6 +64,10 @@ function digestBody(mode:DigestMode,events:DigestEvent[]){
       ? `одна пара отменена — ${cancelled[0].title.replace(/^Отменена:\s*/,"")}`
       : `отменено пар: ${cancelled.length}`);
   }
+
+  const activeEvents=events.filter(item=>!(item.kind==="lesson"&&item.cancelled));
+  const latestEnd=activeEvents.reduce((latest,item)=>item.end>latest?item.end:latest,"");
+  if(latestEnd)sentences.push(`освободишься в ${latestEnd}`);
 
   return short(sentences.map((sentence,index)=>index===0?sentence.charAt(0).toUpperCase()+sentence.slice(1):sentence).join(". ")+".");
 }
