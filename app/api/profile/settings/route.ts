@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPeople, getProfileSettings, saveProfileSettings } from "@/lib/database";
 import { normalizeAppearance } from "@/lib/appearance";
+import { normalizeDigestSettings } from "@/lib/digest-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ export async function PUT(request: Request) {
       notificationPreferences: body.notificationPreferences === undefined ? existing.notificationPreferences : cleanNotificationPreferences(body.notificationPreferences),
       chinaMode: body.chinaMode === undefined ? existing.chinaMode : body.chinaMode === true,
       appearance: body.appearance === undefined ? existing.appearance : normalizeAppearance(body.appearance),
+      digestSettings: body.digestSettings === undefined ? existing.digestSettings : normalizeDigestSettings(body.digestSettings),
     });
     return NextResponse.json(settings, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

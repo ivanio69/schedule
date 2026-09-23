@@ -1,0 +1,29 @@
+name: Digest scheduler
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: digest-scheduler
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Request GitHub OIDC token and trigger digest endpoint
+        env:
+          DIGEST_URL: https://schedule-five-roan.vercel.app/api/cron/digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN_JSON="$(curl --fail --silent --show-error -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=schedule-digests")"
+          TOKEN="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<<"$TOKEN_JSON")"
+          curl --fail --silent --show-error -H "Authorization: Bearer $TOKEN" "$DIGEST_URL"
