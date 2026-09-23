@@ -25,6 +25,9 @@ html[data-appearance-transition="true"] {
     --individual .46s cubic-bezier(.22,1,.36,1),
     --seminar .46s cubic-bezier(.22,1,.36,1);
 }
+html[data-appearance-transition="time"] {
+  transition:--accent 1.8s cubic-bezier(.22,1,.36,1);
+}
 
 html[data-theme="dark"]{
   color-scheme:dark;
@@ -46,6 +49,12 @@ html[data-accent="blue"]{--accent:#76aef8;--accent-text:#10213a}
 html[data-accent="violet"]{--accent:#aa8df5;--accent-text:#24183d}
 html[data-accent="amber"]{--accent:#edb761;--accent-text:#30210a}
 html[data-accent="rose"]{--accent:#ed8ca1;--accent-text:#38151d}
+
+/* Automatic accent follows the color of the sky for each time of day. */
+html[data-accent-mode="time"][data-accent="violet"]{--accent:#48699f;--accent-text:#f7f9ff}
+html[data-accent-mode="time"][data-accent="amber"]{--accent:#f2a06d;--accent-text:#35180b}
+html[data-accent-mode="time"][data-accent="blue"]{--accent:#73c7f5;--accent-text:#0e2737}
+html[data-accent-mode="time"][data-accent="rose"]{--accent:#c77eaa;--accent-text:#321425}
 html{
   --accent-soft:color-mix(in srgb,var(--accent) 15%,transparent);
   --bg:color-mix(in srgb,var(--base-bg) 89%,var(--accent) 11%);
@@ -168,13 +177,16 @@ html[data-theme="light"] .notification-center-list article.is-unread{background:
 .settings-color-preset.is-default-rehearsal span{--default-swatch:#f0a45d}
 .settings-color-preset.is-default-individual span{--default-swatch:#ef6a6a}
 .settings-color-preset.is-default-seminar span{--default-swatch:#9b83f4}
+.settings-color-preset--time{color:var(--muted-strong)}
+.settings-color-preset--time svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.settings-color-preset--time.is-active{color:var(--accent);background:var(--accent-soft);border-color:var(--accent);box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--accent)}
 .settings-page-row--colors{align-items:center}
 @media(max-width:600px){
   .settings-page-row--colors{align-items:flex-start!important}
   .settings-color-presets{justify-content:flex-start;width:100%}
   .settings-color-preset{width:38px;height:38px}
 }
-@media(prefers-reduced-motion:reduce){body{transition:none}html[data-appearance-transition="true"]{transition:none}}
+@media(prefers-reduced-motion:reduce){body{transition:none}html[data-appearance-transition="true"],html[data-appearance-transition="time"]{transition:none}}
 
 /* The app accent is a global tone, not just an action color. */
 html,body{background-color:var(--bg)!important}
