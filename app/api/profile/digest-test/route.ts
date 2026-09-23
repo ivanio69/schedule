@@ -13,6 +13,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, result }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Force digest push failed", error);
-    return NextResponse.json({ error: "Не удалось отправить тестовый дайджест" }, { status: 500 });
+    return NextResponse.json({ error: "Не удалось отправить тестовую сводку" }, { status: 500 });
   }
 }
