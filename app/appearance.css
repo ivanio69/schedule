@@ -177,6 +177,9 @@ html[data-theme="light"] .notification-center-list article.is-unread{background:
 .settings-color-preset.is-default-rehearsal span{--default-swatch:#f0a45d}
 .settings-color-preset.is-default-individual span{--default-swatch:#ef6a6a}
 .settings-color-preset.is-default-seminar span{--default-swatch:#9b83f4}
+.settings-color-preset--time{color:var(--muted-strong)}
+.settings-color-preset--time svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.settings-color-preset--time.is-active{color:var(--accent);background:var(--accent-soft);border-color:var(--accent);box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--accent)}
 .settings-page-row--colors{align-items:center}
 @media(max-width:600px){
   .settings-page-row--colors{align-items:flex-start!important}
