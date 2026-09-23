@@ -1,6 +1,6 @@
 {
   "name": "schedule",
-  "version": "5.3.6",
+  "version": "5.3.7",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "seed": "node scripts/seed-mongodb.mjs",
     "migrate": "node scripts/migrate-table-to-mongodb.mjs",
-    "test:seminars": "tsx tests/seminars.integration.ts"
+    "test:seminars": "tsx tests/seminars.integration.ts",
+    "test:digests": "tsx tests/digest-settings.test.ts"
   },
   "dependencies": {
     "@heroui/react": "^3.2.2",
