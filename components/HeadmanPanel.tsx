@@ -7,6 +7,7 @@ import styles from "./HeadmanPanel.module.css";
 import type { Person } from "@/lib/people";
 import { attendanceReasonText, type AttendanceReport } from "@/lib/attendance";
 import HeadmanAnnouncements from "@/components/HeadmanAnnouncements";
+import HeadmanSidebarNavigation from "@/components/HeadmanSidebarNavigation";
 
 type Overview={
   actor:Person;
@@ -16,12 +17,10 @@ type Overview={
   lessons:{key:string;title:string;start:string;end:string;auditorium:string;status:string|null}[];
 };
 type ReportFilter="today"|"upcoming"|"all";
-type HeadmanTab="today"|"reports"|"announcements"|"anger";
+export type HeadmanTab="today"|"reports"|"announcements"|"analytics"|"anger";
 
-const localDateKey=()=>{
-  const date=new Date();
-  return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
-};
+const localDateKeyFrom=(date:Date)=>date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
+const localDateKey=()=>localDateKeyFrom(new Date());
 const shortDate=(value:string)=>value.split("-").reverse().join(".");
 const displayToday=()=>new Intl.DateTimeFormat("ru-RU",{weekday:"long",day:"numeric",month:"long"}).format(new Date());
 
@@ -31,6 +30,7 @@ export default function HeadmanPanel(){
   const [loading,setLoading]=useState(true);
   const [tab,setTab]=useState<HeadmanTab>("today");
   const [filter,setFilter]=useState<ReportFilter>("today");
+  const [analyticsDays,setAnalyticsDays]=useState<30|90>(30);
   const [status,setStatus]=useState("");
   const [busy,setBusy]=useState(false);
   const [angerSelected,setAngerSelected]=useState<string[]>([]);
@@ -85,6 +85,41 @@ export default function HeadmanPanel(){
 
   const currentLesson=lessonRows.find(item=>item.current);
   const affectedLessons=lessonRows.filter(item=>item.absence.length||item.late.length).length;
+  const analytics=useMemo(()=>{
+    const end=new Date(today+"T00:00:00");
+    const start=new Date(end);start.setDate(start.getDate()-(analyticsDays-1));
+    const startKey=localDateKeyFrom(start);
+    const scoped=reports.filter(report=>report.dateTo>=startKey&&report.dateFrom<=today);
+    const absences=scoped.filter(report=>report.kind==="absence");
+    const lates=scoped.filter(report=>report.kind==="late");
+    const peopleCount=new Set(scoped.map(report=>report.personId)).size;
+    const activeDates=new Set(scoped.flatMap(report=>[report.dateFrom,report.dateTo])).size;
+    const trendLength=Math.min(14,analyticsDays);
+    const trend=Array.from({length:trendLength},(_,index)=>{
+      const date=new Date(end);date.setDate(date.getDate()-(trendLength-1-index));
+      const key=localDateKeyFrom(date);
+      const absence=absences.filter(report=>report.dateFrom<=key&&report.dateTo>=key).length;
+      const late=lates.filter(report=>report.dateFrom===key).length;
+      return {key,label:String(date.getDate()).padStart(2,"0")+"."+String(date.getMonth()+1).padStart(2,"0"),absence,late,total:absence+late};
+    });
+    const maxTrend=Math.max(1,...trend.map(item=>item.total));
+    const reasonMap=new Map<string,number>();
+    for(const report of absences){const reason=attendanceReasonText(report)||"Не указана";reasonMap.set(reason,(reasonMap.get(reason)??0)+1)}
+    const reasons=[...reasonMap.entries()].map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count).slice(0,6);
+    const lessonMap=new Map<string,number>();
+    for(const report of scoped){if(!report.lessonTitle)continue;lessonMap.set(report.lessonTitle,(lessonMap.get(report.lessonTitle)??0)+1)}
+    const lessons=[...lessonMap.entries()].map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count).slice(0,6);
+    let advance=0;
+    for(const report of scoped){
+      const created=Date.parse(report.createdAt);
+      if(!Number.isFinite(created))continue;
+      if(report.lessonStart){
+        const event=Date.parse(report.dateFrom+"T"+report.lessonStart+":00");
+        if(Number.isFinite(event)&&event-created>=60*60*1000)advance++;
+      }else if(report.createdAt.slice(0,10)<report.dateFrom)advance++;
+    }
+    return {total:scoped.length,absences:absences.length,lates:lates.length,peopleCount,activeDates,trend,maxTrend,reasons,lessons,advance,advancePercent:scoped.length?Math.round(advance/scoped.length*100):0};
+  },[reports,analyticsDays,today]);
   const toggle=(setter:Dispatch<SetStateAction<string[]>>,id:string)=>setter(current=>current.includes(id)?current.filter(item=>item!==id):[...current,id]);
 
   const candidates=angerType==="late"
@@ -144,22 +179,20 @@ export default function HeadmanPanel(){
   };
 
   if(loading&&!overview)return <main className={styles.page}><div className={styles.loading}>Загружаем…</div></main>;
+  if(!overview)return <main className={styles.page}><div className={styles.loading}>{status||"Нет данных"}</div></main>;
 
-  return <main className={styles.page}>
+  const tabTitle:Record<HeadmanTab,string>={today:"Сегодня",reports:"Отметки",announcements:"Объявления",analytics:"Аналитика",anger:"Гневная кнопка"};
+  return <div className={styles.workspace}>
+    <HeadmanSidebarNavigation active={tab} onChange={setTab} affectedLessons={affectedLessons} reports={reports.length} actorName={overview.actor.name}/>
+    <main className={styles.page}>
     <header className={styles.topbar}>
       <div>
-        <strong>Староста</strong>
-        <span>{displayToday()}</span>
+        <strong>{tabTitle[tab]}</strong>
+        <span>Панель старосты · {displayToday()}</span>
       </div>
       <button className={styles.refresh} type="button" disabled={loading} onClick={()=>void load()} aria-label="Обновить">↻</button>
     </header>
 
-    <nav className={styles.tabs} aria-label="Разделы панели старосты">
-      <button className={tab==="today"?styles.active:""} onClick={()=>setTab("today")}><span>Сегодня</span>{affectedLessons>0&&<b>{affectedLessons}</b>}</button>
-      <button className={tab==="reports"?styles.active:""} onClick={()=>setTab("reports")}><span>Отметки</span>{reports.length>0&&<b>{reports.length}</b>}</button>
-      <button className={tab==="announcements"?styles.active:""} onClick={()=>setTab("announcements")}><span>Объявления</span></button>
-      <button className={tab==="anger"?styles.active:""} onClick={()=>setTab("anger")}><span>Гневная кнопка</span></button>
-    </nav>
 
     {tab==="today"&&<section className={styles.todayView}>
       <div className={styles.todaySummary}>
@@ -207,6 +240,22 @@ export default function HeadmanPanel(){
 
     {tab==="announcements"&&<HeadmanAnnouncements people={people}/>}
 
+    {tab==="analytics"&&<section className={styles.analyticsView}>
+      <header className={styles.analyticsHead}><div><span>ПОСЕЩАЕМОСТЬ</span><h2>Аналитика отметок</h2><p>Сводка строится только по отметкам «опоздаю» и «меня не будет».</p></div><div className={styles.analyticsPeriod}><button type="button" className={analyticsDays===30?styles.active:""} onClick={()=>setAnalyticsDays(30)}>30 дней</button><button type="button" className={analyticsDays===90?styles.active:""} onClick={()=>setAnalyticsDays(90)}>90 дней</button></div></header>
+      <div className={styles.analyticsSummary}>
+        <article><span>Всего отметок</span><strong>{analytics.total}</strong><small>{analyticsDays} дней</small></article>
+        <article><span>Отсутствия</span><strong>{analytics.absences}</strong><small>включая периоды</small></article>
+        <article><span>Опоздания</span><strong>{analytics.lates}</strong><small>по конкретным парам</small></article>
+        <article><span>Предупредили заранее</span><strong>{analytics.advancePercent}%</strong><small>{analytics.advance} отметок ≥ 1 часа</small></article>
+      </div>
+      <div className={styles.analyticsGrid}>
+        <section className={styles.analyticsCard}><header><div><span>ДИНАМИКА</span><h3>Последние 14 дней</h3></div><small>{analytics.peopleCount} чел. с отметками</small></header><div className={styles.analyticsTrend}>{analytics.trend.map(item=><div key={item.key} title={item.label+" · "+item.total}><div className={styles.analyticsBarTrack}><i style={{height:(item.total/analytics.maxTrend*100)+"%"}}><b style={{height:(item.late/Math.max(1,item.total)*100)+"%"}}/></i></div><small>{item.label.slice(0,2)}</small></div>)}</div><div className={styles.analyticsLegend}><span><i/>Отсутствия</span><span><i/>Опоздания</span></div></section>
+        <section className={styles.analyticsCard}><header><div><span>ПРИЧИНЫ</span><h3>Почему отсутствуют</h3></div></header><div className={styles.analyticsList}>{analytics.reasons.length?analytics.reasons.map(item=><div key={item.label}><span>{item.label}</span><b>{item.count}</b><i style={{width:(item.count/Math.max(1,analytics.reasons[0]?.count??1)*100)+"%"}}/></div>):<p>Пока нет данных</p>}</div></section>
+        <section className={styles.analyticsCard}><header><div><span>ПАРЫ</span><h3>Где чаще ставят отметки</h3></div></header><div className={styles.analyticsList}>{analytics.lessons.length?analytics.lessons.map(item=><div key={item.label}><span>{item.label}</span><b>{item.count}</b><i style={{width:(item.count/Math.max(1,analytics.lessons[0]?.count??1)*100)+"%"}}/></div>):<p>Пока нет данных</p>}</div></section>
+        <section className={styles.analyticsCard}><header><div><span>ОХВАТ</span><h3>Активность</h3></div></header><div className={styles.analyticsFacts}><div><strong>{analytics.peopleCount}</strong><span>людей оставляли отметки</span></div><div><strong>{analytics.activeDates}</strong><span>дат затронуто отметками</span></div><div><strong>{analytics.total?Math.round(analytics.total/analyticsDays*10)/10:0}</strong><span>отметок в день в среднем</span></div></div></section>
+      </div>
+    </section>}
+
     {tab==="anger"&&<section className={styles.angerPanel}>
       <div className={styles.segment}>
         <button className={angerType==="late"?styles.active:""} onClick={()=>setReminderType("late")}>Опоздание</button>
@@ -239,5 +288,6 @@ export default function HeadmanPanel(){
         {quickAngerStatus&&<p className={styles.quickAngerStatus} role="status">{quickAngerStatus}</p>}
       </motion.section>
     </motion.div>}</AnimatePresence>,document.body)}
-  </main>;
+    </main>
+  </div>;
 }

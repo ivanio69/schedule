@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const date = validDate(requestedDate) ? requestedDate! : new Date().toISOString().slice(0, 10);
   const time = requestedTime && /^\d{2}:\d{2}$/.test(requestedTime) ? requestedTime : new Date().toISOString().slice(11,16);
   const cutoff = new Date(date + "T00:00:00Z");
-  cutoff.setUTCDate(cutoff.getUTCDate() - 30);
+  cutoff.setUTCDate(cutoff.getUTCDate() - 90);
   const cutoffKey = cutoff.toISOString().slice(0, 10);
 
   const db = await getDatabase();
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     attendanceCollection
       .find({ dateTo: { $gte: cutoffKey } }, { projection: { _id: 0 } })
       .sort({ updatedAt: -1 })
-      .limit(500)
+      .limit(1500)
       .toArray(),
     getPeople(true),
     getSchedule(),
