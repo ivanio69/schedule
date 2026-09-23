@@ -57,7 +57,7 @@ export async function runDigestDelivery(now=new Date()){
       if(!scheduledDate)continue;
       dueProfiles++;
       const key=`${person.id}:${mode}:${scheduledDate}`;
-      const claim=await db.collection("digest_deliveries").updateOne({key},{$setOnInsert:{key,personId:person.id,mode,localDate:clock.date,timeZone:digest.timeZone,createdAt:new Date().toISOString(),status:"pending"}},{upsert:true});
+      const claim=await db.collection("digest_deliveries").updateOne({key},{$setOnInsert:{key,personId:person.id,mode,localDate:scheduledDate,timeZone:digest.timeZone,createdAt:new Date().toISOString(),status:"pending"}},{upsert:true});
       if(claim.upsertedCount!==1)continue;
       claimed++;
       const targetDate=mode==="morning"?scheduledDate:addDay(scheduledDate);

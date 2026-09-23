@@ -14,7 +14,7 @@ export const DEFAULT_DIGEST_SETTINGS: DigestSettings = {
   timeZone: "Europe/Moscow",
 };
 
-const TIME_PATTERN = /^([01]\\d|2[0-3]):[0-5]\\d$/;
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const validTime = (value: unknown, fallback: string) => typeof value === "string" && TIME_PATTERN.test(value) ? value : fallback;
 const minutes = (value: string) => {
   const [hours, mins] = value.split(":").map(Number);
