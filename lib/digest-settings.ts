@@ -45,10 +45,6 @@ function localClock(now: Date, timeZone: string) {
   };
 }
 
-export function getDigestLocalDate(now: Date, timeZone: string) {
-  return localClock(now, validTimeZone(timeZone)).date;
-}
-
 export function getDueDigestDate(
   now: Date,
   timeZone: string,

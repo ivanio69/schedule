@@ -1,6 +1,6 @@
 {
   "release": "5.3.7",
-  "dev": 9,
+  "dev": 10,
   "pr": 80,
   "majorBasePr": 68,
   "channel": "hotfix"
