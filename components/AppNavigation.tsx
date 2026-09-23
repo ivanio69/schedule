@@ -24,7 +24,7 @@ const ADMIN_EXIT_MS = 220;
 export default function AppNavigation(){
  const pathname=usePathname();
  const authenticated=useSyncExternalStore(subscribe,getSnapshot,getServerSnapshot);
- const inAdmin=pathname.startsWith("/admin");
+ const inAdmin=pathname.startsWith("/admin")||pathname.startsWith("/headman");
  const inLogin=pathname==="/login";
  const [rendered,setRendered]=useState(false);
  const [initialReady,setInitialReady]=useState(false);
