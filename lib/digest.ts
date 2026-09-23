@@ -1,7 +1,7 @@
 import { getDatabase, getIndividualLessons, getPeople, getRehearsals, getSchedule, type ProfileSettings } from "@/lib/database";
 import { getOccurrences, lessonMatchesChinaMode, type GroupPreference, type ScheduleData } from "@/lib/schedule";
 import { getRehearsalAudienceNames } from "@/lib/rehearsals";
-import { getDueDigestDate, normalizeDigestSettings } from "@/lib/digest-settings";
+import { getDigestLocalDate, getDueDigestDate, normalizeDigestSettings } from "@/lib/digest-settings";
 import { sendPush } from "@/lib/push";
 import type { Person } from "@/lib/people";
 
@@ -76,3 +76,26 @@ export async function runDigestDelivery(now=new Date()){
   }
   return{dueProfiles,claimed,sent,failed,checked:people.length,at:now.toISOString()};
 }
+
+export async function forceDigestDelivery(personId:string,now=new Date()){
+  const db=await getDatabase();
+  const [people,schedule,profileDoc]=await Promise.all([
+    getPeople(true),
+    getSchedule(),
+    db.collection<ProfileSettings>("profile_settings").findOne({personId}),
+  ]);
+  const person=people.find(item=>item.id===personId);
+  if(!person)throw new Error("Profile not found");
+  const profile=profileDoc??{personId,preferences:{},notes:{},updatedAt:new Date(0).toISOString()};
+  const settings=normalizeDigestSettings(profile.digestSettings);
+  const localDate=getDigestLocalDate(now,settings.timeZone);
+  const results=[] as Array<{mode:DigestMode;targetDate:string;subscriptions:number;sent:number;failed:number}>;
+  for(const mode of ["morning","evening"] as DigestMode[]){
+    const targetDate=mode==="morning"?localDate:addDay(localDate);
+    const events=await eventsFor(person,targetDate,schedule,profile);
+    const delivery=await sendPush([person.id],null,payload(mode,targetDate,events));
+    results.push({mode,targetDate,...delivery});
+  }
+  return{personId,timeZone:settings.timeZone,localDate,results};
+}
+
