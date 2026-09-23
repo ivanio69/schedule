@@ -1,32 +1,38 @@
 import {
   APPEARANCE_STORAGE_KEY,
   DEFAULT_APPEARANCE,
+  getTimeBasedAccent,
   normalizeAppearance,
   type AppearanceSettings,
 } from "@/lib/appearance";
 
 const APPEARANCE_TRANSITION_MS = 520;
+const TIME_APPEARANCE_TRANSITION_MS = 1800;
 let transitionTimer: ReturnType<typeof setTimeout> | undefined;
 
-export function applyAppearance(settings: AppearanceSettings, options: { animate?: boolean } = {}) {
+export function applyAppearance(
+  settings: AppearanceSettings,
+  options: { animate?: boolean; timeBased?: boolean; now?: Date } = {},
+) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   const animate = options.animate !== false;
+  const timeBased = options.timeBased === true && settings.appAccentMode === "time";
 
   if (animate) {
-    root.dataset.appearanceTransition = "true";
-    // Make sure the transition state is committed before data attributes change.
+    root.dataset.appearanceTransition = timeBased ? "time" : "true";
     void getComputedStyle(root).getPropertyValue("--accent");
     if (transitionTimer) clearTimeout(transitionTimer);
     transitionTimer = setTimeout(() => {
       delete root.dataset.appearanceTransition;
       transitionTimer = undefined;
-    }, APPEARANCE_TRANSITION_MS);
+    }, timeBased ? TIME_APPEARANCE_TRANSITION_MS : APPEARANCE_TRANSITION_MS);
   }
 
   root.dataset.theme = settings.theme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", settings.theme === "light" ? "#f5f5f6" : "#09090b");
-  root.dataset.accent = settings.appAccent;
+  root.dataset.accentMode = settings.appAccentMode;
+  root.dataset.accent = settings.appAccentMode === "time" ? getTimeBasedAccent(options.now) : settings.appAccent;
   root.dataset.rehearsalAccent = settings.rehearsalAccent;
   root.dataset.individualAccent = settings.individualAccent;
   root.dataset.seminarAccent = settings.seminarAccent;

@@ -25,6 +25,9 @@ html[data-appearance-transition="true"] {
     --individual .46s cubic-bezier(.22,1,.36,1),
     --seminar .46s cubic-bezier(.22,1,.36,1);
 }
+html[data-appearance-transition="time"] {
+  transition:--accent 1.8s cubic-bezier(.22,1,.36,1);
+}
 
 html[data-theme="dark"]{
   color-scheme:dark;
@@ -174,7 +177,7 @@ html[data-theme="light"] .notification-center-list article.is-unread{background:
   .settings-color-presets{justify-content:flex-start;width:100%}
   .settings-color-preset{width:38px;height:38px}
 }
-@media(prefers-reduced-motion:reduce){body{transition:none}html[data-appearance-transition="true"]{transition:none}}
+@media(prefers-reduced-motion:reduce){body{transition:none}html[data-appearance-transition="true"],html[data-appearance-transition="time"]{transition:none}}
 
 /* The app accent is a global tone, not just an action color. */
 html,body{background-color:var(--bg)!important}
