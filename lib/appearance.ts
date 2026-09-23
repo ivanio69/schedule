@@ -34,9 +34,8 @@ export const ACCENT_OPTIONS: ReadonlyArray<{ value: AccentPreset; label: string;
 export const TIME_ACCENT_PERIODS: ReadonlyArray<{ startHour: number; accent: AccentPreset; label: string }> = [
   { startHour: 0, accent: "violet", label: "Ночь" },
   { startHour: 6, accent: "amber", label: "Утро" },
-  { startHour: 10, accent: "blue", label: "День" },
-  { startHour: 16, accent: "mint", label: "Вторая половина дня" },
-  { startHour: 20, accent: "rose", label: "Вечер" },
+  { startHour: 11, accent: "blue", label: "День" },
+  { startHour: 18, accent: "rose", label: "Вечер" },
 ];
 
 const ACCENTS = new Set<AccentPreset>(ACCENT_OPTIONS.map(option => option.value));
