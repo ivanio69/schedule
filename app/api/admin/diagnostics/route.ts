@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
       activeQuotes,
       scheduleChanges,
       profileSettings,
+      cleanupState,
     ] = await Promise.all([
       getPeople(),
       getSchedule(),
@@ -72,6 +73,7 @@ export async function GET(request: NextRequest) {
       db.collection("daily_quotes").countDocuments({ active: true }),
       db.collection("schedule_changes").countDocuments(),
       db.collection("profile_settings").countDocuments(),
+      db.collection("system_maintenance").findOne({ id: "cleanup" }, { projection: { _id: 0 } }),
     ]);
 
     const activeIds = new Set(people.filter(person => person.active).map(person => person.id));
@@ -121,6 +123,25 @@ export async function GET(request: NextRequest) {
       detail: `${usageSessions} сессий · ${analyticsUsers} профилей с историей`,
     });
 
+    const cleanupStamp = typeof cleanupState?.lastRunAt === "string" ? Date.parse(cleanupState.lastRunAt) : NaN;
+    const cleanupAgeHours = Number.isFinite(cleanupStamp) ? Math.max(0, Math.round((Date.now() - cleanupStamp) / 3_600_000)) : null;
+    checks.push({
+      id: "automatic-cleanup",
+      label: "Автоочистка",
+      status: cleanupAgeHours === null || cleanupAgeHours > 48 ? "warn" : "ok",
+      detail: cleanupAgeHours === null
+        ? "Ещё не запускалась · ежедневный cron запланирован на 03:17 UTC"
+        : `Последний запуск ${cleanupAgeHours < 1 ? "меньше часа назад" : cleanupAgeHours + " ч назад"} · удалено ${Number(cleanupState?.totalDeleted ?? 0)} записей`,
+    });
+    checks.push({
+      id: "cron-secret",
+      label: "Cron-защита",
+      status: process.env.CRON_SECRET ? "ok" : "warn",
+      detail: process.env.CRON_SECRET
+        ? "CRON_SECRET настроен"
+        : "CRON_SECRET не задан · используется резервная проверка production cron-заголовка Vercel",
+    });
+
     checks.push({
       id: "content-data",
       label: "Контент дашборда",
@@ -164,6 +185,11 @@ export async function GET(request: NextRequest) {
           uptimeSeconds: Math.round(process.uptime()),
         },
         roles: roleCounts,
+        cleanup: cleanupState ? {
+          lastRunAt: typeof cleanupState.lastRunAt === "string" ? cleanupState.lastRunAt : null,
+          totalDeleted: Number(cleanupState.totalDeleted ?? 0),
+          counts: cleanupState.counts ?? {},
+        } : null,
         counts: {
           people: people.length,
           activePeople: activeIds.size,
