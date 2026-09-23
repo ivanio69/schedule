@@ -23,6 +23,7 @@ export type DashboardAnnouncement = {
   endsAt: string | null;
   accentColor?: string;
   backgroundColor?: string;
+  requiresAcknowledgement?: boolean;
   createdAt: string;
   updatedAt: string;
 };

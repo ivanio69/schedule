@@ -13,6 +13,8 @@ import {
   type DashboardAnnouncement,
 } from "@/lib/announcements";
 
+type ManagedAnnouncement = DashboardAnnouncement & { acknowledgementCount?: number; recipientCount?: number };
+
 function localDateTimeValue(value: string | null) {
   if (!value) return "";
   const date = new Date(value);
@@ -21,7 +23,7 @@ function localDateTimeValue(value: string | null) {
 }
 
 export default function AdminAnnouncements() {
-  const [items, setItems] = useState<DashboardAnnouncement[]>([]);
+  const [items, setItems] = useState<ManagedAnnouncement[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -35,6 +37,7 @@ export default function AdminAnnouncements() {
   const [accentColor, setAccentColor] = useState(DEFAULT_ANNOUNCEMENT_ACCENT);
   const [backgroundColor, setBackgroundColor] = useState(DEFAULT_ANNOUNCEMENT_BACKGROUND);
   const [sendPush, setSendPush] = useState(false);
+  const [requiresAcknowledgement, setRequiresAcknowledgement] = useState(false);
   const [status, setStatus] = useState("");
   const formRef = useRef<HTMLElement | null>(null);
 
@@ -69,9 +72,10 @@ export default function AdminAnnouncements() {
     setAccentColor(DEFAULT_ANNOUNCEMENT_ACCENT);
     setBackgroundColor(DEFAULT_ANNOUNCEMENT_BACKGROUND);
     setSendPush(false);
+    setRequiresAcknowledgement(false);
   };
 
-  const edit = (item: DashboardAnnouncement) => {
+  const edit = (item: ManagedAnnouncement) => {
     const colors = announcementColors(item);
     setEditingId(item.id);
     setTitle(item.title);
@@ -83,6 +87,7 @@ export default function AdminAnnouncements() {
     setAccentColor(colors.accentColor);
     setBackgroundColor(colors.backgroundColor);
     setSendPush(false);
+    setRequiresAcknowledgement(item.requiresAcknowledgement === true);
     setStatus("");
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
@@ -104,6 +109,7 @@ export default function AdminAnnouncements() {
           accentColor,
           backgroundColor,
           sendPush,
+          requiresAcknowledgement,
         })
       });
       const data = await response.json();
@@ -204,6 +210,11 @@ export default function AdminAnnouncements() {
       <label>Показывать до <small>необязательно</small><input className="admin-input" type="datetime-local" value={endsAt} onChange={event=>setEndsAt(event.target.value)}/></label>
 
       <label className="admin-announcement-push-toggle">
+        <input type="checkbox" checked={requiresAcknowledgement} onChange={event=>setRequiresAcknowledgement(event.target.checked)}/>
+        <span><strong>Требовать ознакомление</strong><small>Получатели увидят кнопку «Ознакомился», а в панели появится счётчик подтверждений.</small></span>
+      </label>
+
+      <label className="admin-announcement-push-toggle">
         <input type="checkbox" checked={sendPush} onChange={event=>setSendPush(event.target.checked)}/>
         <span><strong>{editingId ? "Отправить Push после сохранения" : "Отправить Push вместе с публикацией"}</strong><small>Получат те же пользователи, которым показывается объявление. Текст Push будет сокращён при необходимости.</small></span>
       </label>
@@ -231,7 +242,7 @@ export default function AdminAnnouncements() {
               <span>{(item.active?"АКТИВНО":"ВЫКЛЮЧЕНО") + " · " + (item.audience==="all"?"ВСЕМ":item.recipientIds.length+" ЧЕЛ.")}</span>
               <strong>{item.title}</strong>
               <p>{item.body}</p>
-              <small>{item.endsAt ? "до " + new Intl.DateTimeFormat("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(item.endsAt)) : "без срока"}</small>
+              <small>{item.endsAt ? "до " + new Intl.DateTimeFormat("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(item.endsAt)) : "без срока"}{item.requiresAcknowledgement ? " · ознакомились " + (item.acknowledgementCount??0) + "/" + (item.recipientCount??0) : ""}</small>
             </div>
             <div>
               <button className="admin-secondary" disabled={busy} onClick={()=>edit(item)}>Редактировать</button>
