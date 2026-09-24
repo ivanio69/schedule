@@ -2,7 +2,6 @@ import { getIndividualLessons, getPeople, getProfileSettings, getRehearsals, get
 import { normalizeAppearance } from "@/lib/appearance";
 import { getRehearsalAudienceNames } from "@/lib/rehearsals";
 import { getOccurrences, lessonMatchesChinaMode, type GroupPreference, type ScheduleData } from "@/lib/schedule";
-import type { Person } from "@/lib/people";
 
 export type WidgetEventKind = "lesson" | "individual" | "rehearsal";
 export type WidgetEventStatus = "normal" | "cancelled" | "moved";
@@ -33,7 +32,7 @@ function joinSubtitle(...parts: Array<string | undefined | null>) {
 function lessonEvent(lesson: ReturnType<typeof getOccurrences>[number], date: string): WidgetEvent {
   const status: WidgetEventStatus = lesson.occurrence?.status ?? "normal";
   return {
-    id: \`lesson:\${date}:\${lesson.occurrence?.key ?? lesson.id ?? \`\${lesson.class}:\${lesson.timeStart}\`}\`,
+    id: `lesson:${date}:${lesson.occurrence?.key ?? lesson.id ?? `${lesson.class}:${lesson.timeStart}`}`,
     kind: "lesson",
     status,
     title: lesson.class,
@@ -56,7 +55,7 @@ export async function buildWidgetFeed(personId: string, date: string) {
 
   const lessons = visibleLessons(schedule, date, settings).map((lesson) => lessonEvent(lesson, date));
   const personalIndividuals: WidgetEvent[] = individuals.map((item) => ({
-    id: \`individual:\${item.id}\`,
+    id: `individual:${item.id}`,
     kind: "individual",
     status: "normal",
     title: item.subject || "Индивидуальное",
@@ -67,7 +66,7 @@ export async function buildWidgetFeed(personId: string, date: string) {
   const personalRehearsals: WidgetEvent[] = rehearsals
     .filter((item) => item.isGlobal || item.creatorId === person.id || getRehearsalAudienceNames(item).includes(person.name))
     .map((item) => ({
-      id: \`rehearsal:\${item.id}\`,
+      id: `rehearsal:${item.id}`,
       kind: "rehearsal",
       status: "normal",
       title: item.subject || "Репетиция",

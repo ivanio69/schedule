@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   const person = await activeSessionPerson(request);
   if (!person) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   const pairing = await createWidgetPairing(person.id);
-  const deepLink = \`schedule214://widget/pair?code=\${encodeURIComponent(pairing.code)}\`;
+  const deepLink = `schedule214://widget/pair?code=${encodeURIComponent(pairing.code)}`;
   return NextResponse.json({
     deepLink,
     expiresAt: pairing.expiresAt.toISOString(),
