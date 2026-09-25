@@ -265,7 +265,7 @@ struct ScheduleWidgetView: View {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(.secondary.opacity(0.08), in: Capsule())
+                        .background(Color.secondary.opacity(0.08), in: Capsule())
                 }
             }
 
@@ -309,7 +309,7 @@ struct ScheduleWidgetView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
                 Rectangle()
-                    .fill(.secondary.opacity(0.14))
+                    .fill(Color.secondary.opacity(0.14))
                     .frame(width: 1)
                     .padding(.vertical, 2)
 
@@ -390,7 +390,7 @@ struct ScheduleWidgetView: View {
     private var statusLabel: some View {
         HStack(spacing: 5) {
             Circle()
-                .fill(state.current == nil ? .secondary : accent)
+                .fill(state.current == nil ? Color.secondary : accent)
                 .frame(width: 6, height: 6)
 
             Text(state.current == nil ? "ДАЛЬШЕ" : "СЕЙЧАС")
