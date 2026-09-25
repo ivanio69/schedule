@@ -1,4 +1,5 @@
 import SwiftUI
+import ActivityKit
 import UIKit
 import WidgetKit
 
@@ -36,7 +37,10 @@ final class WidgetConnectionModel: ObservableObject {
         defer { busy = false }
 
         do {
-            _ = try await WidgetAPI.feed(for: Date())
+            let feed = try await WidgetAPI.feed(for: Date())
+            if #available(iOS 17.0, *) {
+                await ScheduleLiveActivityManager.sync(with: feed)
+            }
             statusMessage = "Виджет обновлён."
             WidgetCenter.shared.reloadAllTimelines()
         } catch {
@@ -71,5 +75,94 @@ final class WidgetConnectionModel: ObservableObject {
         statusMessage = "Виджет отключён."
         webReloadRevision += 1
         WidgetCenter.shared.reloadAllTimelines()
+    }
+}
+
+
+@available(iOS 17.0, *)
+enum ScheduleLiveActivityManager {
+    static func sync(with feed: WidgetFeed, now: Date = Date()) async {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        let current = feed.events.first { event in
+            guard event.status != "cancelled",
+                  event.kind == "lesson" || event.kind == "rehearsal",
+                  let interval = interval(for: event, date: feed.date) else { return false }
+            return interval.contains(now)
+        }
+
+        let activities = Activity<ScheduleActivityAttributes>.activities
+
+        guard let current,
+              let currentInterval = interval(for: current, date: feed.date) else {
+            for activity in activities {
+                await activity.end(
+                    ActivityContent(
+                        state: ScheduleActivityAttributes.ContentState(revision: 1),
+                        staleDate: nil
+                    ),
+                    dismissalPolicy: .immediate
+                )
+            }
+            return
+        }
+
+        if let existing = activities.first(where: { $0.attributes.eventId == current.id }) {
+            for activity in activities where activity.id != existing.id {
+                await activity.end(
+                    ActivityContent(
+                        state: ScheduleActivityAttributes.ContentState(revision: 1),
+                        staleDate: nil
+                    ),
+                    dismissalPolicy: .immediate
+                )
+            }
+            return
+        }
+
+        for activity in activities {
+            await activity.end(
+                ActivityContent(
+                    state: ScheduleActivityAttributes.ContentState(revision: 1),
+                    staleDate: nil
+                ),
+                dismissalPolicy: .immediate
+            )
+        }
+
+        let attributes = ScheduleActivityAttributes(
+            eventId: current.id,
+            title: current.title,
+            subtitle: current.subtitle,
+            kind: current.kind,
+            startDate: currentInterval.lowerBound,
+            endDate: currentInterval.upperBound
+        )
+        let content = ActivityContent(
+            state: ScheduleActivityAttributes.ContentState(revision: 1),
+            staleDate: currentInterval.upperBound
+        )
+
+        do {
+            _ = try Activity.request(attributes: attributes, content: content, pushType: nil)
+        } catch {
+            print("Failed to start Live Activity:", error.localizedDescription)
+        }
+    }
+
+    private static func interval(for event: WidgetEvent, date: String) -> ClosedRange<Date>? {
+        guard let start = dateTime(date: date, time: event.start),
+              let end = dateTime(date: date, time: event.end),
+              end > start else { return nil }
+        return start...end
+    }
+
+    private static func dateTime(date: String, time: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter.date(from: "\(date) \(time)")
     }
 }

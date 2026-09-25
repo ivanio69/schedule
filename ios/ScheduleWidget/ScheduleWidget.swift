@@ -1,4 +1,5 @@
 import SwiftUI
+import ActivityKit
 import WidgetKit
 
 struct ScheduleEntry: TimelineEntry {
@@ -246,30 +247,7 @@ struct ScheduleWidgetView: View {
     }
 
     private var medium: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(accent)
-                        .frame(width: 7, height: 7)
-                    Text("214Р · Сегодня")
-                        .font(.caption.weight(.semibold))
-                }
-                .foregroundStyle(.secondary)
-
-                Spacer(minLength: 8)
-
-                if let freeAt = state.freeAt {
-                    Text("до \(freeAt)")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.secondary.opacity(0.08), in: Capsule())
-                }
-            }
-
-            HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
                     statusLabel
 
@@ -304,7 +282,18 @@ struct ScheduleWidgetView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    Spacer(minLength: 0)
+                    Spacer(minLength: 6)
+
+                    if let freeAt = state.freeAt {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                            Text("Свободен в \(freeAt)")
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.82)
+                        }
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
@@ -334,7 +323,6 @@ struct ScheduleWidgetView: View {
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
         }
     }
 
@@ -524,5 +512,131 @@ struct ScheduleWidget: Widget {
         .configurationDisplayName("214Р · Мой день")
         .description("Текущее событие, что дальше и во сколько освободишься.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+    }
+}
+
+
+struct ScheduleLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: ScheduleActivityAttributes.self) { context in
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .center, spacing: 9) {
+                    liveIcon(kind: context.attributes.kind)
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(width: 30, height: 30)
+                        .background(liveColor(kind: context.attributes.kind).opacity(0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        .foregroundStyle(liveColor(kind: context.attributes.kind))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(context.attributes.title)
+                            .font(.headline)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+
+                        if !context.attributes.subtitle.isEmpty {
+                            Text(context.attributes.subtitle)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Text(context.attributes.endDate, style: .timer)
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                ProgressView(
+                    timerInterval: context.attributes.startDate...context.attributes.endDate,
+                    countsDown: false
+                )
+                .tint(liveColor(kind: context.attributes.kind))
+
+                HStack {
+                    Text(context.attributes.startDate, style: .time)
+                    Spacer()
+                    Text(context.attributes.endDate, style: .time)
+                }
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+            }
+            .padding(.vertical, 2)
+            .activityBackgroundTint(Color(.systemBackground))
+            .activitySystemActionForegroundColor(.primary)
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    liveIcon(kind: context.attributes.kind)
+                        .foregroundStyle(liveColor(kind: context.attributes.kind))
+                }
+
+                DynamicIslandExpandedRegion(.trailing) {
+                    Text(context.attributes.endDate, style: .timer)
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                }
+
+                DynamicIslandExpandedRegion(.center) {
+                    Text(context.attributes.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+
+                DynamicIslandExpandedRegion(.bottom) {
+                    VStack(spacing: 6) {
+                        ProgressView(
+                            timerInterval: context.attributes.startDate...context.attributes.endDate,
+                            countsDown: false
+                        )
+                        .tint(liveColor(kind: context.attributes.kind))
+
+                        HStack {
+                            Text(context.attributes.startDate, style: .time)
+                            Spacer()
+                            Text(context.attributes.endDate, style: .time)
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                    }
+                }
+            } compactLeading: {
+                liveIcon(kind: context.attributes.kind)
+                    .foregroundStyle(liveColor(kind: context.attributes.kind))
+            } compactTrailing: {
+                Text(context.attributes.endDate, style: .timer)
+                    .font(.caption2.weight(.semibold))
+                    .monospacedDigit()
+            } minimal: {
+                liveIcon(kind: context.attributes.kind)
+                    .foregroundStyle(liveColor(kind: context.attributes.kind))
+            }
+            .widgetURL(WidgetEnvironment.scheduleURL)
+            .keylineTint(liveColor(kind: context.attributes.kind))
+        }
+    }
+}
+
+private func liveIcon(kind: String) -> Image {
+    switch kind {
+    case "rehearsal":
+        return Image(systemName: "music.note")
+    default:
+        return Image(systemName: "book.closed.fill")
+    }
+}
+
+private func liveColor(kind: String) -> Color {
+    switch kind {
+    case "rehearsal":
+        return .orange
+    default:
+        return .accentColor
     }
 }
