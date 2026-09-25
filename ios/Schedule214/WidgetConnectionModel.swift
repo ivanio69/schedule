@@ -21,6 +21,15 @@ final class WidgetConnectionModel: ObservableObject {
         Task { await pair(code: code) }
     }
 
+    func accept(token: String, profileName: String) {
+        WidgetStore.save(token: token, profileName: profileName)
+        connected = true
+        self.profileName = profileName
+        statusMessage = "Готово. Теперь добавь виджет 214Р на экран."
+        webReloadRevision += 1
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
     func pair(code: String) async {
         guard !busy else { return }
         busy = true
@@ -30,14 +39,9 @@ final class WidgetConnectionModel: ObservableObject {
         do {
             let deviceId = UIDevice.current.identifierForVendor?.uuidString
             let response = try await WidgetAPI.exchange(code: code, deviceId: deviceId)
-            WidgetStore.save(token: response.token, profileName: response.profile.name)
-            connected = true
-            profileName = response.profile.name
-            statusMessage = "Готово. Теперь добавь виджет 214Р на экран."
-            webReloadRevision += 1
-            WidgetCenter.shared.reloadAllTimelines()
+            accept(token: response.token, profileName: response.profile.name)
         } catch {
-            statusMessage = "Не удалось подключить. Создай новую ссылку в настройках."
+            statusMessage = "Не удалось подключить. Открой настройки внутри приложения и попробуй ещё раз."
         }
     }
 

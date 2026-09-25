@@ -45,6 +45,23 @@ export async function createWidgetPairing(personId: string) {
   return { code, expiresAt };
 }
 
+export async function createWidgetToken(personId: string, deviceId?: unknown) {
+  const db = await getDatabase();
+  const now = new Date();
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(now.getTime() + TOKEN_TTL_MS);
+  await db.collection<WidgetToken>("widget_tokens").insertOne({
+    id: randomUUID(),
+    tokenHash: hashSecret(token),
+    personId,
+    deviceId: cleanDeviceId(deviceId),
+    createdAt: now,
+    expiresAt,
+    lastUsedAt: now,
+  });
+  return { token, personId, expiresAt };
+}
+
 export async function exchangeWidgetPairing(code: unknown, deviceId?: unknown) {
   if (typeof code !== "string" || !SECRET_PATTERN.test(code)) return null;
   const db = await getDatabase();

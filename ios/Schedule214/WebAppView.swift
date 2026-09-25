@@ -13,6 +13,7 @@ struct WebAppView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
+        configuration.userContentController.add(context.coordinator, name: "scheduleWidget")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
@@ -34,13 +35,32 @@ struct WebAppView: UIViewRepresentable {
         }
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "scheduleWidget")
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let connection: WidgetConnectionModel
         weak var webView: WKWebView?
         var lastReloadRevision = 0
 
         init(connection: WidgetConnectionModel) {
             self.connection = connection
+        }
+
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            guard message.name == "scheduleWidget",
+                  let payload = message.body as? [String: Any],
+                  let token = payload["token"] as? String,
+                  !token.isEmpty else { return }
+
+            let profileName = payload["profileName"] as? String ?? ""
+            Task { @MainActor in
+                connection.accept(token: token, profileName: profileName)
+            }
         }
 
         func webView(

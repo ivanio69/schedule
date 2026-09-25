@@ -157,6 +157,17 @@ export default function SettingsPage() {
     if(widgetBusy)return;
     setWidgetBusy(true);setWidgetNotice("");
     try{
+      const nativeBridge=(window as Window & {webkit?:{messageHandlers?:{scheduleWidget?:{postMessage:(payload:unknown)=>void}}}}).webkit?.messageHandlers?.scheduleWidget;
+      if(nativeBridge){
+        const response=await fetch("/api/widget/connect",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}",cache:"no-store"});
+        const data=await response.json();
+        if(!response.ok||!data.token)throw new Error(data.error??"Не удалось создать подключение");
+        nativeBridge.postMessage({token:data.token,profileName:data.profile?.name??""});
+        setWidgetDevices(Number(data.connectedDevices??Math.max(1,widgetDevices)));
+        setWidgetNotice("iPhone подключён. Теперь добавь виджет 214Р на экран.");
+        return;
+      }
+
       const response=await fetch("/api/widget/pair",{method:"POST",cache:"no-store"});
       const data=await response.json();
       if(!response.ok||!data.deepLink)throw new Error(data.error??"Не удалось создать подключение");
