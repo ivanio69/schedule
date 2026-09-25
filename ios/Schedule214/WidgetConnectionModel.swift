@@ -8,6 +8,7 @@ final class WidgetConnectionModel: ObservableObject {
     @Published private(set) var profileName = WidgetStore.profileName
     @Published var statusMessage: String?
     @Published var busy = false
+    @Published private(set) var webReloadRevision = 0
 
     func handle(url: URL) {
         guard url.scheme == "schedule214",
@@ -33,6 +34,7 @@ final class WidgetConnectionModel: ObservableObject {
             connected = true
             profileName = response.profile.name
             statusMessage = "Готово. Теперь добавь виджет 214Р на экран."
+            webReloadRevision += 1
             WidgetCenter.shared.reloadAllTimelines()
         } catch {
             statusMessage = "Не удалось подключить. Создай новую ссылку в настройках."
@@ -48,6 +50,7 @@ final class WidgetConnectionModel: ObservableObject {
         profileName = nil
         busy = false
         statusMessage = "Виджет отключён."
+        webReloadRevision += 1
         WidgetCenter.shared.reloadAllTimelines()
     }
 }
