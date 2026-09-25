@@ -2,6 +2,14 @@
 
 Это минимальная нативная оболочка для системного iOS-виджета. Основное приложение остаётся Next.js/PWA.
 
+## Preview API
+
+Пока PR #81 не смержен, companion и WidgetKit направлены на preview alias ветки:
+
+`https://schedule-git-feature-ios-widget-ivanio.vercel.app`
+
+После merge этот адрес нужно вернуть на production URL.
+
 ## Что уже есть
 
 - сопряжение с текущим веб-профилем через одноразовый deep link;
