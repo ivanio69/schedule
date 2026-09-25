@@ -142,6 +142,13 @@ struct ScheduleWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: ScheduleEntry
 
+    private var state: DayState { DayState(entry: entry) }
+    private var primary: WidgetEvent? { state.current ?? state.upcoming.first }
+    private var accent: Color {
+        guard let feed = entry.feed else { return .accentColor }
+        return presetColor(feed.appearance.appAccent)
+    }
+
     var body: some View {
         Group {
             if !entry.connected {
@@ -161,135 +168,208 @@ struct ScheduleWidgetView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) {
-            Color(.systemBackground)
+            ZStack {
+                Color(.systemBackground)
+                if family == .systemSmall || family == .systemMedium {
+                    LinearGradient(
+                        colors: [accent.opacity(0.16), accent.opacity(0.045), Color.clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+            }
         }
         .widgetURL(WidgetEnvironment.scheduleURL)
     }
 
-    private var state: DayState { DayState(entry: entry) }
-
-    private var primary: WidgetEvent? {
-        state.current ?? state.upcoming.first
-    }
-
     private var small: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(state.current == nil ? "ДАЛЬШЕ" : "СЕЙЧАС")
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(.secondary)
-
-            if let event = primary {
-                Text(event.title)
-                    .font(.headline)
-                    .lineLimit(2)
-                Text(state.current == nil ? event.start : "до \(event.end)")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(color(for: event.kind))
-                if !event.subtitle.isEmpty {
-                    Text(event.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                statusLabel
+                Spacer(minLength: 6)
+                if let event = primary {
+                    timePill(event)
                 }
-            } else {
-                Text("На сегодня всё")
-                    .font(.headline)
-                Text("Свободен")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
-            Spacer(minLength: 0)
+            Spacer(minLength: 8)
 
-            if let freeAt = state.freeAt {
-                Text("Свободен в \(freeAt)")
+            if let event = primary {
+                eventIcon(event)
+                    .padding(.bottom, 6)
+
+                Text(event.title)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.78)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if !event.subtitle.isEmpty {
+                    Text(event.subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .padding(.top, 3)
+                }
+            } else {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(accent)
+                    .padding(.bottom, 6)
+
+                Text("На сегодня всё")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .lineLimit(2)
+
+                Text("Можно отдыхать")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .padding(.top, 3)
+            }
+
+            Spacer(minLength: 8)
+
+            if let freeAt = state.freeAt {
+                HStack(spacing: 5) {
+                    Image(systemName: "clock")
+                    Text("Свободен в \(freeAt)")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
             }
         }
     }
 
     private var medium: some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(state.current == nil ? "ДАЛЬШЕ" : "СЕЙЧАС")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-                if let event = primary {
-                    Text(event.title)
-                        .font(.headline)
-                        .lineLimit(2)
-                    Text(state.current == nil ? event.start : "до \(event.end)")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(color(for: event.kind))
-                    Text(event.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                } else {
-                    Text("На сегодня всё")
-                        .font(.headline)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(accent)
+                        .frame(width: 7, height: 7)
+                    Text("214Р · Сегодня")
+                        .font(.caption.weight(.semibold))
                 }
-                Spacer()
+                .foregroundStyle(.secondary)
+
+                Spacer(minLength: 8)
+
                 if let freeAt = state.freeAt {
-                    Text("Свободен в \(freeAt)")
-                        .font(.caption2)
+                    Text("до \(freeAt)")
+                        .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.secondary.opacity(0.08), in: Capsule())
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Divider()
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 6) {
+                    statusLabel
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("ПОТОМ")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-                let later = Array(state.upcoming.dropFirst(state.current == nil ? 1 : 0).prefix(2))
-                if later.isEmpty {
-                    Text("Больше событий нет")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(later) { event in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(event.start) · \(event.title)")
-                                .font(.caption.weight(.semibold))
+                    if let event = primary {
+                        HStack(alignment: .center, spacing: 7) {
+                            eventIcon(event)
+                            Text(state.current == nil ? event.start : "\(event.start)–\(event.end)")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundStyle(color(for: event.kind))
                                 .lineLimit(1)
-                            if !event.subtitle.isEmpty {
-                                Text(event.subtitle)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
+                                .minimumScaleFactor(0.85)
+                        }
+
+                        Text(event.title)
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.82)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if !event.subtitle.isEmpty {
+                            Text(event.subtitle)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    } else {
+                        Text("На сегодня всё")
+                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                        Text("Больше событий нет")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+                Rectangle()
+                    .fill(.secondary.opacity(0.14))
+                    .frame(width: 1)
+                    .padding(.vertical, 2)
+
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("ДАЛЬШЕ")
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(0.7)
+                        .foregroundStyle(.secondary)
+
+                    let later = Array(state.upcoming.dropFirst(state.current == nil ? 1 : 0).prefix(2))
+                    if later.isEmpty {
+                        Text("Больше ничего")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    } else {
+                        ForEach(later) { event in
+                            compactEventRow(event)
                         }
                     }
+
+                    Spacer(minLength: 0)
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var accessoryRectangular: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .center, spacing: 8) {
             if let event = primary {
-                Text(state.current == nil ? event.start : "до \(event.end)")
-                    .font(.caption.weight(.semibold))
-                Text(event.title)
+                Image(systemName: iconName(for: event.kind))
                     .font(.headline)
-                    .lineLimit(1)
-                if !event.subtitle.isEmpty {
-                    Text(event.subtitle)
-                        .font(.caption2)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(state.current == nil ? event.start : "до \(event.end)")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    Text(event.title)
+                        .font(.headline)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
+                    if !event.subtitle.isEmpty {
+                        Text(event.subtitle)
+                            .font(.caption2)
+                            .lineLimit(1)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             } else {
-                Text("214Р")
-                    .font(.caption.weight(.semibold))
-                Text("На сегодня всё")
-                    .font(.headline)
+                Image(systemName: "checkmark.circle.fill")
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("214Р")
+                        .font(.caption2.weight(.semibold))
+                    Text("На сегодня всё")
+                        .font(.headline)
+                        .lineLimit(1)
+                }
             }
         }
     }
@@ -297,41 +377,139 @@ struct ScheduleWidgetView: View {
     private var accessoryInline: some View {
         Group {
             if let event = primary {
-                Text("\(state.current == nil ? event.start : "до \(event.end)") · \(event.title)")
+                Label(
+                    "\(state.current == nil ? event.start : "до \(event.end)") · \(event.title)",
+                    systemImage: iconName(for: event.kind)
+                )
             } else {
-                Text("214Р · на сегодня всё")
+                Label("214Р · на сегодня всё", systemImage: "checkmark.circle")
+            }
+        }
+    }
+
+    private var statusLabel: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(state.current == nil ? .secondary : accent)
+                .frame(width: 6, height: 6)
+
+            Text(state.current == nil ? "ДАЛЬШЕ" : "СЕЙЧАС")
+                .font(.system(size: 9, weight: .bold))
+                .tracking(0.7)
+        }
+        .foregroundStyle(.secondary)
+    }
+
+    private func timePill(_ event: WidgetEvent) -> some View {
+        Text(state.current == nil ? event.start : "до \(event.end)")
+            .font(.caption2.weight(.bold))
+            .monospacedDigit()
+            .lineLimit(1)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .foregroundStyle(color(for: event.kind))
+            .background(color(for: event.kind).opacity(0.12), in: Capsule())
+    }
+
+    private func eventIcon(_ event: WidgetEvent) -> some View {
+        Image(systemName: iconName(for: event.kind))
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(color(for: event.kind))
+            .frame(width: 27, height: 27)
+            .background(color(for: event.kind).opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func compactEventRow(_ event: WidgetEvent) -> some View {
+        HStack(alignment: .top, spacing: 7) {
+            Circle()
+                .fill(color(for: event.kind))
+                .frame(width: 6, height: 6)
+                .padding(.top, 5)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(event.start) · \(event.title)")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+
+                if !event.subtitle.isEmpty {
+                    Text(event.subtitle)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
             }
         }
     }
 
     private var disconnected: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 7) {
             Image(systemName: "iphone.gen3")
+                .font(.title3)
+                .foregroundStyle(accent)
+
             Text("Подключи 214Р")
                 .font(.headline)
-            Text("Настройки → iOS-виджет")
+                .lineLimit(2)
+
+            Text("Открой приложение → Настройки → iOS-виджет")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .lineLimit(3)
+
+            Spacer(minLength: 0)
         }
     }
 
     private var unavailable: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 7) {
             Image(systemName: "wifi.exclamationmark")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+
             Text("Нет данных")
                 .font(.headline)
+                .lineLimit(1)
+
             Text(entry.errorMessage ?? "Обновим автоматически")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(3)
+                .minimumScaleFactor(0.82)
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func iconName(for kind: String) -> String {
+        switch kind {
+        case "rehearsal": return "music.note"
+        case "individual": return "person.fill"
+        default: return "book.closed.fill"
         }
     }
 
     private func color(for kind: String) -> Color {
+        guard let feed = entry.feed else { return accent }
         switch kind {
-        case "rehearsal": return .orange
-        case "individual": return .red
-        default: return .accentColor
+        case "rehearsal":
+            return presetColor(feed.appearance.rehearsalAccent, fallback: .orange)
+        case "individual":
+            return presetColor(feed.appearance.individualAccent, fallback: .red)
+        default:
+            return accent
+        }
+    }
+
+    private func presetColor(_ preset: String, fallback: Color = .accentColor) -> Color {
+        switch preset {
+        case "mint": return Color(red: 0.47, green: 0.85, blue: 0.69)
+        case "blue": return Color(red: 0.46, green: 0.68, blue: 0.97)
+        case "violet": return Color(red: 0.67, green: 0.55, blue: 0.96)
+        case "amber": return Color(red: 0.93, green: 0.72, blue: 0.38)
+        case "rose": return Color(red: 0.93, green: 0.55, blue: 0.63)
+        default: return fallback
         }
     }
 }
@@ -346,6 +524,5 @@ struct ScheduleWidget: Widget {
         .configurationDisplayName("214Р · Мой день")
         .description("Текущее событие, что дальше и во сколько освободишься.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
-        .contentMarginsDisabled()
     }
 }
