@@ -5,11 +5,12 @@ struct ScheduleEntry: TimelineEntry {
     let date: Date
     let feed: WidgetFeed?
     let connected: Bool
+    let errorMessage: String?
 }
 
 struct ScheduleProvider: TimelineProvider {
     func placeholder(in context: Context) -> ScheduleEntry {
-        ScheduleEntry(date: Date(), feed: Self.sampleFeed, connected: true)
+        ScheduleEntry(date: Date(), feed: Self.sampleFeed, connected: true, errorMessage: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (ScheduleEntry) -> Void) {
@@ -26,26 +27,28 @@ struct ScheduleProvider: TimelineProvider {
         Task {
             let now = Date()
             guard WidgetStore.token != nil else {
-                let entry = ScheduleEntry(date: now, feed: nil, connected: false)
+                let entry = ScheduleEntry(date: now, feed: nil, connected: false, errorMessage: "Нет общего токена. Проверь App Group.")
                 completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(30 * 60))))
                 return
             }
 
             let feed: WidgetFeed?
+            var errorMessage: String?
             do {
                 feed = try await WidgetAPI.feed(for: now)
             } catch {
                 feed = WidgetStore.cachedFeed()
+                errorMessage = error.localizedDescription
             }
 
             guard let feed else {
-                let entry = ScheduleEntry(date: now, feed: nil, connected: true)
-                completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(20 * 60))))
+                let entry = ScheduleEntry(date: now, feed: nil, connected: true, errorMessage: errorMessage ?? "Кэш пуст")
+                completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(10 * 60))))
                 return
             }
 
             let moments = timelineMoments(feed: feed, now: now)
-            let entries = moments.map { ScheduleEntry(date: $0, feed: feed, connected: true) }
+            let entries = moments.map { ScheduleEntry(date: $0, feed: feed, connected: true, errorMessage: errorMessage) }
             let refresh = nextMorning(after: now)
             completion(Timeline(entries: entries, policy: .after(refresh)))
         }
@@ -53,12 +56,14 @@ struct ScheduleProvider: TimelineProvider {
 
     private func loadEntry(date: Date) async -> ScheduleEntry {
         guard WidgetStore.token != nil else {
-            return ScheduleEntry(date: date, feed: nil, connected: false)
+            return ScheduleEntry(date: date, feed: nil, connected: false, errorMessage: "Нет общего токена. Проверь App Group.")
         }
-        if let feed = try? await WidgetAPI.feed(for: date) {
-            return ScheduleEntry(date: date, feed: feed, connected: true)
+        do {
+            let feed = try await WidgetAPI.feed(for: date)
+            return ScheduleEntry(date: date, feed: feed, connected: true, errorMessage: nil)
+        } catch {
+            return ScheduleEntry(date: date, feed: WidgetStore.cachedFeed(), connected: true, errorMessage: error.localizedDescription)
         }
-        return ScheduleEntry(date: date, feed: WidgetStore.cachedFeed(), connected: true)
     }
 
     private func timelineMoments(feed: WidgetFeed, now: Date) -> [Date] {
@@ -315,9 +320,10 @@ struct ScheduleWidgetView: View {
             Image(systemName: "wifi.exclamationmark")
             Text("Нет данных")
                 .font(.headline)
-            Text("Обновим автоматически")
+            Text(entry.errorMessage ?? "Обновим автоматически")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .lineLimit(3)
         }
     }
 

@@ -1,9 +1,20 @@
 import Foundation
 
-enum WidgetAPIError: Error {
+enum WidgetAPIError: LocalizedError {
     case notConnected
     case invalidResponse
     case server(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .notConnected:
+            return "нет токена в App Group"
+        case .invalidResponse:
+            return "сервер вернул некорректный ответ"
+        case .server(let message):
+            return message
+        }
+    }
 }
 
 enum WidgetAPI {

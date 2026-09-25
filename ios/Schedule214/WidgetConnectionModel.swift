@@ -25,9 +25,24 @@ final class WidgetConnectionModel: ObservableObject {
         WidgetStore.save(token: token, profileName: profileName)
         connected = true
         self.profileName = profileName
-        statusMessage = "Готово. Теперь добавь виджет 214Р на экран."
+        statusMessage = "Подключено. Загружаем данные виджета…"
         webReloadRevision += 1
-        WidgetCenter.shared.reloadAllTimelines()
+        Task { await refreshWidgetData() }
+    }
+
+    func refreshWidgetData() async {
+        guard connected, !busy else { return }
+        busy = true
+        defer { busy = false }
+
+        do {
+            _ = try await WidgetAPI.feed(for: Date())
+            statusMessage = "Виджет обновлён."
+            WidgetCenter.shared.reloadAllTimelines()
+        } catch {
+            statusMessage = "Виджет подключён, но данные не загрузились: \(error.localizedDescription)"
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 
     func pair(code: String) async {

@@ -23,6 +23,7 @@ struct ContentView: View {
             }
         }
         .background(Color(.systemBackground))
+        .task { await connection.refreshWidgetData() }
     }
 }
 
