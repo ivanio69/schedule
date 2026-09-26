@@ -21,7 +21,7 @@ export const APP_CHANGELOG: AppChangelogEntry[] = [
       "Виджет строит timeline по началу и окончанию событий и не запрашивает сервер каждую минуту.",
       "Для iOS используется отдельный read-only токен без personId в URL; его можно отозвать из настроек приложения.",
       "Во время пары или репетиции Live Activity показывает название события, время до окончания и живой progress bar; поддерживаются Lock Screen и Dynamic Island.",
-      "ActivityKit push-to-start позволяет серверу автоматически запускать Live Activity даже при закрытом companion; после окончания события сервер завершает её через update-token."
+      "На iOS 26+ ближайшие пары и репетиции заранее планируются через ActivityKit и стартуют точно по времени даже при закрытом companion; APNs push-to-start остаётся серверным fallback для старых систем."
     ],
   },
   {

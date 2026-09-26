@@ -59,7 +59,8 @@
    - `APNS_KEY_ID`
    - `APNS_PRIVATE_KEY` — содержимое Apple APNs Auth Key (.p8)
    - `APNS_BUNDLE_ID=com.schedule214.app`
-4. Серверный endpoint `/api/cron/live-activities` запускается Vercel Cron каждую минуту; GitHub Actions раз в 5 минут служит fallback.
-5. После remote start iOS передаёт update-token конкретной Live Activity обратно серверу, чтобы активность автоматически завершилась после события.
+4. На iOS 26+ companion заранее планирует ближайшие Live Activities через ActivityKit, поэтому система запускает их точно по времени даже при закрытом приложении.
+5. Серверный endpoint `/api/cron/live-activities` остаётся APNs push-to-start fallback для старых систем и вызывается GitHub Actions раз в 5 минут. Минутный Vercel Cron не используется, потому что текущий Hobby-проект допускает cron только раз в день.
+6. После remote/local start iOS передаёт update-token конкретной Live Activity обратно серверу, чтобы активность можно было завершить после события.
 
 Перед TestFlight значение `aps-environment` в entitlements должно соответствовать production-подписи. При добавлении Push Notifications capability через Xcode это значение выставляется профилем подписи.
