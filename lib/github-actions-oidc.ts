@@ -2,7 +2,6 @@ import { createPublicKey, verify } from "node:crypto";
 
 const ISSUER="https://token.actions.githubusercontent.com";
 const JWKS_URL="https://token.actions.githubusercontent.com/.well-known/jwks";
-const AUDIENCE="schedule-digests";
 type Claims={iss?:string;aud?:string|string[];exp?:number;nbf?:number;repository?:string;ref?:string;event_name?:string};
 let cached:{expiresAt:number;keys:Array<Record<string,unknown>>}|null=null;
 const decode=(value:string)=>Buffer.from(value.replace(/-/g,"+").replace(/_/g,"/").padEnd(Math.ceil(value.length/4)*4,"="),"base64");
@@ -16,7 +15,7 @@ async function keys(){
   cached={keys:body.keys,expiresAt:Date.now()+3_600_000};
   return body.keys;
 }
-export async function verifyDigestSchedulerToken(token:string|undefined|null){
+async function verifySchedulerToken(token:string|undefined|null,audience:string){
   if(!token)return false;
   const parts=token.split(".");
   if(parts.length!==3)return false;
@@ -32,8 +31,17 @@ export async function verifyDigestSchedulerToken(token:string|undefined|null){
     const now=Math.floor(Date.now()/1000);
     if(claims.iss!==ISSUER||typeof claims.exp!=="number"||claims.exp<now||(typeof claims.nbf==="number"&&claims.nbf>now+30))return false;
     const audiences=Array.isArray(claims.aud)?claims.aud:[claims.aud];
-    if(!audiences.includes(AUDIENCE))return false;
+    if(!audiences.includes(audience))return false;
     if(claims.repository!=="ivanio69/schedule"||claims.ref!=="refs/heads/main")return false;
     return claims.event_name==="schedule"||claims.event_name==="workflow_dispatch";
   }catch{return false}
+}
+
+
+export function verifyDigestSchedulerToken(token:string|undefined|null){
+  return verifySchedulerToken(token,"schedule-digests");
+}
+
+export function verifyLiveActivitySchedulerToken(token:string|undefined|null){
+  return verifySchedulerToken(token,"schedule-live-activities");
 }

@@ -10,6 +10,9 @@ final class WidgetConnectionModel: ObservableObject {
     @Published var statusMessage: String?
     @Published var busy = false
     @Published private(set) var webReloadRevision = 0
+    private var pushToStartTask: Task<Void, Never>?
+    private var activityUpdatesTask: Task<Void, Never>?
+    private var activityTokenTasks: [String: Task<Void, Never>] = [:]
 
     func handle(url: URL) {
         guard url.scheme == "schedule214",
@@ -28,7 +31,94 @@ final class WidgetConnectionModel: ObservableObject {
         self.profileName = profileName
         statusMessage = "Подключено. Загружаем данные виджета…"
         webReloadRevision += 1
-        Task { await refreshWidgetData() }
+        Task {
+            await uploadCurrentLiveActivityTokens()
+            await refreshWidgetData()
+        }
+    }
+
+    func startLiveActivityPushRegistration() {
+        guard pushToStartTask == nil, activityUpdatesTask == nil else { return }
+
+        if #available(iOS 17.2, *) {
+            pushToStartTask = Task { [weak self] in
+                guard let self else { return }
+
+                if let token = Activity<ScheduleActivityAttributes>.pushToStartToken {
+                    try? await WidgetAPI.registerPushToStartToken(token)
+                }
+
+                for await token in Activity<ScheduleActivityAttributes>.pushToStartTokenUpdates {
+                    guard !Task.isCancelled else { break }
+                    try? await WidgetAPI.registerPushToStartToken(token)
+                }
+            }
+
+            activityUpdatesTask = Task { [weak self] in
+                guard let self else { return }
+
+                for activity in Activity<ScheduleActivityAttributes>.activities {
+                    observeUpdateToken(for: activity)
+                }
+
+                for await activity in Activity<ScheduleActivityAttributes>.activityUpdates {
+                    guard !Task.isCancelled else { break }
+                    observeUpdateToken(for: activity)
+                }
+            }
+        }
+    }
+
+    private func uploadCurrentLiveActivityTokens() async {
+        if #available(iOS 17.2, *) {
+            if let token = Activity<ScheduleActivityAttributes>.pushToStartToken {
+                try? await WidgetAPI.registerPushToStartToken(token)
+            }
+
+            for activity in Activity<ScheduleActivityAttributes>.activities {
+                observeUpdateToken(for: activity)
+                if let token = activity.pushToken {
+                    try? await WidgetAPI.registerActivityUpdateToken(
+                        token,
+                        activityId: activity.id,
+                        eventId: activity.attributes.eventId,
+                        endTimestamp: activity.attributes.endTimestamp
+                    )
+                }
+            }
+        }
+    }
+
+    @available(iOS 17.2, *)
+    private func observeUpdateToken(for activity: Activity<ScheduleActivityAttributes>) {
+        guard activityTokenTasks[activity.id] == nil else { return }
+
+        activityTokenTasks[activity.id] = Task { [weak self] in
+            defer {
+                Task { @MainActor [weak self] in
+                    self?.activityTokenTasks[activity.id] = nil
+                }
+            }
+
+            if let token = activity.pushToken {
+                try? await WidgetAPI.registerActivityUpdateToken(
+                    token,
+                    activityId: activity.id,
+                    eventId: activity.attributes.eventId,
+                    endTimestamp: activity.attributes.endTimestamp
+                )
+            }
+
+            for await token in activity.pushTokenUpdates {
+                guard !Task.isCancelled else { break }
+                try? await WidgetAPI.registerActivityUpdateToken(
+                    token,
+                    activityId: activity.id,
+                    eventId: activity.attributes.eventId,
+                    endTimestamp: activity.attributes.endTimestamp
+                )
+            }
+        }
     }
 
     func refreshWidgetData() async {
@@ -135,8 +225,8 @@ enum ScheduleLiveActivityManager {
             title: current.title,
             subtitle: current.subtitle,
             kind: current.kind,
-            startDate: currentInterval.lowerBound,
-            endDate: currentInterval.upperBound
+            startTimestamp: currentInterval.lowerBound.timeIntervalSince1970,
+            endTimestamp: currentInterval.upperBound.timeIntervalSince1970
         )
         let content = ActivityContent(
             state: ScheduleActivityAttributes.ContentState(revision: 1),
@@ -144,7 +234,7 @@ enum ScheduleLiveActivityManager {
         )
 
         do {
-            _ = try Activity.request(attributes: attributes, content: content, pushType: nil)
+            _ = try Activity.request(attributes: attributes, content: content, pushType: .token)
         } catch {
             print("Failed to start Live Activity:", error.localizedDescription)
         }

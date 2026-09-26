@@ -46,3 +46,20 @@
 ## Перед TestFlight/App Store
 
 Нужно добавить production App Icon, выбрать окончательные bundle identifiers / App Group и настроить signing. Серверная часть уже использует production URL; при необходимости API URL можно заменить в \`Shared/WidgetEnvironment.swift\`.
+
+
+## Push-to-start Live Activity
+
+Для автоматического старта Live Activity, когда companion закрыт:
+
+1. В Apple Developer / Xcode для App ID `com.schedule214.app` должна быть включена capability **Push Notifications**.
+2. Для preview Debug-сборки используется APNs sandbox.
+3. На Vercel нужны переменные:
+   - `APNS_TEAM_ID`
+   - `APNS_KEY_ID`
+   - `APNS_PRIVATE_KEY` — содержимое Apple APNs Auth Key (.p8)
+   - `APNS_BUNDLE_ID=com.schedule214.app`
+4. Серверный endpoint `/api/cron/live-activities` запускается Vercel Cron каждую минуту; GitHub Actions раз в 5 минут служит fallback.
+5. После remote start iOS передаёт update-token конкретной Live Activity обратно серверу, чтобы активность автоматически завершилась после события.
+
+Перед TestFlight значение `aps-environment` в entitlements должно соответствовать production-подписи. При добавлении Push Notifications capability через Xcode это значение выставляется профилем подписи.
