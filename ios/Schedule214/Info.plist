@@ -2,6 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+<<<<<<< HEAD
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleDisplayName</key>
@@ -29,5 +30,34 @@
 			</array>
 		</dict>
 	</array>
+=======
+    <key>CFBundleDisplayName</key>
+    <string>214Р</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.schedule214.widget-pairing</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>schedule214</string>
+            </array>
+        </dict>
+    </array>
+>>>>>>> 84f963209a9a4bf8efe16e75fd77c18a22b2fc1d
 </dict>
 </plist>
