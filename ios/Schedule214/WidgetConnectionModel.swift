@@ -10,6 +10,9 @@ final class WidgetConnectionModel: ObservableObject {
     @Published var statusMessage: String?
     @Published var busy = false
     @Published private(set) var webReloadRevision = 0
+    private var pushToStartTask: Task<Void, Never>?
+    private var activityUpdatesTask: Task<Void, Never>?
+    private var activityTokenTasks: [String: Task<Void, Never>] = [:]
 
     func handle(url: URL) {
         guard url.scheme == "schedule214",
@@ -28,7 +31,94 @@ final class WidgetConnectionModel: ObservableObject {
         self.profileName = profileName
         statusMessage = "Подключено. Загружаем данные виджета…"
         webReloadRevision += 1
-        Task { await refreshWidgetData() }
+        Task {
+            await uploadCurrentLiveActivityTokens()
+            await refreshWidgetData()
+        }
+    }
+
+    func startLiveActivityPushRegistration() {
+        guard pushToStartTask == nil, activityUpdatesTask == nil else { return }
+
+        if #available(iOS 17.2, *) {
+            pushToStartTask = Task { [weak self] in
+                guard let self else { return }
+
+                if let token = Activity<ScheduleActivityAttributes>.pushToStartToken {
+                    try? await WidgetAPI.registerPushToStartToken(token)
+                }
+
+                for await token in Activity<ScheduleActivityAttributes>.pushToStartTokenUpdates {
+                    guard !Task.isCancelled else { break }
+                    try? await WidgetAPI.registerPushToStartToken(token)
+                }
+            }
+
+            activityUpdatesTask = Task { [weak self] in
+                guard let self else { return }
+
+                for activity in Activity<ScheduleActivityAttributes>.activities {
+                    observeUpdateToken(for: activity)
+                }
+
+                for await activity in Activity<ScheduleActivityAttributes>.activityUpdates {
+                    guard !Task.isCancelled else { break }
+                    observeUpdateToken(for: activity)
+                }
+            }
+        }
+    }
+
+    private func uploadCurrentLiveActivityTokens() async {
+        if #available(iOS 17.2, *) {
+            if let token = Activity<ScheduleActivityAttributes>.pushToStartToken {
+                try? await WidgetAPI.registerPushToStartToken(token)
+            }
+
+            for activity in Activity<ScheduleActivityAttributes>.activities {
+                observeUpdateToken(for: activity)
+                if let token = activity.pushToken {
+                    try? await WidgetAPI.registerActivityUpdateToken(
+                        token,
+                        activityId: activity.id,
+                        eventId: activity.attributes.eventId,
+                        endTimestamp: activity.attributes.endTimestamp
+                    )
+                }
+            }
+        }
+    }
+
+    @available(iOS 17.2, *)
+    private func observeUpdateToken(for activity: Activity<ScheduleActivityAttributes>) {
+        guard activityTokenTasks[activity.id] == nil else { return }
+
+        activityTokenTasks[activity.id] = Task { [weak self] in
+            defer {
+                Task { @MainActor [weak self] in
+                    self?.activityTokenTasks[activity.id] = nil
+                }
+            }
+
+            if let token = activity.pushToken {
+                try? await WidgetAPI.registerActivityUpdateToken(
+                    token,
+                    activityId: activity.id,
+                    eventId: activity.attributes.eventId,
+                    endTimestamp: activity.attributes.endTimestamp
+                )
+            }
+
+            for await token in activity.pushTokenUpdates {
+                guard !Task.isCancelled else { break }
+                try? await WidgetAPI.registerActivityUpdateToken(
+                    token,
+                    activityId: activity.id,
+                    eventId: activity.attributes.eventId,
+                    endTimestamp: activity.attributes.endTimestamp
+                )
+            }
+        }
     }
 
     func refreshWidgetData() async {
@@ -81,73 +171,167 @@ final class WidgetConnectionModel: ObservableObject {
 
 @available(iOS 17.0, *)
 enum ScheduleLiveActivityManager {
+    private typealias PlannedEvent = (event: WidgetEvent, interval: ClosedRange<Date>)
+
     static func sync(with feed: WidgetFeed, now: Date = Date()) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
-        let current = feed.events.first { event in
+        let planned: [PlannedEvent] = feed.events.compactMap { event in
             guard event.status != "cancelled",
                   event.kind == "lesson" || event.kind == "rehearsal",
-                  let interval = interval(for: event, date: feed.date) else { return false }
-            return interval.contains(now)
+                  let interval = interval(for: event, date: feed.date),
+                  interval.upperBound > now else { return nil }
+            return (event, interval)
         }
 
-        let activities = Activity<ScheduleActivityAttributes>.activities
+        if #available(iOS 26.0, *) {
+            await syncScheduled(planned, now: now)
+        } else {
+            await syncCurrentOnly(planned, now: now)
+        }
+    }
 
-        guard let current,
-              let currentInterval = interval(for: current, date: feed.date) else {
+    private static func syncCurrentOnly(_ planned: [PlannedEvent], now: Date) async {
+        let activities = Activity<ScheduleActivityAttributes>.activities
+        let current = planned.first { $0.interval.contains(now) }
+
+        guard let current else {
             for activity in activities {
-                await activity.end(
-                    ActivityContent(
-                        state: ScheduleActivityAttributes.ContentState(revision: 1),
-                        staleDate: nil
-                    ),
-                    dismissalPolicy: .immediate
-                )
+                await end(activity)
             }
             return
         }
 
-        if let existing = activities.first(where: { $0.attributes.eventId == current.id }) {
+        if let existing = activities.first(where: { matches($0, current) }) {
             for activity in activities where activity.id != existing.id {
-                await activity.end(
-                    ActivityContent(
-                        state: ScheduleActivityAttributes.ContentState(revision: 1),
-                        staleDate: nil
-                    ),
-                    dismissalPolicy: .immediate
-                )
+                await end(activity)
             }
             return
         }
 
         for activity in activities {
-            await activity.end(
-                ActivityContent(
-                    state: ScheduleActivityAttributes.ContentState(revision: 1),
-                    staleDate: nil
-                ),
-                dismissalPolicy: .immediate
-            )
+            await end(activity)
         }
 
-        let attributes = ScheduleActivityAttributes(
-            eventId: current.id,
-            title: current.title,
-            subtitle: current.subtitle,
-            kind: current.kind,
-            startDate: currentInterval.lowerBound,
-            endDate: currentInterval.upperBound
-        )
+        requestImmediate(current)
+    }
+
+    @available(iOS 26.0, *)
+    private static func syncScheduled(_ planned: [PlannedEvent], now: Date) async {
+        var activities = Activity<ScheduleActivityAttributes>.activities
+
+        // Remove stale, deleted or changed activities before rebuilding today's queue.
+        for activity in activities {
+            guard let desired = planned.first(where: { $0.event.id == activity.attributes.eventId }),
+                  matches(activity, desired) else {
+                await end(activity)
+                continue
+            }
+        }
+
+        activities = Activity<ScheduleActivityAttributes>.activities
+        var existingIds = Set(activities.map { $0.attributes.eventId })
+
+        if let current = planned.first(where: { $0.interval.contains(now) }),
+           !existingIds.contains(current.event.id) {
+            if let activity = requestImmediate(current) {
+                existingIds.insert(activity.attributes.eventId)
+            }
+        }
+
+        // Keep the queue small because pending Live Activities count toward the system limit.
+        let upcoming = planned
+            .filter { $0.interval.lowerBound > now }
+            .sorted { $0.interval.lowerBound < $1.interval.lowerBound }
+            .prefix(4)
+
+        for item in upcoming where !existingIds.contains(item.event.id) {
+            if let activity = requestScheduled(item) {
+                existingIds.insert(activity.attributes.eventId)
+            }
+        }
+    }
+
+    @discardableResult
+    private static func requestImmediate(_ item: PlannedEvent) -> Activity<ScheduleActivityAttributes>? {
+        let attributes = attributes(for: item)
         let content = ActivityContent(
             state: ScheduleActivityAttributes.ContentState(revision: 1),
-            staleDate: currentInterval.upperBound
+            staleDate: item.interval.upperBound
         )
 
         do {
-            _ = try Activity.request(attributes: attributes, content: content, pushType: nil)
+            return try Activity.request(attributes: attributes, content: content, pushType: .token)
         } catch {
             print("Failed to start Live Activity:", error.localizedDescription)
+            return nil
         }
+    }
+
+    @available(iOS 26.0, *)
+    @discardableResult
+    private static func requestScheduled(_ item: PlannedEvent) -> Activity<ScheduleActivityAttributes>? {
+        let attributes = attributes(for: item)
+        let content = ActivityContent(
+            state: ScheduleActivityAttributes.ContentState(revision: 1),
+            staleDate: item.interval.upperBound
+        )
+        let title: LocalizedStringResource = item.event.kind == "rehearsal"
+            ? "Репетиция начинается"
+            : "Пара начинается"
+        let alert = AlertConfiguration(
+            title: title,
+            body: "Live Activity уже на экране.",
+            sound: .default
+        )
+
+        do {
+            return try Activity.request(
+                attributes: attributes,
+                content: content,
+                pushType: .token,
+                style: .standard,
+                alertConfiguration: alert,
+                start: item.interval.lowerBound
+            )
+        } catch {
+            print("Failed to schedule Live Activity:", error.localizedDescription)
+            return nil
+        }
+    }
+
+    private static func attributes(for item: PlannedEvent) -> ScheduleActivityAttributes {
+        ScheduleActivityAttributes(
+            eventId: item.event.id,
+            title: item.event.title,
+            subtitle: item.event.subtitle,
+            kind: item.event.kind,
+            startTimestamp: item.interval.lowerBound.timeIntervalSince1970,
+            endTimestamp: item.interval.upperBound.timeIntervalSince1970
+        )
+    }
+
+    private static func matches(
+        _ activity: Activity<ScheduleActivityAttributes>,
+        _ item: PlannedEvent
+    ) -> Bool {
+        let attributes = activity.attributes
+        return attributes.eventId == item.event.id
+            && abs(attributes.startTimestamp - item.interval.lowerBound.timeIntervalSince1970) < 1
+            && abs(attributes.endTimestamp - item.interval.upperBound.timeIntervalSince1970) < 1
+            && attributes.title == item.event.title
+            && attributes.subtitle == item.event.subtitle
+            && attributes.kind == item.event.kind
+    }
+
+    private static func end(_ activity: Activity<ScheduleActivityAttributes>) async {
+        await activity.end(
+            ActivityContent(
+                state: ScheduleActivityAttributes.ContentState(revision: 2),
+                staleDate: nil
+            ),
+            dismissalPolicy: .immediate
+        )
     }
 
     private static func interval(for event: WidgetEvent, date: String) -> ClosedRange<Date>? {

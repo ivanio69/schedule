@@ -50,6 +50,9 @@ struct ScheduleActivityAttributes: ActivityAttributes {
     let title: String
     let subtitle: String
     let kind: String
-    let startDate: Date
-    let endDate: Date
+    let startTimestamp: Double
+    let endTimestamp: Double
+
+    var startDate: Date { Date(timeIntervalSince1970: startTimestamp) }
+    var endDate: Date { Date(timeIntervalSince1970: endTimestamp) }
 }
