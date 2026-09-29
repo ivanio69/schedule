@@ -37,11 +37,22 @@ final class WidgetConnectionModel: ObservableObject {
         defer { busy = false }
 
         do {
-            let feed = try await WidgetAPI.feed(for: Date())
+            let now = Date()
+            let today = try await WidgetAPI.feed(for: now)
+            let tomorrowDate = Calendar.current.startOfDay(
+                for: Calendar.current.date(byAdding: .day, value: 1, to: now) ?? now.addingTimeInterval(86_400)
+            )
+            let tomorrow = try? await WidgetAPI.feed(for: tomorrowDate)
+
             if #available(iOS 17.0, *) {
-                await ScheduleLiveActivityManager.sync(with: feed)
+                await ScheduleLiveActivityManager.sync(
+                    with: [today] + (tomorrow.map { [$0] } ?? []),
+                    now: now
+                )
             }
-            statusMessage = "Виджет обновлён."
+            statusMessage = tomorrow == nil
+                ? "Сегодня обновлено. Завтра загрузится при следующей синхронизации."
+                : "Виджет и Live Activity обновлены на сегодня и завтра."
             WidgetCenter.shared.reloadAllTimelines()
         } catch {
             statusMessage = "Виджет подключён, но данные не загрузились: \(error.localizedDescription)"
@@ -83,16 +94,20 @@ final class WidgetConnectionModel: ObservableObject {
 enum ScheduleLiveActivityManager {
     private typealias PlannedEvent = (event: WidgetEvent, interval: ClosedRange<Date>)
 
-    static func sync(with feed: WidgetFeed, now: Date = Date()) async {
+    static func sync(with feeds: [WidgetFeed], now: Date = Date()) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
-        let planned: [PlannedEvent] = feed.events.compactMap { event in
-            guard event.status != "cancelled",
-                  event.kind == "lesson" || event.kind == "rehearsal",
-                  let interval = interval(for: event, date: feed.date),
-                  interval.upperBound > now else { return nil }
-            return (event, interval)
-        }
+        let planned: [PlannedEvent] = feeds
+            .flatMap { feed in
+                feed.events.compactMap { event -> PlannedEvent? in
+                    guard event.status != "cancelled",
+                          event.kind == "lesson" || event.kind == "rehearsal",
+                          let interval = interval(for: event, date: feed.date),
+                          interval.upperBound > now else { return nil }
+                    return (event, interval)
+                }
+            }
+            .sorted { $0.interval.lowerBound < $1.interval.lowerBound }
 
         if #available(iOS 26.0, *) {
             await syncScheduled(planned, now: now)
@@ -153,7 +168,7 @@ enum ScheduleLiveActivityManager {
         let upcoming = planned
             .filter { $0.interval.lowerBound > now }
             .sorted { $0.interval.lowerBound < $1.interval.lowerBound }
-            .prefix(4)
+            .prefix(6)
 
         for item in upcoming where !existingIds.contains(item.event.id) {
             if let activity = requestScheduled(item) {
