@@ -48,19 +48,12 @@
 Нужно добавить production App Icon, выбрать окончательные bundle identifiers / App Group и настроить signing. Серверная часть уже использует production URL; при необходимости API URL можно заменить в \`Shared/WidgetEnvironment.swift\`.
 
 
-## Push-to-start Live Activity
+## Live Activity без APNs
 
-Для автоматического старта Live Activity, когда companion закрыт:
+На Personal Apple Development account Push Notifications / APNs для этого сценария недоступны, поэтому PR больше не зависит от push-to-start.
 
-1. В Apple Developer / Xcode для App ID `com.schedule214.app` должна быть включена capability **Push Notifications**.
-2. Для preview Debug-сборки используется APNs sandbox.
-3. На Vercel нужны переменные:
-   - `APNS_TEAM_ID`
-   - `APNS_KEY_ID`
-   - `APNS_PRIVATE_KEY` — содержимое Apple APNs Auth Key (.p8)
-   - `APNS_BUNDLE_ID=com.schedule214.app`
-4. На iOS 26+ companion заранее планирует ближайшие Live Activities через ActivityKit, поэтому система запускает их точно по времени даже при закрытом приложении.
-5. Серверный endpoint `/api/cron/live-activities` остаётся APNs push-to-start fallback для старых систем и вызывается GitHub Actions раз в 5 минут. Минутный Vercel Cron не используется, потому что текущий Hobby-проект допускает cron только раз в день.
-6. После remote/local start iOS передаёт update-token конкретной Live Activity обратно серверу, чтобы активность можно было завершить после события.
-
-Перед TestFlight значение `aps-environment` в entitlements должно соответствовать production-подписи. При добавлении Push Notifications capability через Xcode это значение выставляется профилем подписи.
+- На iOS 26+ ближайшие пары и репетиции планируются локально через ActivityKit.
+- Companion при синхронизации ставит несколько ближайших Live Activities в системную очередь.
+- Система запускает их в заданное время даже после закрытия приложения.
+- APNs capability, серверные push-to-start endpoint и scheduler из PR удалены.
+- Если расписание изменилось, достаточно следующей синхронизации companion: устаревшие запланированные активности удаляются и создаются заново.

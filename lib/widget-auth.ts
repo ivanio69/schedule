@@ -124,24 +124,13 @@ export async function revokeWidgetToken(rawToken: unknown) {
   if (typeof rawToken !== "string" || !SECRET_PATTERN.test(rawToken)) return false;
   const db = await getDatabase();
   const tokenHash = hashSecret(rawToken);
-  const existing = await db.collection<WidgetToken>("widget_tokens").findOne({ tokenHash });
   const result = await db.collection<WidgetToken>("widget_tokens").deleteOne({ tokenHash });
-  if (result.deletedCount === 1 && existing) {
-    await Promise.all([
-      db.collection("live_activity_push_tokens").deleteMany({ widgetTokenId: existing.id }),
-      db.collection("live_activity_update_tokens").deleteMany({ widgetTokenId: existing.id }),
-    ]);
-  }
   return result.deletedCount === 1;
 }
 
 export async function revokeWidgetTokens(personId: string) {
   const db = await getDatabase();
   const result = await db.collection<WidgetToken>("widget_tokens").deleteMany({ personId });
-  await Promise.all([
-    db.collection("live_activity_push_tokens").deleteMany({ personId }),
-    db.collection("live_activity_update_tokens").deleteMany({ personId }),
-  ]);
   return result.deletedCount;
 }
 

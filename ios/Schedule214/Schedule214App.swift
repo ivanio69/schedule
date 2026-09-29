@@ -9,7 +9,6 @@ struct Schedule214App: App {
             ContentView()
                 .environmentObject(connection)
                 .onOpenURL { connection.handle(url: $0) }
-                .task { connection.startLiveActivityPushRegistration() }
         }
     }
 }

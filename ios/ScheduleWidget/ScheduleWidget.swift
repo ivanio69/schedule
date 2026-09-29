@@ -28,63 +28,126 @@ struct ScheduleProvider: TimelineProvider {
         Task {
             let now = Date()
             guard WidgetStore.token != nil else {
-                let entry = ScheduleEntry(date: now, feed: nil, connected: false, errorMessage: "Нет общего токена. Проверь App Group.")
+                let entry = ScheduleEntry(
+                    date: now,
+                    feed: nil,
+                    connected: false,
+                    errorMessage: "Нет общего токена. Проверь App Group."
+                )
                 completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(30 * 60))))
                 return
             }
 
-            let feed: WidgetFeed?
-            var errorMessage: String?
-            do {
-                feed = try await WidgetAPI.feed(for: now)
-            } catch {
-                feed = WidgetStore.cachedFeed()
-                errorMessage = error.localizedDescription
+            let tomorrowStart = Calendar.current.startOfDay(
+                for: Calendar.current.date(byAdding: .day, value: 1, to: now) ?? now.addingTimeInterval(86_400)
+            )
+
+            async let todayResult = loadFeed(for: now)
+            async let tomorrowResult = loadFeed(for: tomorrowStart)
+            let (today, tomorrow) = await (todayResult, tomorrowResult)
+
+            var entries: [ScheduleEntry] = []
+
+            if let feed = today.feed {
+                entries.append(contentsOf: timelineEntries(
+                    feed: feed,
+                    startingAt: now,
+                    notBefore: now,
+                    errorMessage: today.errorMessage
+                ))
+            } else {
+                entries.append(ScheduleEntry(
+                    date: now,
+                    feed: nil,
+                    connected: true,
+                    errorMessage: today.errorMessage ?? "Кэш на сегодня пуст"
+                ))
             }
 
-            guard let feed else {
-                let entry = ScheduleEntry(date: now, feed: nil, connected: true, errorMessage: errorMessage ?? "Кэш пуст")
-                completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(10 * 60))))
-                return
+            if let feed = tomorrow.feed {
+                let dayStartEntry = tomorrowStart.addingTimeInterval(5)
+                entries.append(contentsOf: timelineEntries(
+                    feed: feed,
+                    startingAt: dayStartEntry,
+                    notBefore: dayStartEntry,
+                    errorMessage: tomorrow.errorMessage
+                ))
+            } else {
+                // Even if the next-day request failed, never carry today's feed past midnight.
+                entries.append(ScheduleEntry(
+                    date: tomorrowStart.addingTimeInterval(5),
+                    feed: nil,
+                    connected: true,
+                    errorMessage: tomorrow.errorMessage ?? "Обновляем расписание на новый день"
+                ))
             }
 
-            let moments = timelineMoments(feed: feed, now: now)
-            let entries = moments.map { ScheduleEntry(date: $0, feed: feed, connected: true, errorMessage: errorMessage) }
-            let refresh = nextMorning(after: now)
+            entries.sort { $0.date < $1.date }
+            let refresh = min(
+                now.addingTimeInterval(60 * 60),
+                tomorrowStart.addingTimeInterval(60)
+            )
             completion(Timeline(entries: entries, policy: .after(refresh)))
         }
     }
 
     private func loadEntry(date: Date) async -> ScheduleEntry {
         guard WidgetStore.token != nil else {
-            return ScheduleEntry(date: date, feed: nil, connected: false, errorMessage: "Нет общего токена. Проверь App Group.")
+            return ScheduleEntry(
+                date: date,
+                feed: nil,
+                connected: false,
+                errorMessage: "Нет общего токена. Проверь App Group."
+            )
         }
+
+        let result = await loadFeed(for: date)
+        return ScheduleEntry(
+            date: date,
+            feed: result.feed,
+            connected: true,
+            errorMessage: result.errorMessage
+        )
+    }
+
+    private func loadFeed(for date: Date) async -> (feed: WidgetFeed?, errorMessage: String?) {
         do {
             let feed = try await WidgetAPI.feed(for: date)
-            return ScheduleEntry(date: date, feed: feed, connected: true, errorMessage: nil)
+            return (feed, nil)
         } catch {
-            return ScheduleEntry(date: date, feed: WidgetStore.cachedFeed(), connected: true, errorMessage: error.localizedDescription)
+            let cached = WidgetStore.cachedFeed(for: date)
+            return (cached, error.localizedDescription)
         }
     }
 
-    private func timelineMoments(feed: WidgetFeed, now: Date) -> [Date] {
-        var moments: [Date] = [now]
+    private func timelineEntries(
+        feed: WidgetFeed,
+        startingAt firstDate: Date,
+        notBefore threshold: Date,
+        errorMessage: String?
+    ) -> [ScheduleEntry] {
+        var moments: [Date] = [firstDate]
         for event in feed.events where event.status != "cancelled" {
-            if let start = eventDate(event.start, base: now), start > now { moments.append(start) }
-            if let end = eventDate(event.end, base: now), end > now { moments.append(end) }
+            if let start = eventDate(event.start, feedDate: feed.date), start >= threshold {
+                moments.append(start)
+            }
+            if let end = eventDate(event.end, feedDate: feed.date), end >= threshold {
+                moments.append(end)
+            }
         }
-        return Array(Set(moments)).sorted()
+
+        return Array(Set(moments))
+            .sorted()
+            .map { ScheduleEntry(date: $0, feed: feed, connected: true, errorMessage: errorMessage) }
     }
 
-    private func eventDate(_ time: String, base: Date) -> Date? {
-        let parts = time.split(separator: ":").compactMap { Int($0) }
-        guard parts.count == 2 else { return nil }
-        return Calendar.current.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: base)
-    }
-
-    private func nextMorning(after date: Date) -> Date {
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date.addingTimeInterval(86400)
-        return Calendar.current.date(bySettingHour: 0, minute: 5, second: 0, of: tomorrow) ?? tomorrow
+    private func eventDate(_ time: String, feedDate: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter.date(from: "\(feedDate) \(time)")
     }
 
     static let sampleFeed = WidgetFeed(
@@ -519,20 +582,100 @@ struct ScheduleWidget: Widget {
 struct ScheduleLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ScheduleActivityAttributes.self) { context in
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .center, spacing: 9) {
-                    liveIcon(kind: context.attributes.kind)
-                        .font(.system(size: 13, weight: .semibold))
-                        .frame(width: 30, height: 30)
-                        .background(liveColor(kind: context.attributes.kind).opacity(0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-                        .foregroundStyle(liveColor(kind: context.attributes.kind))
+            let color = liveColor(kind: context.attributes.kind)
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 10) {
+                    liveBadge(kind: context.attributes.kind, color: color)
 
                     VStack(alignment: .leading, spacing: 2) {
+                        Text(context.attributes.kind == "rehearsal" ? "РЕПЕТИЦИЯ" : "СЕЙЧАС ИДЁТ")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .tracking(0.8)
+                            .foregroundStyle(color)
+
+                        Text(context.attributes.title)
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("ОСТАЛОСЬ")
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                            .tracking(0.6)
+                            .foregroundStyle(.secondary)
+
+                        Text(context.attributes.endDate, style: .timer)
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                    }
+                }
+
+                if !context.attributes.subtitle.isEmpty {
+                    Label {
+                        Text(context.attributes.subtitle)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+                    } icon: {
+                        Image(systemName: "mappin.and.ellipse")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+
+                VStack(spacing: 5) {
+                    ProgressView(
+                        timerInterval: context.attributes.startDate...context.attributes.endDate,
+                        countsDown: false
+                    )
+                    .tint(color)
+                    .scaleEffect(x: 1, y: 1.35, anchor: .center)
+
+                    HStack {
+                        Text(context.attributes.startDate, style: .time)
+                        Spacer()
+                        Text("до")
+                            .foregroundStyle(.tertiary)
+                        Text(context.attributes.endDate, style: .time)
+                    }
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                }
+            }
+            .padding(.vertical, 4)
+            .activityBackgroundTint(color.opacity(0.09))
+            .activitySystemActionForegroundColor(.primary)
+        } dynamicIsland: { context in
+            let color = liveColor(kind: context.attributes.kind)
+
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    liveBadge(kind: context.attributes.kind, color: color)
+                }
+
+                DynamicIslandExpandedRegion(.trailing) {
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("ОСТАЛОСЬ")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.secondary)
+                        Text(context.attributes.endDate, style: .timer)
+                            .font(.caption.weight(.bold))
+                            .monospacedDigit()
+                    }
+                }
+
+                DynamicIslandExpandedRegion(.center) {
+                    VStack(spacing: 2) {
                         Text(context.attributes.title)
                             .font(.headline)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.82)
-
+                            .minimumScaleFactor(0.8)
                         if !context.attributes.subtitle.isEmpty {
                             Text(context.attributes.subtitle)
                                 .font(.caption2)
@@ -540,95 +683,66 @@ struct ScheduleLiveActivity: Widget {
                                 .lineLimit(1)
                         }
                     }
-
-                    Spacer(minLength: 8)
-
-                    Text(context.attributes.endDate, style: .timer)
-                        .font(.caption.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                ProgressView(
-                    timerInterval: context.attributes.startDate...context.attributes.endDate,
-                    countsDown: false
-                )
-                .tint(liveColor(kind: context.attributes.kind))
-
-                HStack {
-                    Text(context.attributes.startDate, style: .time)
-                    Spacer()
-                    Text(context.attributes.endDate, style: .time)
-                }
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-            }
-            .padding(.vertical, 2)
-            .activityBackgroundTint(Color(.systemBackground))
-            .activitySystemActionForegroundColor(.primary)
-        } dynamicIsland: { context in
-            DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    liveIcon(kind: context.attributes.kind)
-                        .foregroundStyle(liveColor(kind: context.attributes.kind))
-                }
-
-                DynamicIslandExpandedRegion(.trailing) {
-                    Text(context.attributes.endDate, style: .timer)
-                        .font(.caption.weight(.semibold))
-                        .monospacedDigit()
-                }
-
-                DynamicIslandExpandedRegion(.center) {
-                    Text(context.attributes.title)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 5) {
                         ProgressView(
                             timerInterval: context.attributes.startDate...context.attributes.endDate,
                             countsDown: false
                         )
-                        .tint(liveColor(kind: context.attributes.kind))
+                        .tint(color)
 
                         HStack {
                             Text(context.attributes.startDate, style: .time)
                             Spacer()
                             Text(context.attributes.endDate, style: .time)
                         }
-                        .font(.caption2)
+                        .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                     }
+                    .padding(.top, 2)
                 }
             } compactLeading: {
-                liveIcon(kind: context.attributes.kind)
-                    .foregroundStyle(liveColor(kind: context.attributes.kind))
+                Image(systemName: liveIconName(kind: context.attributes.kind))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(color)
             } compactTrailing: {
                 Text(context.attributes.endDate, style: .timer)
-                    .font(.caption2.weight(.semibold))
+                    .font(.caption2.weight(.bold))
                     .monospacedDigit()
+                    .foregroundStyle(color)
             } minimal: {
-                liveIcon(kind: context.attributes.kind)
-                    .foregroundStyle(liveColor(kind: context.attributes.kind))
+                ZStack {
+                    Circle()
+                        .fill(color.opacity(0.22))
+                    Image(systemName: liveIconName(kind: context.attributes.kind))
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(color)
+                }
             }
             .widgetURL(WidgetEnvironment.scheduleURL)
-            .keylineTint(liveColor(kind: context.attributes.kind))
+            .keylineTint(color)
         }
     }
 }
 
-private func liveIcon(kind: String) -> Image {
+@ViewBuilder
+private func liveBadge(kind: String, color: Color) -> some View {
+    Image(systemName: liveIconName(kind: kind))
+        .font(.system(size: 14, weight: .bold))
+        .foregroundStyle(color)
+        .frame(width: 34, height: 34)
+        .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+}
+
+private func liveIconName(kind: String) -> String {
     switch kind {
     case "rehearsal":
-        return Image(systemName: "music.note")
+        return "music.note"
     default:
-        return Image(systemName: "book.closed.fill")
+        return "book.closed.fill"
     }
 }
 
