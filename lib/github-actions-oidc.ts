@@ -41,7 +41,3 @@ async function verifySchedulerToken(token:string|undefined|null,audience:string)
 export function verifyDigestSchedulerToken(token:string|undefined|null){
   return verifySchedulerToken(token,"schedule-digests");
 }
-
-export function verifyLiveActivitySchedulerToken(token:string|undefined|null){
-  return verifySchedulerToken(token,"schedule-live-activities");
-}

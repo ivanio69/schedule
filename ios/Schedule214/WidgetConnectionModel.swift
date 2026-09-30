@@ -10,9 +10,6 @@ final class WidgetConnectionModel: ObservableObject {
     @Published var statusMessage: String?
     @Published var busy = false
     @Published private(set) var webReloadRevision = 0
-    private var pushToStartTask: Task<Void, Never>?
-    private var activityUpdatesTask: Task<Void, Never>?
-    private var activityTokenTasks: [String: Task<Void, Never>] = [:]
 
     func handle(url: URL) {
         guard url.scheme == "schedule214",
@@ -31,94 +28,7 @@ final class WidgetConnectionModel: ObservableObject {
         self.profileName = profileName
         statusMessage = "Подключено. Загружаем данные виджета…"
         webReloadRevision += 1
-        Task {
-            await uploadCurrentLiveActivityTokens()
-            await refreshWidgetData()
-        }
-    }
-
-    func startLiveActivityPushRegistration() {
-        guard pushToStartTask == nil, activityUpdatesTask == nil else { return }
-
-        if #available(iOS 17.2, *) {
-            pushToStartTask = Task { [weak self] in
-                guard let self else { return }
-
-                if let token = Activity<ScheduleActivityAttributes>.pushToStartToken {
-                    try? await WidgetAPI.registerPushToStartToken(token)
-                }
-
-                for await token in Activity<ScheduleActivityAttributes>.pushToStartTokenUpdates {
-                    guard !Task.isCancelled else { break }
-                    try? await WidgetAPI.registerPushToStartToken(token)
-                }
-            }
-
-            activityUpdatesTask = Task { [weak self] in
-                guard let self else { return }
-
-                for activity in Activity<ScheduleActivityAttributes>.activities {
-                    observeUpdateToken(for: activity)
-                }
-
-                for await activity in Activity<ScheduleActivityAttributes>.activityUpdates {
-                    guard !Task.isCancelled else { break }
-                    observeUpdateToken(for: activity)
-                }
-            }
-        }
-    }
-
-    private func uploadCurrentLiveActivityTokens() async {
-        if #available(iOS 17.2, *) {
-            if let token = Activity<ScheduleActivityAttributes>.pushToStartToken {
-                try? await WidgetAPI.registerPushToStartToken(token)
-            }
-
-            for activity in Activity<ScheduleActivityAttributes>.activities {
-                observeUpdateToken(for: activity)
-                if let token = activity.pushToken {
-                    try? await WidgetAPI.registerActivityUpdateToken(
-                        token,
-                        activityId: activity.id,
-                        eventId: activity.attributes.eventId,
-                        endTimestamp: activity.attributes.endTimestamp
-                    )
-                }
-            }
-        }
-    }
-
-    @available(iOS 17.2, *)
-    private func observeUpdateToken(for activity: Activity<ScheduleActivityAttributes>) {
-        guard activityTokenTasks[activity.id] == nil else { return }
-
-        activityTokenTasks[activity.id] = Task { [weak self] in
-            defer {
-                Task { @MainActor [weak self] in
-                    self?.activityTokenTasks[activity.id] = nil
-                }
-            }
-
-            if let token = activity.pushToken {
-                try? await WidgetAPI.registerActivityUpdateToken(
-                    token,
-                    activityId: activity.id,
-                    eventId: activity.attributes.eventId,
-                    endTimestamp: activity.attributes.endTimestamp
-                )
-            }
-
-            for await token in activity.pushTokenUpdates {
-                guard !Task.isCancelled else { break }
-                try? await WidgetAPI.registerActivityUpdateToken(
-                    token,
-                    activityId: activity.id,
-                    eventId: activity.attributes.eventId,
-                    endTimestamp: activity.attributes.endTimestamp
-                )
-            }
-        }
+        Task { await refreshWidgetData() }
     }
 
     func refreshWidgetData() async {
@@ -126,12 +36,27 @@ final class WidgetConnectionModel: ObservableObject {
         busy = true
         defer { busy = false }
 
+        if #available(iOS 17.0, *) {
+            await ScheduleLiveActivityManager.dismissExpiredStatesOnAppOpen()
+        }
+
         do {
-            let feed = try await WidgetAPI.feed(for: Date())
+            let now = Date()
+            let today = try await WidgetAPI.feed(for: now)
+            let tomorrowDate = Calendar.current.startOfDay(
+                for: Calendar.current.date(byAdding: .day, value: 1, to: now) ?? now.addingTimeInterval(86_400)
+            )
+            let tomorrow = try? await WidgetAPI.feed(for: tomorrowDate)
+
             if #available(iOS 17.0, *) {
-                await ScheduleLiveActivityManager.sync(with: feed)
+                await ScheduleLiveActivityManager.sync(
+                    with: [today] + (tomorrow.map { [$0] } ?? []),
+                    now: now
+                )
             }
-            statusMessage = "Виджет обновлён."
+            statusMessage = tomorrow == nil
+                ? "Сегодня обновлено. Завтра загрузится при следующей синхронизации."
+                : "Виджет и Live Activity обновлены на сегодня и завтра."
             WidgetCenter.shared.reloadAllTimelines()
         } catch {
             statusMessage = "Виджет подключён, но данные не загрузились: \(error.localizedDescription)"
@@ -171,18 +96,21 @@ final class WidgetConnectionModel: ObservableObject {
 
 @available(iOS 17.0, *)
 enum ScheduleLiveActivityManager {
-    private typealias PlannedEvent = (event: WidgetEvent, interval: ClosedRange<Date>)
+    private struct PlannedEvent {
+        let event: WidgetEvent
+        let interval: ClosedRange<Date>
+        let nextTitle: String?
+        let nextStart: Date?
 
-    static func sync(with feed: WidgetFeed, now: Date = Date()) async {
+        var keepUntil: Date {
+            max(interval.upperBound, nextStart ?? interval.upperBound)
+        }
+    }
+
+    static func sync(with feeds: [WidgetFeed], now: Date = Date()) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
-        let planned: [PlannedEvent] = feed.events.compactMap { event in
-            guard event.status != "cancelled",
-                  event.kind == "lesson" || event.kind == "rehearsal",
-                  let interval = interval(for: event, date: feed.date),
-                  interval.upperBound > now else { return nil }
-            return (event, interval)
-        }
+        let planned = makePlan(from: feeds, now: now)
 
         if #available(iOS 26.0, *) {
             await syncScheduled(planned, now: now)
@@ -191,8 +119,71 @@ enum ScheduleLiveActivityManager {
         }
     }
 
+    static func dismissExpiredStatesOnAppOpen(now: Date = Date()) async {
+        for activity in Activity<ScheduleActivityAttributes>.activities {
+            guard activity.attributes.endDate <= now else { continue }
+
+            // During an active break, keep the stale activity visible.
+            if let nextStart = activity.attributes.nextStartDate, nextStart > now {
+                continue
+            }
+
+            await end(activity)
+        }
+    }
+
+    private static func makePlan(from feeds: [WidgetFeed], now: Date) -> [PlannedEvent] {
+        feeds
+            .sorted { $0.date < $1.date }
+            .flatMap { feed -> [PlannedEvent] in
+                let tracked = feed.events
+                    .filter {
+                        $0.status != "cancelled"
+                            && ($0.kind == "lesson" || $0.kind == "rehearsal")
+                    }
+                    .compactMap { event -> (WidgetEvent, ClosedRange<Date>)? in
+                        guard let eventInterval = interval(for: event, date: feed.date) else { return nil }
+                        return (event, eventInterval)
+                    }
+                    .sorted { $0.1.lowerBound < $1.1.lowerBound }
+
+                return tracked.indices.compactMap { index in
+                    let item = tracked[index]
+                    let nextIndex = tracked.index(after: index)
+                    let next = nextIndex < tracked.endIndex ? tracked[nextIndex] : nil
+
+                    let hasRealBreak = next.map { $0.1.lowerBound > item.1.upperBound } ?? false
+                    let nextStart = hasRealBreak ? next?.1.lowerBound : nil
+                    let nextTitle = hasRealBreak ? next?.0.title : nil
+                    let keepUntil = max(item.1.upperBound, nextStart ?? item.1.upperBound)
+
+                    guard keepUntil > now else { return nil }
+
+                    return PlannedEvent(
+                        event: item.0,
+                        interval: item.1,
+                        nextTitle: nextTitle,
+                        nextStart: nextStart
+                    )
+                }
+            }
+            .sorted { $0.interval.lowerBound < $1.interval.lowerBound }
+    }
+
     private static func syncCurrentOnly(_ planned: [PlannedEvent], now: Date) async {
         let activities = Activity<ScheduleActivityAttributes>.activities
+
+        // Keep a stale activity during the break until the next event starts.
+        if let breakActivity = activities.first(where: {
+            guard let nextStart = $0.attributes.nextStartDate else { return false }
+            return $0.attributes.endDate <= now && nextStart > now
+        }) {
+            for activity in activities where activity.id != breakActivity.id {
+                await end(activity)
+            }
+            return
+        }
+
         let current = planned.first { $0.interval.contains(now) }
 
         guard let current else {
@@ -220,7 +211,6 @@ enum ScheduleLiveActivityManager {
     private static func syncScheduled(_ planned: [PlannedEvent], now: Date) async {
         var activities = Activity<ScheduleActivityAttributes>.activities
 
-        // Remove stale, deleted or changed activities before rebuilding today's queue.
         for activity in activities {
             guard let desired = planned.first(where: { $0.event.id == activity.attributes.eventId }),
                   matches(activity, desired) else {
@@ -239,11 +229,10 @@ enum ScheduleLiveActivityManager {
             }
         }
 
-        // Keep the queue small because pending Live Activities count toward the system limit.
         let upcoming = planned
             .filter { $0.interval.lowerBound > now }
             .sorted { $0.interval.lowerBound < $1.interval.lowerBound }
-            .prefix(4)
+            .prefix(6)
 
         for item in upcoming where !existingIds.contains(item.event.id) {
             if let activity = requestScheduled(item) {
@@ -257,11 +246,12 @@ enum ScheduleLiveActivityManager {
         let attributes = attributes(for: item)
         let content = ActivityContent(
             state: ScheduleActivityAttributes.ContentState(revision: 1),
-            staleDate: item.interval.upperBound
+            staleDate: item.interval.upperBound,
+            relevanceScore: relevanceScore(for: item)
         )
 
         do {
-            return try Activity.request(attributes: attributes, content: content, pushType: .token)
+            return try Activity.request(attributes: attributes, content: content, pushType: nil)
         } catch {
             print("Failed to start Live Activity:", error.localizedDescription)
             return nil
@@ -274,8 +264,10 @@ enum ScheduleLiveActivityManager {
         let attributes = attributes(for: item)
         let content = ActivityContent(
             state: ScheduleActivityAttributes.ContentState(revision: 1),
-            staleDate: item.interval.upperBound
+            staleDate: item.interval.upperBound,
+            relevanceScore: relevanceScore(for: item)
         )
+
         let title: LocalizedStringResource = item.event.kind == "rehearsal"
             ? "Репетиция начинается"
             : "Пара начинается"
@@ -289,7 +281,7 @@ enum ScheduleLiveActivityManager {
             return try Activity.request(
                 attributes: attributes,
                 content: content,
-                pushType: .token,
+                pushType: nil,
                 style: .standard,
                 alertConfiguration: alert,
                 start: item.interval.lowerBound
@@ -307,8 +299,16 @@ enum ScheduleLiveActivityManager {
             subtitle: item.event.subtitle,
             kind: item.event.kind,
             startTimestamp: item.interval.lowerBound.timeIntervalSince1970,
-            endTimestamp: item.interval.upperBound.timeIntervalSince1970
+            endTimestamp: item.interval.upperBound.timeIntervalSince1970,
+            nextTitle: item.nextTitle,
+            nextStartTimestamp: item.nextStart?.timeIntervalSince1970
         )
+    }
+
+    private static func relevanceScore(for item: PlannedEvent) -> Double {
+        // Later events get a slightly higher score so a newly-started activity
+        // takes priority over the stale activity from the previous class.
+        item.interval.lowerBound.timeIntervalSince1970 / 10_000_000
     }
 
     private static func matches(
@@ -316,12 +316,27 @@ enum ScheduleLiveActivityManager {
         _ item: PlannedEvent
     ) -> Bool {
         let attributes = activity.attributes
+        let expectedNext = item.nextStart?.timeIntervalSince1970
+
         return attributes.eventId == item.event.id
             && abs(attributes.startTimestamp - item.interval.lowerBound.timeIntervalSince1970) < 1
             && abs(attributes.endTimestamp - item.interval.upperBound.timeIntervalSince1970) < 1
             && attributes.title == item.event.title
             && attributes.subtitle == item.event.subtitle
             && attributes.kind == item.event.kind
+            && attributes.nextTitle == item.nextTitle
+            && sameOptionalTimestamp(attributes.nextStartTimestamp, expectedNext)
+    }
+
+    private static func sameOptionalTimestamp(_ lhs: Double?, _ rhs: Double?) -> Bool {
+        switch (lhs, rhs) {
+        case (.none, .none):
+            return true
+        case let (.some(left), .some(right)):
+            return abs(left - right) < 1
+        default:
+            return false
+        }
     }
 
     private static func end(_ activity: Activity<ScheduleActivityAttributes>) async {

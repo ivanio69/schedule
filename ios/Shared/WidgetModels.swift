@@ -52,7 +52,12 @@ struct ScheduleActivityAttributes: ActivityAttributes {
     let kind: String
     let startTimestamp: Double
     let endTimestamp: Double
+    let nextTitle: String?
+    let nextStartTimestamp: Double?
 
     var startDate: Date { Date(timeIntervalSince1970: startTimestamp) }
     var endDate: Date { Date(timeIntervalSince1970: endTimestamp) }
+    var nextStartDate: Date? {
+        nextStartTimestamp.map { Date(timeIntervalSince1970: $0) }
+    }
 }
