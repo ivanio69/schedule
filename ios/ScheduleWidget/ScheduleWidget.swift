@@ -115,6 +115,12 @@ struct ScheduleProvider: TimelineProvider {
             let feed = try await WidgetAPI.feed(for: date)
             return (feed, nil)
         } catch {
+            await WidgetAPI.reportError(
+                source: "widget",
+                code: "widget.feed",
+                message: error.localizedDescription,
+                detail: WidgetStore.dateKey(date)
+            )
             let cached = WidgetStore.cachedFeed(for: date)
             return (cached, error.localizedDescription)
         }

@@ -61,6 +61,33 @@ enum WidgetAPI {
         return feed
     }
 
+    static func reportError(
+        source: String,
+        code: String,
+        message: String,
+        detail: String? = nil
+    ) async {
+        guard let token = WidgetStore.token else { return }
+        let url = WidgetEnvironment.productionBaseURL.appending(path: "/api/widget/errors")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 8
+
+        var body: [String: String] = [
+            "source": source,
+            "code": code,
+            "message": String(message.prefix(700)),
+            "version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
+        ]
+        if let detail, !detail.isEmpty {
+            body["detail"] = String(detail.prefix(2200))
+        }
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        _ = try? await URLSession.shared.data(for: request)
+    }
+
     static func disconnect() async {
         guard let token = WidgetStore.token else {
             WidgetStore.clear()

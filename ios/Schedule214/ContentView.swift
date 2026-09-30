@@ -6,24 +6,9 @@ struct ContentView: View {
     @EnvironmentObject private var connection: WidgetConnectionModel
 
     var body: some View {
-        ZStack(alignment: .top) {
-            WebAppView(url: WidgetEnvironment.widgetSetupURL, connection: connection)
-
-            if connection.busy {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text("Подключаем виджет…")
-                        .font(.caption.weight(.semibold))
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(.ultraThinMaterial, in: Capsule())
-                .padding(.top, 8)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .background(Color(.systemBackground))
-        .task { await connection.refreshWidgetData() }
+        WebAppView(url: WidgetEnvironment.widgetSetupURL, connection: connection)
+            .background(Color(.systemBackground))
+            .task { await connection.initializeNativeIntegration() }
     }
 }
 
@@ -58,6 +43,10 @@ struct WebAppView: UIViewRepresentable {
             context.coordinator.lastReloadRevision = connection.webReloadRevision
             webView.reload()
         }
+        if context.coordinator.lastBridgeRevision != connection.nativeBridgeRevision {
+            context.coordinator.lastBridgeRevision = connection.nativeBridgeRevision
+            context.coordinator.publishNativeState()
+        }
     }
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
@@ -68,6 +57,7 @@ struct WebAppView: UIViewRepresentable {
         let connection: WidgetConnectionModel
         weak var webView: WKWebView?
         var lastReloadRevision = 0
+        var lastBridgeRevision = -1
 
         init(connection: WidgetConnectionModel) {
             self.connection = connection
@@ -78,14 +68,56 @@ struct WebAppView: UIViewRepresentable {
             didReceive message: WKScriptMessage
         ) {
             guard message.name == "scheduleWidget",
-                  let payload = message.body as? [String: Any],
-                  let token = payload["token"] as? String,
-                  !token.isEmpty else { return }
+                  let payload = message.body as? [String: Any] else { return }
 
+            if payload["type"] as? String == "bridge-ready" {
+                publishNativeState()
+                return
+            }
+
+            guard let token = payload["token"] as? String, !token.isEmpty else { return }
             let profileName = payload["profileName"] as? String ?? ""
             Task { @MainActor in
                 connection.accept(token: token, profileName: profileName)
             }
+        }
+
+        func publishNativeState() {
+            guard let webView else { return }
+            Task { @MainActor in
+                let payload = connection.bridgePayload()
+                guard JSONSerialization.isValidJSONObject(payload),
+                      let data = try? JSONSerialization.data(withJSONObject: payload),
+                      let json = String(data: data, encoding: .utf8) else { return }
+                let script = """
+                window.__scheduleNativeState = \(json);
+                window.dispatchEvent(new CustomEvent("schedule-native-state", { detail: window.__scheduleNativeState }));
+                """
+                webView.evaluateJavaScript(script)
+            }
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            publishNativeState()
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            Task { @MainActor in
+                connection.reportNativeError(source: "webview", code: "webview.navigation", message: error.localizedDescription)
+            }
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            Task { @MainActor in
+                connection.reportNativeError(source: "webview", code: "webview.provisional", message: error.localizedDescription)
+            }
+        }
+
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            Task { @MainActor in
+                connection.reportNativeError(source: "webview", code: "webview.process", message: "WebView process terminated")
+            }
+            webView.reload()
         }
 
         func webView(

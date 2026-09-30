@@ -23,6 +23,7 @@ import "./admin-workspace.css";
 import "./client-polish.css";
 import "./appearance.css";
 import "./announcements.css";
+import "./runtime-status.css";
 import AppNavigation from "@/components/AppNavigation";
 import OfflineBanner from "@/components/OfflineBanner";
 import DevEnvironmentBanner from "@/components/DevEnvironmentBanner";
@@ -34,6 +35,7 @@ import AppPageTransition from "@/components/AppPageTransition";
 import VersionUpdateNotice from "@/components/VersionUpdateNotice";
 import UsageAnalyticsTracker from "@/components/UsageAnalyticsTracker";
 import ProfileSessionSync from "@/components/ProfileSessionSync";
+import AppRuntimeStatus from "@/components/AppRuntimeStatus";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin", "cyrillic"] });
 const environmentTransferBootScript = `(()=>{try{const hash=location.hash.startsWith("#")?location.hash.slice(1):"";if(!hash)return;const params=new URLSearchParams(hash);const appearance=params.get("schedule-appearance");if(appearance&&appearance.length<4000){JSON.parse(appearance);localStorage.setItem("schedule_appearance",appearance);history.replaceState(history.state,"",location.pathname+location.search)}}catch{}})();`;
@@ -62,5 +64,5 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#09090b" };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent-mode="manual" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: environmentTransferBootScript }} /><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><ProfileSessionSync /><AmbientBackground /><AppearanceProvider /><OfflineBanner /><DevEnvironmentBanner /><VersionUpdateNotice /><SelectedUserGuard><UsageAnalyticsTracker /><PushPrompt /><AppNavigation /><AppPageTransition>{children}</AppPageTransition></SelectedUserGuard><Analytics /></body></html>;
+  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent-mode="manual" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: environmentTransferBootScript }} /><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><ProfileSessionSync /><AppRuntimeStatus /><AmbientBackground /><AppearanceProvider /><OfflineBanner /><DevEnvironmentBanner /><VersionUpdateNotice /><SelectedUserGuard><UsageAnalyticsTracker /><PushPrompt /><AppNavigation /><AppPageTransition>{children}</AppPageTransition></SelectedUserGuard><Analytics /></body></html>;
 }
