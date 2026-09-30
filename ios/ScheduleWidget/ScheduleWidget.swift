@@ -587,7 +587,7 @@ struct ScheduleLiveActivity: Widget {
             let phase = livePhase(context)
             let color = liveColor(kind: phase)
 
-            DynamicIsland {
+            return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     liveBadge(kind: phase, color: color)
                 }
