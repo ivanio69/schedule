@@ -584,18 +584,111 @@ struct ScheduleLiveActivity: Widget {
         ActivityConfiguration(for: ScheduleActivityAttributes.self) { context in
             liveLockScreen(context)
         } dynamicIsland: { context in
-            liveDynamicIsland(context)
+            let phase = livePhase(context)
+            let color = liveColor(kind: phase)
+
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    liveBadge(kind: phase, color: color)
+                }
+
+                DynamicIslandExpandedRegion(.trailing) {
+                    if phase == "done" {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(color)
+                    } else {
+                        VStack(alignment: .trailing, spacing: 1) {
+                            Text(phase == "break" ? "ДО ПАРЫ" : "ОСТАЛОСЬ")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.secondary)
+
+                            Text(liveEndDate(context, phase: phase), style: .timer)
+                                .font(.caption.weight(.bold))
+                                .monospacedDigit()
+                        }
+                    }
+                }
+
+                DynamicIslandExpandedRegion(.center) {
+                    VStack(spacing: 2) {
+                        Text(liveTitle(context, phase: phase))
+                            .font(.headline)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+
+                        let subtitle = liveSubtitle(context, phase: phase)
+                        if !subtitle.isEmpty {
+                            Text(subtitle)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+
+                DynamicIslandExpandedRegion(.bottom) {
+                    if phase == "done" {
+                        Text("Можно отдыхать")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 2)
+                    } else {
+                        VStack(spacing: 5) {
+                            ProgressView(
+                                timerInterval: liveStartDate(context, phase: phase)...liveEndDate(context, phase: phase),
+                                countsDown: phase == "break"
+                            )
+                            .tint(color)
+
+                            HStack {
+                                Text(phase == "break" ? "Перерыв" : "Начало")
+                                Spacer()
+                                Text(liveEndDate(context, phase: phase), style: .time)
+                            }
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        }
+                        .padding(.top, 2)
+                    }
+                }
+            } compactLeading: {
+                Image(systemName: liveIconName(kind: phase))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(color)
+            } compactTrailing: {
+                if phase == "done" {
+                    Text("всё")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(color)
+                } else {
+                    Text(liveEndDate(context, phase: phase), style: .timer)
+                        .font(.caption2.weight(.bold))
+                        .monospacedDigit()
+                        .foregroundStyle(color)
+                }
+            } minimal: {
+                ZStack {
+                    Circle()
+                        .fill(color.opacity(0.22))
+                    Image(systemName: liveIconName(kind: phase))
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(color)
+                }
+            }
+            .widgetURL(WidgetEnvironment.scheduleURL)
+            .keylineTint(color)
         }
     }
 
     @ViewBuilder
     private func liveLockScreen(_ context: ActivityViewContext<ScheduleActivityAttributes>) -> some View {
-        let kind = context.attributes.kind
-        let color = liveColor(kind: kind)
+        let phase = livePhase(context)
+        let color = liveColor(kind: phase)
 
-        if kind == "done" {
+        if phase == "done" {
             HStack(spacing: 12) {
-                liveBadge(kind: kind, color: color)
+                liveBadge(kind: phase, color: color)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("ГОТОВО")
@@ -619,15 +712,15 @@ struct ScheduleLiveActivity: Widget {
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .center, spacing: 10) {
-                    liveBadge(kind: kind, color: color)
+                    liveBadge(kind: phase, color: color)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(liveEyebrow(kind: kind))
+                        Text(liveEyebrow(kind: phase))
                             .font(.system(size: 10, weight: .bold, design: .rounded))
                             .tracking(0.8)
                             .foregroundStyle(color)
 
-                        Text(context.attributes.title)
+                        Text(liveTitle(context, phase: phase))
                             .font(.system(size: 18, weight: .bold, design: .rounded))
                             .lineLimit(1)
                             .minimumScaleFactor(0.78)
@@ -636,25 +729,26 @@ struct ScheduleLiveActivity: Widget {
                     Spacer(minLength: 8)
 
                     VStack(alignment: .trailing, spacing: 1) {
-                        Text(kind == "break" ? "ДО СЛЕДУЮЩЕЙ" : "ОСТАЛОСЬ")
+                        Text(phase == "break" ? "ДО СЛЕДУЮЩЕЙ" : "ОСТАЛОСЬ")
                             .font(.system(size: 8, weight: .bold, design: .rounded))
                             .tracking(0.5)
                             .foregroundStyle(.secondary)
 
-                        Text(context.attributes.endDate, style: .timer)
+                        Text(liveEndDate(context, phase: phase), style: .timer)
                             .font(.system(size: 15, weight: .bold, design: .rounded))
                             .monospacedDigit()
                             .lineLimit(1)
                     }
                 }
 
-                if !context.attributes.subtitle.isEmpty {
+                let subtitle = liveSubtitle(context, phase: phase)
+                if !subtitle.isEmpty {
                     Label {
-                        Text(context.attributes.subtitle)
+                        Text(subtitle)
                             .lineLimit(1)
                             .minimumScaleFactor(0.82)
                     } icon: {
-                        Image(systemName: kind == "break" ? "arrow.right" : "mappin.and.ellipse")
+                        Image(systemName: phase == "break" ? "arrow.right" : "mappin.and.ellipse")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -662,14 +756,14 @@ struct ScheduleLiveActivity: Widget {
 
                 VStack(spacing: 5) {
                     ProgressView(
-                        timerInterval: context.attributes.startDate...context.attributes.endDate,
-                        countsDown: kind == "break"
+                        timerInterval: liveStartDate(context, phase: phase)...liveEndDate(context, phase: phase),
+                        countsDown: phase == "break"
                     )
                     .tint(color)
                     .scaleEffect(x: 1, y: 1.35, anchor: .center)
 
                     HStack {
-                        if kind == "break" {
+                        if phase == "break" {
                             Text("Перерыв")
                         } else {
                             Text(context.attributes.startDate, style: .time)
@@ -677,9 +771,9 @@ struct ScheduleLiveActivity: Widget {
 
                         Spacer()
 
-                        if kind == "break" {
+                        if phase == "break" {
                             Text("следующая")
-                            Text(context.attributes.endDate, style: .time)
+                            Text(liveEndDate(context, phase: phase), style: .time)
                         } else {
                             Text("до")
                             Text(context.attributes.endDate, style: .time)
@@ -695,104 +789,60 @@ struct ScheduleLiveActivity: Widget {
             .activitySystemActionForegroundColor(.primary)
         }
     }
+}
 
-    private func liveDynamicIsland(
-        _ context: ActivityViewContext<ScheduleActivityAttributes>
-    ) -> DynamicIsland {
-        let kind = context.attributes.kind
-        let color = liveColor(kind: kind)
+private func livePhase(_ context: ActivityViewContext<ScheduleActivityAttributes>) -> String {
+    guard context.isStale else { return context.attributes.kind }
+    return context.attributes.nextStartDate == nil ? "done" : "break"
+}
 
-        return DynamicIsland {
-            DynamicIslandExpandedRegion(.leading) {
-                liveBadge(kind: kind, color: color)
-            }
-
-            DynamicIslandExpandedRegion(.trailing) {
-                if kind == "done" {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(color)
-                } else {
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text(kind == "break" ? "ДО ПАРЫ" : "ОСТАЛОСЬ")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.secondary)
-
-                        Text(context.attributes.endDate, style: .timer)
-                            .font(.caption.weight(.bold))
-                            .monospacedDigit()
-                    }
-                }
-            }
-
-            DynamicIslandExpandedRegion(.center) {
-                VStack(spacing: 2) {
-                    Text(kind == "done" ? "На сегодня всё" : context.attributes.title)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-
-                    if !context.attributes.subtitle.isEmpty {
-                        Text(context.attributes.subtitle)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-            }
-
-            DynamicIslandExpandedRegion(.bottom) {
-                if kind != "done" {
-                    VStack(spacing: 5) {
-                        ProgressView(
-                            timerInterval: context.attributes.startDate...context.attributes.endDate,
-                            countsDown: kind == "break"
-                        )
-                        .tint(color)
-
-                        HStack {
-                            Text(kind == "break" ? "Перерыв" : "Начало")
-                            Spacer()
-                            Text(context.attributes.endDate, style: .time)
-                        }
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                    }
-                    .padding(.top, 2)
-                } else {
-                    Text("Можно отдыхать")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 2)
-                }
-            }
-        } compactLeading: {
-            Image(systemName: liveIconName(kind: kind))
-                .font(.caption.weight(.bold))
-                .foregroundStyle(color)
-        } compactTrailing: {
-            if kind == "done" {
-                Text("всё")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(color)
-            } else {
-                Text(context.attributes.endDate, style: .timer)
-                    .font(.caption2.weight(.bold))
-                    .monospacedDigit()
-                    .foregroundStyle(color)
-            }
-        } minimal: {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.22))
-                Image(systemName: liveIconName(kind: kind))
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(color)
-            }
-        }
-        .widgetURL(WidgetEnvironment.scheduleURL)
-        .keylineTint(color)
+private func liveTitle(
+    _ context: ActivityViewContext<ScheduleActivityAttributes>,
+    phase: String
+) -> String {
+    switch phase {
+    case "break":
+        return "Перерыв"
+    case "done":
+        return "На сегодня всё"
+    default:
+        return context.attributes.title
     }
+}
+
+private func liveSubtitle(
+    _ context: ActivityViewContext<ScheduleActivityAttributes>,
+    phase: String
+) -> String {
+    switch phase {
+    case "break":
+        if let nextTitle = context.attributes.nextTitle,
+           let nextStart = context.attributes.nextStartDate {
+            return "Дальше \(nextStart.formatted(date: .omitted, time: .shortened)) · \(nextTitle)"
+        }
+        return "Следующая пара скоро"
+    case "done":
+        return "Можно отдыхать"
+    default:
+        return context.attributes.subtitle
+    }
+}
+
+private func liveStartDate(
+    _ context: ActivityViewContext<ScheduleActivityAttributes>,
+    phase: String
+) -> Date {
+    phase == "break" ? context.attributes.endDate : context.attributes.startDate
+}
+
+private func liveEndDate(
+    _ context: ActivityViewContext<ScheduleActivityAttributes>,
+    phase: String
+) -> Date {
+    if phase == "break", let nextStart = context.attributes.nextStartDate {
+        return nextStart
+    }
+    return context.attributes.endDate
 }
 
 @ViewBuilder

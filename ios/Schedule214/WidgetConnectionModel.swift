@@ -36,6 +36,10 @@ final class WidgetConnectionModel: ObservableObject {
         busy = true
         defer { busy = false }
 
+        if #available(iOS 17.0, *) {
+            await ScheduleLiveActivityManager.dismissExpiredStatesOnAppOpen()
+        }
+
         do {
             let now = Date()
             let today = try await WidgetAPI.feed(for: now)
@@ -92,7 +96,16 @@ final class WidgetConnectionModel: ObservableObject {
 
 @available(iOS 17.0, *)
 enum ScheduleLiveActivityManager {
-    private typealias PlannedEvent = (event: WidgetEvent, interval: ClosedRange<Date>)
+    private struct PlannedEvent {
+        let event: WidgetEvent
+        let interval: ClosedRange<Date>
+        let nextTitle: String?
+        let nextStart: Date?
+
+        var keepUntil: Date {
+            max(interval.upperBound, nextStart ?? interval.upperBound)
+        }
+    }
 
     static func sync(with feeds: [WidgetFeed], now: Date = Date()) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
@@ -106,95 +119,71 @@ enum ScheduleLiveActivityManager {
         }
     }
 
-    private static func makePlan(from feeds: [WidgetFeed], now: Date) -> [PlannedEvent] {
-        let orderedFeeds = feeds.sorted { $0.date < $1.date }
-        var result: [PlannedEvent] = []
+    static func dismissExpiredStatesOnAppOpen(now: Date = Date()) async {
+        for activity in Activity<ScheduleActivityAttributes>.activities {
+            guard activity.attributes.endDate <= now else { continue }
 
-        for (feedIndex, feed) in orderedFeeds.enumerated() {
-            let tracked: [PlannedEvent] = feed.events
-                .filter {
-                    $0.status != "cancelled"
-                        && ($0.kind == "lesson" || $0.kind == "rehearsal")
-                }
-                .compactMap { event in
-                    guard let eventInterval = interval(for: event, date: feed.date) else { return nil }
-                    return (event, eventInterval)
-                }
-                .sorted { $0.interval.lowerBound < $1.interval.lowerBound }
-
-            guard !tracked.isEmpty else { continue }
-
-            for index in tracked.indices {
-                let item = tracked[index]
-
-                if item.interval.upperBound > now {
-                    result.append(item)
-                }
-
-                guard index < tracked.index(before: tracked.endIndex) else { continue }
-                let next = tracked[tracked.index(after: index)]
-
-                if next.interval.lowerBound > item.interval.upperBound {
-                    let breakEvent = WidgetEvent(
-                        id: "break:\(item.event.id):\(next.event.id)",
-                        kind: "break",
-                        status: "normal",
-                        title: "Перерыв",
-                        subtitle: "Дальше \(next.event.start) · \(next.event.title)",
-                        start: item.event.end,
-                        end: next.event.start
-                    )
-                    let breakInterval = item.interval.upperBound...next.interval.lowerBound
-
-                    if breakInterval.upperBound > now {
-                        result.append((breakEvent, breakInterval))
-                    }
-                }
+            // During an active break, keep the stale activity visible.
+            if let nextStart = activity.attributes.nextStartDate, nextStart > now {
+                continue
             }
 
-            guard let last = tracked.last else { continue }
-            let doneStart = last.interval.upperBound
+            await end(activity)
+        }
+    }
 
-            // The finished state is scheduled before the day ends, but opening the app
-            // after it has already started removes it instead of recreating it.
-            guard doneStart > now else { continue }
-
-            var doneEnd = doneStart.addingTimeInterval(7 * 60 * 60 + 55 * 60)
-
-            if feedIndex + 1 < orderedFeeds.count {
-                let nextFeed = orderedFeeds[feedIndex + 1]
-                let nextStart = nextFeed.events
+    private static func makePlan(from feeds: [WidgetFeed], now: Date) -> [PlannedEvent] {
+        feeds
+            .sorted { $0.date < $1.date }
+            .flatMap { feed -> [PlannedEvent] in
+                let tracked = feed.events
                     .filter {
                         $0.status != "cancelled"
                             && ($0.kind == "lesson" || $0.kind == "rehearsal")
                     }
-                    .compactMap { interval(for: $0, date: nextFeed.date)?.lowerBound }
-                    .min()
+                    .compactMap { event -> (WidgetEvent, ClosedRange<Date>)? in
+                        guard let eventInterval = interval(for: event, date: feed.date) else { return nil }
+                        return (event, eventInterval)
+                    }
+                    .sorted { $0.1.lowerBound < $1.1.lowerBound }
 
-                if let nextStart, nextStart > doneStart {
-                    doneEnd = min(doneEnd, nextStart.addingTimeInterval(-1))
+                return tracked.indices.compactMap { index in
+                    let item = tracked[index]
+                    let nextIndex = tracked.index(after: index)
+                    let next = nextIndex < tracked.endIndex ? tracked[nextIndex] : nil
+
+                    let hasRealBreak = next.map { $0.1.lowerBound > item.1.upperBound } ?? false
+                    let nextStart = hasRealBreak ? next?.1.lowerBound : nil
+                    let nextTitle = hasRealBreak ? next?.0.title : nil
+                    let keepUntil = max(item.1.upperBound, nextStart ?? item.1.upperBound)
+
+                    guard keepUntil > now else { return nil }
+
+                    return PlannedEvent(
+                        event: item.0,
+                        interval: item.1,
+                        nextTitle: nextTitle,
+                        nextStart: nextStart
+                    )
                 }
             }
-
-            guard doneEnd > doneStart else { continue }
-
-            let doneEvent = WidgetEvent(
-                id: "done:\(feed.date)",
-                kind: "done",
-                status: "normal",
-                title: "На сегодня всё",
-                subtitle: "Можно отдыхать",
-                start: last.event.end,
-                end: last.event.end
-            )
-            result.append((doneEvent, doneStart...doneEnd))
-        }
-
-        return result.sorted { $0.interval.lowerBound < $1.interval.lowerBound }
+            .sorted { $0.interval.lowerBound < $1.interval.lowerBound }
     }
 
     private static func syncCurrentOnly(_ planned: [PlannedEvent], now: Date) async {
         let activities = Activity<ScheduleActivityAttributes>.activities
+
+        // Keep a stale activity during the break until the next event starts.
+        if let breakActivity = activities.first(where: {
+            guard let nextStart = $0.attributes.nextStartDate else { return false }
+            return $0.attributes.endDate <= now && nextStart > now
+        }) {
+            for activity in activities where activity.id != breakActivity.id {
+                await end(activity)
+            }
+            return
+        }
+
         let current = planned.first { $0.interval.contains(now) }
 
         guard let current else {
@@ -240,13 +229,10 @@ enum ScheduleLiveActivityManager {
             }
         }
 
-        // A typical day of 3–4 classes plus breaks fits in this queue.
-        // ActivityKit can reject extra scheduled activities if the device reaches its limit,
-        // so every request remains best-effort.
         let upcoming = planned
             .filter { $0.interval.lowerBound > now }
             .sorted { $0.interval.lowerBound < $1.interval.lowerBound }
-            .prefix(8)
+            .prefix(6)
 
         for item in upcoming where !existingIds.contains(item.event.id) {
             if let activity = requestScheduled(item) {
@@ -260,7 +246,8 @@ enum ScheduleLiveActivityManager {
         let attributes = attributes(for: item)
         let content = ActivityContent(
             state: ScheduleActivityAttributes.ContentState(revision: 1),
-            staleDate: item.interval.upperBound
+            staleDate: item.interval.upperBound,
+            relevanceScore: relevanceScore(for: item)
         )
 
         do {
@@ -277,30 +264,16 @@ enum ScheduleLiveActivityManager {
         let attributes = attributes(for: item)
         let content = ActivityContent(
             state: ScheduleActivityAttributes.ContentState(revision: 1),
-            staleDate: item.interval.upperBound
+            staleDate: item.interval.upperBound,
+            relevanceScore: relevanceScore(for: item)
         )
 
-        let alertTitle: LocalizedStringResource
-        let alertBody: LocalizedStringResource
-
-        switch item.event.kind {
-        case "break":
-            alertTitle = "Перерыв"
-            alertBody = "Следующая пара уже в расписании."
-        case "done":
-            alertTitle = "На сегодня всё"
-            alertBody = "Можно отдыхать."
-        case "rehearsal":
-            alertTitle = "Репетиция начинается"
-            alertBody = "Live Activity уже на экране."
-        default:
-            alertTitle = "Пара начинается"
-            alertBody = "Live Activity уже на экране."
-        }
-
+        let title: LocalizedStringResource = item.event.kind == "rehearsal"
+            ? "Репетиция начинается"
+            : "Пара начинается"
         let alert = AlertConfiguration(
-            title: alertTitle,
-            body: alertBody,
+            title: title,
+            body: "Live Activity уже на экране.",
             sound: .default
         )
 
@@ -326,8 +299,16 @@ enum ScheduleLiveActivityManager {
             subtitle: item.event.subtitle,
             kind: item.event.kind,
             startTimestamp: item.interval.lowerBound.timeIntervalSince1970,
-            endTimestamp: item.interval.upperBound.timeIntervalSince1970
+            endTimestamp: item.interval.upperBound.timeIntervalSince1970,
+            nextTitle: item.nextTitle,
+            nextStartTimestamp: item.nextStart?.timeIntervalSince1970
         )
+    }
+
+    private static func relevanceScore(for item: PlannedEvent) -> Double {
+        // Later events get a slightly higher score so a newly-started activity
+        // takes priority over the stale activity from the previous class.
+        item.interval.lowerBound.timeIntervalSince1970 / 10_000_000
     }
 
     private static func matches(
@@ -335,12 +316,27 @@ enum ScheduleLiveActivityManager {
         _ item: PlannedEvent
     ) -> Bool {
         let attributes = activity.attributes
+        let expectedNext = item.nextStart?.timeIntervalSince1970
+
         return attributes.eventId == item.event.id
             && abs(attributes.startTimestamp - item.interval.lowerBound.timeIntervalSince1970) < 1
             && abs(attributes.endTimestamp - item.interval.upperBound.timeIntervalSince1970) < 1
             && attributes.title == item.event.title
             && attributes.subtitle == item.event.subtitle
             && attributes.kind == item.event.kind
+            && attributes.nextTitle == item.nextTitle
+            && sameOptionalTimestamp(attributes.nextStartTimestamp, expectedNext)
+    }
+
+    private static func sameOptionalTimestamp(_ lhs: Double?, _ rhs: Double?) -> Bool {
+        switch (lhs, rhs) {
+        case (.none, .none):
+            return true
+        case let (.some(left), .some(right)):
+            return abs(left - right) < 1
+        default:
+            return false
+        }
     }
 
     private static func end(_ activity: Activity<ScheduleActivityAttributes>) async {
