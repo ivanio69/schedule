@@ -30,13 +30,14 @@ final class WidgetConnectionModel: ObservableObject {
     }
 
     func bridgePayload() -> [String: Any] {
-        [
+        var payload: [String: Any] = [
             "ready": nativeReady,
             "busy": busy,
             "label": nativeLabel,
             "detail": nativeDetail,
-            "error": nativeError as Any,
         ]
+        payload["error"] = nativeError ?? NSNull()
+        return payload
     }
 
     func reportNativeError(
