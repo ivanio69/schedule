@@ -582,14 +582,47 @@ struct ScheduleWidget: Widget {
 struct ScheduleLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ScheduleActivityAttributes.self) { context in
-            let color = liveColor(kind: context.attributes.kind)
+            liveLockScreen(context)
+        } dynamicIsland: { context in
+            liveDynamicIsland(context)
+        }
+    }
 
+    @ViewBuilder
+    private func liveLockScreen(_ context: ActivityViewContext<ScheduleActivityAttributes>) -> some View {
+        let kind = context.attributes.kind
+        let color = liveColor(kind: kind)
+
+        if kind == "done" {
+            HStack(spacing: 12) {
+                liveBadge(kind: kind, color: color)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("ГОТОВО")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .tracking(0.8)
+                        .foregroundStyle(color)
+
+                    Text("На сегодня всё")
+                        .font(.system(size: 19, weight: .bold, design: .rounded))
+
+                    Text("Можно отдыхать")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 8)
+            }
+            .padding(.vertical, 6)
+            .activityBackgroundTint(color.opacity(0.09))
+            .activitySystemActionForegroundColor(.primary)
+        } else {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .center, spacing: 10) {
-                    liveBadge(kind: context.attributes.kind, color: color)
+                    liveBadge(kind: kind, color: color)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(context.attributes.kind == "rehearsal" ? "РЕПЕТИЦИЯ" : "СЕЙЧАС ИДЁТ")
+                        Text(liveEyebrow(kind: kind))
                             .font(.system(size: 10, weight: .bold, design: .rounded))
                             .tracking(0.8)
                             .foregroundStyle(color)
@@ -603,15 +636,14 @@ struct ScheduleLiveActivity: Widget {
                     Spacer(minLength: 8)
 
                     VStack(alignment: .trailing, spacing: 1) {
-                        Text("ОСТАЛОСЬ")
+                        Text(kind == "break" ? "ДО СЛЕДУЮЩЕЙ" : "ОСТАЛОСЬ")
                             .font(.system(size: 8, weight: .bold, design: .rounded))
-                            .tracking(0.6)
+                            .tracking(0.5)
                             .foregroundStyle(.secondary)
 
                         Text(context.attributes.endDate, style: .timer)
                             .font(.system(size: 15, weight: .bold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(.primary)
                             .lineLimit(1)
                     }
                 }
@@ -622,7 +654,7 @@ struct ScheduleLiveActivity: Widget {
                             .lineLimit(1)
                             .minimumScaleFactor(0.82)
                     } icon: {
-                        Image(systemName: "mappin.and.ellipse")
+                        Image(systemName: kind == "break" ? "arrow.right" : "mappin.and.ellipse")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -631,17 +663,27 @@ struct ScheduleLiveActivity: Widget {
                 VStack(spacing: 5) {
                     ProgressView(
                         timerInterval: context.attributes.startDate...context.attributes.endDate,
-                        countsDown: false
+                        countsDown: kind == "break"
                     )
                     .tint(color)
                     .scaleEffect(x: 1, y: 1.35, anchor: .center)
 
                     HStack {
-                        Text(context.attributes.startDate, style: .time)
+                        if kind == "break" {
+                            Text("Перерыв")
+                        } else {
+                            Text(context.attributes.startDate, style: .time)
+                        }
+
                         Spacer()
-                        Text("до")
-                            .foregroundStyle(.tertiary)
-                        Text(context.attributes.endDate, style: .time)
+
+                        if kind == "break" {
+                            Text("следующая")
+                            Text(context.attributes.endDate, style: .time)
+                        } else {
+                            Text("до")
+                            Text(context.attributes.endDate, style: .time)
+                        }
                     }
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
@@ -651,50 +693,64 @@ struct ScheduleLiveActivity: Widget {
             .padding(.vertical, 4)
             .activityBackgroundTint(color.opacity(0.09))
             .activitySystemActionForegroundColor(.primary)
-        } dynamicIsland: { context in
-            let color = liveColor(kind: context.attributes.kind)
+        }
+    }
 
-            DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    liveBadge(kind: context.attributes.kind, color: color)
-                }
+    private func liveDynamicIsland(
+        _ context: ActivityViewContext<ScheduleActivityAttributes>
+    ) -> DynamicIsland {
+        let kind = context.attributes.kind
+        let color = liveColor(kind: kind)
 
-                DynamicIslandExpandedRegion(.trailing) {
+        return DynamicIsland {
+            DynamicIslandExpandedRegion(.leading) {
+                liveBadge(kind: kind, color: color)
+            }
+
+            DynamicIslandExpandedRegion(.trailing) {
+                if kind == "done" {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(color)
+                } else {
                     VStack(alignment: .trailing, spacing: 1) {
-                        Text("ОСТАЛОСЬ")
+                        Text(kind == "break" ? "ДО ПАРЫ" : "ОСТАЛОСЬ")
                             .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(.secondary)
+
                         Text(context.attributes.endDate, style: .timer)
                             .font(.caption.weight(.bold))
                             .monospacedDigit()
                     }
                 }
+            }
 
-                DynamicIslandExpandedRegion(.center) {
-                    VStack(spacing: 2) {
-                        Text(context.attributes.title)
-                            .font(.headline)
+            DynamicIslandExpandedRegion(.center) {
+                VStack(spacing: 2) {
+                    Text(kind == "done" ? "На сегодня всё" : context.attributes.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
+                    if !context.attributes.subtitle.isEmpty {
+                        Text(context.attributes.subtitle)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                        if !context.attributes.subtitle.isEmpty {
-                            Text(context.attributes.subtitle)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
                     }
                 }
+            }
 
-                DynamicIslandExpandedRegion(.bottom) {
+            DynamicIslandExpandedRegion(.bottom) {
+                if kind != "done" {
                     VStack(spacing: 5) {
                         ProgressView(
                             timerInterval: context.attributes.startDate...context.attributes.endDate,
-                            countsDown: false
+                            countsDown: kind == "break"
                         )
                         .tint(color)
 
                         HStack {
-                            Text(context.attributes.startDate, style: .time)
+                            Text(kind == "break" ? "Перерыв" : "Начало")
                             Spacer()
                             Text(context.attributes.endDate, style: .time)
                         }
@@ -703,28 +759,39 @@ struct ScheduleLiveActivity: Widget {
                         .monospacedDigit()
                     }
                     .padding(.top, 2)
+                } else {
+                    Text("Можно отдыхать")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 2)
                 }
-            } compactLeading: {
-                Image(systemName: liveIconName(kind: context.attributes.kind))
-                    .font(.caption.weight(.bold))
+            }
+        } compactLeading: {
+            Image(systemName: liveIconName(kind: kind))
+                .font(.caption.weight(.bold))
+                .foregroundStyle(color)
+        } compactTrailing: {
+            if kind == "done" {
+                Text("всё")
+                    .font(.caption2.weight(.bold))
                     .foregroundStyle(color)
-            } compactTrailing: {
+            } else {
                 Text(context.attributes.endDate, style: .timer)
                     .font(.caption2.weight(.bold))
                     .monospacedDigit()
                     .foregroundStyle(color)
-            } minimal: {
-                ZStack {
-                    Circle()
-                        .fill(color.opacity(0.22))
-                    Image(systemName: liveIconName(kind: context.attributes.kind))
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(color)
-                }
             }
-            .widgetURL(WidgetEnvironment.scheduleURL)
-            .keylineTint(color)
+        } minimal: {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.22))
+                Image(systemName: liveIconName(kind: kind))
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(color)
+            }
         }
+        .widgetURL(WidgetEnvironment.scheduleURL)
+        .keylineTint(color)
     }
 }
 
@@ -734,13 +801,31 @@ private func liveBadge(kind: String, color: Color) -> some View {
         .font(.system(size: 14, weight: .bold))
         .foregroundStyle(color)
         .frame(width: 34, height: 34)
-        .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(
+            color.opacity(0.16),
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+        )
+}
+
+private func liveEyebrow(kind: String) -> String {
+    switch kind {
+    case "break":
+        return "ПЕРЕРЫВ"
+    case "rehearsal":
+        return "РЕПЕТИЦИЯ"
+    default:
+        return "СЕЙЧАС ИДЁТ"
+    }
 }
 
 private func liveIconName(kind: String) -> String {
     switch kind {
     case "rehearsal":
         return "music.note"
+    case "break":
+        return "cup.and.saucer.fill"
+    case "done":
+        return "checkmark"
     default:
         return "book.closed.fill"
     }
@@ -750,6 +835,10 @@ private func liveColor(kind: String) -> Color {
     switch kind {
     case "rehearsal":
         return .orange
+    case "break":
+        return .blue
+    case "done":
+        return .green
     default:
         return .accentColor
     }
