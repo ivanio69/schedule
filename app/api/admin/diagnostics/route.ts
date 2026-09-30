@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
       scheduleChanges,
       profileSettings,
       cleanupState,
+      clientErrors,
     ] = await Promise.all([
       getPeople(),
       getSchedule(),
@@ -74,6 +75,10 @@ export async function GET(request: NextRequest) {
       db.collection("schedule_changes").countDocuments(),
       db.collection("profile_settings").countDocuments(),
       db.collection("system_maintenance").findOne({ id: "cleanup" }, { projection: { _id: 0 } }),
+      db.collection("client_error_reports").find(
+        { dismissedAt: { $exists: false } },
+        { projection: { _id: 0, fingerprint: 0 } },
+      ).sort({ lastSeenAt: -1 }).limit(12).toArray(),
     ]);
 
     const activeIds = new Set(people.filter(person => person.active).map(person => person.id));
@@ -143,6 +148,13 @@ export async function GET(request: NextRequest) {
     });
 
     checks.push({
+      id: "client-errors",
+      label: "Ошибки клиентов",
+      status: clientErrors.length > 6 ? "warn" : clientErrors.length > 0 ? "warn" : "ok",
+      detail: clientErrors.length ? `Активных ошибок: ${clientErrors.length} · последние видны ниже` : "Активных ошибок нет",
+    });
+
+    checks.push({
       id: "content-data",
       label: "Контент дашборда",
       status: "ok",
@@ -185,6 +197,7 @@ export async function GET(request: NextRequest) {
           uptimeSeconds: Math.round(process.uptime()),
         },
         roles: roleCounts,
+        clientErrors,
         cleanup: cleanupState ? {
           lastRunAt: typeof cleanupState.lastRunAt === "string" ? cleanupState.lastRunAt : null,
           totalDeleted: Number(cleanupState.totalDeleted ?? 0),

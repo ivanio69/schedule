@@ -21,6 +21,8 @@ targets:
         INFOPLIST_FILE: Schedule214/Info.plist
         CODE_SIGN_ENTITLEMENTS: Schedule214/Schedule214.entitlements
         GENERATE_INFOPLIST_FILE: NO
+    resources:
+      - path: Schedule214/AppIcon-180.png
     dependencies:
       - target: ScheduleWidget
 

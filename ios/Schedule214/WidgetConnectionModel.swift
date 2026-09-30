@@ -10,6 +10,59 @@ final class WidgetConnectionModel: ObservableObject {
     @Published var statusMessage: String?
     @Published var busy = false
     @Published private(set) var webReloadRevision = 0
+    @Published private(set) var nativeBridgeRevision = 0
+    @Published private(set) var nativeReady = false
+    @Published private(set) var nativeLabel = "Загружаем приложение"
+    @Published private(set) var nativeDetail = "Подготавливаем интерфейс и виджет."
+    @Published private(set) var nativeError: [String: String]? = nil
+
+    func initializeNativeIntegration() async {
+        setNativeState(
+            ready: false,
+            label: "Загружаем приложение",
+            detail: connected ? "Обновляем виджет, расписание и Live Activity." : "Подготавливаем веб-интерфейс."
+        )
+        guard connected else {
+            setNativeState(ready: true, label: "Готово", detail: "Можно подключить iOS-виджет в настройках.")
+            return
+        }
+        await refreshWidgetData(startup: true)
+    }
+
+    func bridgePayload() -> [String: Any] {
+        [
+            "ready": nativeReady,
+            "busy": busy,
+            "label": nativeLabel,
+            "detail": nativeDetail,
+            "error": nativeError as Any,
+        ]
+    }
+
+    func reportNativeError(
+        source: String,
+        code: String,
+        message: String,
+        detail: String? = nil
+    ) {
+        nativeError = [
+            "source": source,
+            "code": code,
+            "message": message,
+            "detail": detail ?? "",
+        ]
+        nativeBridgeRevision += 1
+        Task {
+            await WidgetAPI.reportError(source: source, code: code, message: message, detail: detail)
+        }
+    }
+
+    private func setNativeState(ready: Bool, label: String, detail: String) {
+        nativeReady = ready
+        nativeLabel = label
+        nativeDetail = detail
+        nativeBridgeRevision += 1
+    }
 
     func handle(url: URL) {
         guard url.scheme == "schedule214",
@@ -31,10 +84,21 @@ final class WidgetConnectionModel: ObservableObject {
         Task { await refreshWidgetData() }
     }
 
-    func refreshWidgetData() async {
-        guard connected, !busy else { return }
+    func refreshWidgetData(startup: Bool = false) async {
+        guard connected, !busy else {
+            if startup { setNativeState(ready: true, label: "Готово", detail: "Виджет уже обновляется.") }
+            return
+        }
         busy = true
-        defer { busy = false }
+        if startup {
+            setNativeState(ready: false, label: "Загружаем приложение", detail: "Получаем расписание на сегодня и завтра.")
+        }
+        defer {
+            busy = false
+            if startup && !nativeReady {
+                setNativeState(ready: true, label: "Готово", detail: statusMessage ?? "Интеграция подготовлена.")
+            }
+        }
 
         if #available(iOS 17.0, *) {
             await ScheduleLiveActivityManager.dismissExpiredStatesOnAppOpen()
@@ -49,6 +113,9 @@ final class WidgetConnectionModel: ObservableObject {
             let tomorrow = try? await WidgetAPI.feed(for: tomorrowDate)
 
             if #available(iOS 17.0, *) {
+                if startup {
+                    setNativeState(ready: false, label: "Загружаем приложение", detail: "Планируем Live Activity.")
+                }
                 await ScheduleLiveActivityManager.sync(
                     with: [today] + (tomorrow.map { [$0] } ?? []),
                     now: now
@@ -60,6 +127,12 @@ final class WidgetConnectionModel: ObservableObject {
             WidgetCenter.shared.reloadAllTimelines()
         } catch {
             statusMessage = "Виджет подключён, но данные не загрузились: \(error.localizedDescription)"
+            reportNativeError(
+                source: "ios",
+                code: "widget.refresh",
+                message: error.localizedDescription,
+                detail: "Не удалось обновить feed/Live Activity"
+            )
             WidgetCenter.shared.reloadAllTimelines()
         }
     }
@@ -76,6 +149,7 @@ final class WidgetConnectionModel: ObservableObject {
             accept(token: response.token, profileName: response.profile.name)
         } catch {
             statusMessage = "Не удалось подключить. Открой настройки внутри приложения и попробуй ещё раз."
+            reportNativeError(source: "ios", code: "widget.pair", message: error.localizedDescription)
         }
     }
 
@@ -254,6 +328,14 @@ enum ScheduleLiveActivityManager {
             return try Activity.request(attributes: attributes, content: content, pushType: nil)
         } catch {
             print("Failed to start Live Activity:", error.localizedDescription)
+            Task {
+                await WidgetAPI.reportError(
+                    source: "activitykit",
+                    code: "activity.start",
+                    message: error.localizedDescription,
+                    detail: item.event.title
+                )
+            }
             return nil
         }
     }
@@ -288,6 +370,14 @@ enum ScheduleLiveActivityManager {
             )
         } catch {
             print("Failed to schedule Live Activity:", error.localizedDescription)
+            Task {
+                await WidgetAPI.reportError(
+                    source: "activitykit",
+                    code: "activity.schedule",
+                    message: error.localizedDescription,
+                    detail: item.event.title
+                )
+            }
             return nil
         }
     }
