@@ -21,6 +21,7 @@ targets:
         INFOPLIST_FILE: Schedule214/Info.plist
         CODE_SIGN_ENTITLEMENTS: Schedule214/Schedule214.entitlements
         GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
     resources:
       - path: Schedule214/AppIcon-180.png
     dependencies:
@@ -38,4 +39,5 @@ targets:
         INFOPLIST_FILE: ScheduleWidget/Info.plist
         CODE_SIGN_ENTITLEMENTS: ScheduleWidget/ScheduleWidget.entitlements
         GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
         SKIP_INSTALL: YES

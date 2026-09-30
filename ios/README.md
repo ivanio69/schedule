@@ -62,3 +62,17 @@
 ### Локальное планирование
 
 При каждой синхронизации companion загружает сегодняшний и завтрашний feed и планирует до шести ближайших пар/репетиций. Поэтому вечером можно закрыть приложение, а первая завтрашняя Live Activity уже будет находиться в системной очереди ActivityKit.
+
+
+### Если ActivityKit пишет про NSSupportsLiveActivities
+
+Ключ `NSSupportsLiveActivities = YES` теперь задан и в app target, и в widget extension target, а также продублирован через Xcode build setting.
+
+После обновления ветки обязательно пересоздай Xcode-проект, чтобы target settings обновились:
+
+```bash
+cd ios
+xcodegen generate
+```
+
+Если проект уже открыт в Xcode, закрой его перед генерацией и открой `Schedule214.xcodeproj` заново. После этого сделай **Product → Clean Build Folder** и переустанови приложение на iPhone.
