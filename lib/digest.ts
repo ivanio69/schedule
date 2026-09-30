@@ -117,5 +117,11 @@ export async function runDigestDelivery(now=new Date()){
       }
     }
   }
-  return{dueProfiles,claimed,sent,failed,checked:people.length,at:now.toISOString()};
+  const result={dueProfiles,claimed,sent,failed,checked:people.length,at:now.toISOString()};
+  await db.collection("scheduler_heartbeats").updateOne(
+    {key:"digests"},
+    {$set:{key:"digests",...result,updatedAt:now.toISOString()}},
+    {upsert:true},
+  );
+  return result;
 }
