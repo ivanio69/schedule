@@ -102,18 +102,31 @@ export default function AppRuntimeStatus(){
   const dismiss=async()=>{
     await fetch("/api/client-errors",{method:"DELETE",cache:"no-store"}).catch(()=>null);
     setErrors([]);
+    setNative(current=>current?.error?{...current,error:null}:current);
   };
+
+  const visibleErrors:RuntimeError[]=native?.error
+    ?[{
+        id:"native-live",
+        source:native.error.source,
+        code:native.error.code,
+        message:native.error.message,
+        detail:native.error.detail,
+        count:1,
+        lastSeenAt:new Date().toISOString(),
+      },...errors.filter(item=>item.code!==native.error?.code||item.message!==native.error?.message)]
+    :errors;
 
   return <>
     {nativeMode&&native&&!native.ready
       ?<LoadingState screen label={native.label||"Загружаем приложение"} detail={native.detail||"Подготавливаем виджет и актуальные данные."}/>
       :null}
-    {errors.length?<aside className="runtime-error-panel" aria-live="polite">
+    {visibleErrors.length?<aside className="runtime-error-panel" aria-live="polite">
       <div className="runtime-error-panel-head">
-        <div><strong>Ошибки приложения</strong><span>{errors.length===1?"1 активная ошибка":`${errors.length} активных ошибок`}</span></div>
+        <div><strong>Ошибки приложения</strong><span>{visibleErrors.length===1?"1 активная ошибка":`${visibleErrors.length} активных ошибок`}</span></div>
         <button type="button" onClick={()=>void dismiss()}>Скрыть</button>
       </div>
-      <div className="runtime-error-list">{errors.slice(0,3).map(error=><article key={error.id}>
+      <div className="runtime-error-list">{visibleErrors.slice(0,3).map(error=><article key={error.id}>
         <span className="runtime-error-source">{sourceLabel(error.source)}</span>
         <div><strong>{error.message}</strong><small>{error.code}{error.count>1?` · ×${error.count}`:""}</small>{error.detail?<p>{error.detail}</p>:null}</div>
       </article>)}</div>

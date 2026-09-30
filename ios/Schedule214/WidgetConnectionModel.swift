@@ -122,6 +122,8 @@ final class WidgetConnectionModel: ObservableObject {
                     now: now
                 )
             }
+            nativeError = nil
+            nativeBridgeRevision += 1
             statusMessage = tomorrow == nil
                 ? "Сегодня обновлено. Завтра загрузится при следующей синхронизации."
                 : "Виджет и Live Activity обновлены на сегодня и завтра."
