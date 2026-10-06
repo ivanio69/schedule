@@ -1,5 +1,4 @@
 import Foundation
-import ActivityKit
 
 struct WidgetProfile: Codable {
     let id: String
@@ -38,26 +37,4 @@ struct WidgetExchangeResponse: Codable {
     let token: String
     let expiresAt: String
     let profile: WidgetProfile
-}
-
-
-struct ScheduleActivityAttributes: ActivityAttributes {
-    struct ContentState: Codable, Hashable {
-        let revision: Int
-    }
-
-    let eventId: String
-    let title: String
-    let subtitle: String
-    let kind: String
-    let startTimestamp: Double
-    let endTimestamp: Double
-    let nextTitle: String?
-    let nextStartTimestamp: Double?
-
-    var startDate: Date { Date(timeIntervalSince1970: startTimestamp) }
-    var endDate: Date { Date(timeIntervalSince1970: endTimestamp) }
-    var nextStartDate: Date? {
-        nextStartTimestamp.map { Date(timeIntervalSince1970: $0) }
-    }
 }
