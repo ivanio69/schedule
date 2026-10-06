@@ -3,12 +3,15 @@ import UIKit
 import WebKit
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var connection: WidgetConnectionModel
 
     var body: some View {
-        WebAppView(url: WidgetEnvironment.widgetSetupURL, connection: connection)
+        WebAppView(url: connection.webDestination, connection: connection)
             .background(Color(.systemBackground))
-            .task { await connection.initializeNativeIntegration() }
+            .task(id: scenePhase) {
+                if scenePhase == .active { await connection.runForegroundUpdates() }
+            }
     }
 }
 
@@ -41,7 +44,11 @@ struct WebAppView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         if context.coordinator.lastReloadRevision != connection.webReloadRevision {
             context.coordinator.lastReloadRevision = connection.webReloadRevision
-            webView.reload()
+            if webView.url != url {
+                webView.load(URLRequest(url: url))
+            } else {
+                webView.reload()
+            }
         }
         if context.coordinator.lastBridgeRevision != connection.nativeBridgeRevision {
             context.coordinator.lastBridgeRevision = connection.nativeBridgeRevision
@@ -68,6 +75,9 @@ struct WebAppView: UIViewRepresentable {
             didReceive message: WKScriptMessage
         ) {
             guard message.name == "scheduleWidget",
+                  message.frameInfo.isMainFrame,
+                  message.frameInfo.securityOrigin.protocol == "https",
+                  message.frameInfo.securityOrigin.host == WidgetEnvironment.productionBaseURL.host,
                   let payload = message.body as? [String: Any] else { return }
 
             if payload["type"] as? String == "bridge-ready" {

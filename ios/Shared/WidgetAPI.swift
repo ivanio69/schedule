@@ -40,7 +40,7 @@ enum WidgetAPI {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
+        formatter.timeZone = ClassActivityPlan.calendar.timeZone
         formatter.dateFormat = "yyyy-MM-dd"
 
         var components = URLComponents(
