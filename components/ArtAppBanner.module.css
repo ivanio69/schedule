@@ -1,0 +1,18 @@
+.banner{position:relative;isolation:isolate;display:flex;align-items:center;gap:24px;min-width:0;overflow:hidden;padding:24px 28px;background:#f7f6f2;color:#282d25;border:1px solid #e1e4d8;border-radius:18px;box-shadow:0 10px 30px #49543d0c;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.content{position:relative;z-index:1;flex:1;min-width:0}
+.eyebrow{display:block;color:#747e68;font-size:9px;font-weight:650;letter-spacing:1.5px}
+.title{margin:9px 0 8px!important;color:#282d25!important;font-family:Georgia,"Times New Roman",serif;font-size:38px!important;font-weight:400!important;line-height:1.1!important;letter-spacing:-1.4px}
+.title span{color:#8a9774}
+.description{max-width:420px;margin:0 0 16px!important;color:#646d5d!important;font-size:13px!important;line-height:1.6!important}
+.link{display:inline-flex;align-items:center;gap:18px;min-height:42px;padding:10px 16px;border-radius:8px;background:#49543d;color:#f7f6f2!important;text-decoration:none;font-size:12px;font-weight:600;transition:background .18s,transform .18s}
+.link:hover{background:#36412c;transform:translateY(-1px)}
+.link:focus-visible,.close:focus-visible{outline:3px solid #a99358;outline-offset:3px}
+.gallery{position:relative;flex:0 0 160px;height:150px;display:grid;place-items:center;margin-right:14px}
+.orbit{position:absolute;width:190px;height:130px;border:1px solid #d9dfce;border-radius:50%;transform:rotate(-28deg)}
+.frame{position:relative;transform:rotate(7deg);padding:8px;background:#fff;border:1px solid #e3e4d9;box-shadow:0 12px 25px #49543d24;border-radius:3px}
+.painting{display:block;width:140px;height:120px;object-fit:cover}
+.close{position:absolute;z-index:2;top:8px;right:8px;display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:50%;background:transparent;color:#646d5d;font-size:25px;line-height:1;cursor:pointer}
+.close:hover{background:#e8ecdf}
+@media(max-width:520px){.banner{gap:12px;padding:22px 18px}.title{font-size:32px!important}.description{font-size:12px!important}.gallery{flex-basis:78px;height:100px;margin:12px 2px 0 0;align-self:center}.painting{width:72px;height:88px}.frame{padding:5px}.orbit{width:110px;height:90px}.link{gap:12px}.eyebrow{font-size:8px;letter-spacing:1px}}
+@media(max-width:340px){.gallery{display:none}.banner{padding-right:40px}}
+@media(prefers-reduced-motion:reduce){.link{transition:none}.link:hover{transform:none}}

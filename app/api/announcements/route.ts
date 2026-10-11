@@ -1,3 +1,4 @@
+import { getArtBannerEnabled } from "@/lib/art-banner";
 import { NextResponse } from "next/server";
 import { getDatabase, getPeople } from "@/lib/database";
 import { announcementVisibleTo, type DashboardAnnouncement } from "@/lib/announcements";
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
       typeof item.acknowledgedAt === "string" ? item.acknowledgedAt : null,
     ]));
     return NextResponse.json(
-      { announcements: visible.map(item => ({ ...item, acknowledgedAt: acknowledgedById.get(item.id) ?? null })) },
+      { artBannerEnabled: await getArtBannerEnabled().catch(() => false), announcements: visible.map(item => ({ ...item, acknowledgedAt: acknowledgedById.get(item.id) ?? null })) },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {

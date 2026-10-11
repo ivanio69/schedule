@@ -1,5 +1,7 @@
 "use client";
 
+import ArtAppBanner from "@/components/ArtAppBanner";
+import { artBannerDismissalKey } from "@/lib/art-app";
 import { useEffect, useState, type CSSProperties } from "react";
 import {
   announcementColors,
@@ -10,6 +12,12 @@ import {
 type VisibleAnnouncement = DashboardAnnouncement & { acknowledgedAt?: string | null };
 
 export default function DashboardAnnouncements({ personId }: { personId: string }) {
+  return <AnnouncementsContent key={personId} personId={personId} />;
+}
+
+function AnnouncementsContent({ personId }: { personId: string }) {
+  const [artEnabled, setArtEnabled] = useState(false);
+  const [artDismissed, setArtDismissed] = useState(true);
   const [items, setItems] = useState<VisibleAnnouncement[]>([]);
   const [ackBusy, setAckBusy] = useState<string | null>(null);
   const [resolved, setResolved] = useState(false);
@@ -17,13 +25,14 @@ export default function DashboardAnnouncements({ personId }: { personId: string 
 
   useEffect(() => {
     let stopped = false;
-    setResolved(false);
-    setVisible(false);
 
     void fetch("/api/announcements?personId=" + encodeURIComponent(personId), { cache: "no-store" })
       .then(response => response.ok ? response.json() : null)
       .then(data => {
         if (stopped) return;
+        try { setArtDismissed(localStorage.getItem(artBannerDismissalKey(personId)) === "1"); }
+        catch { setArtDismissed(false); }
+        setArtEnabled(data?.artBannerEnabled === true);
         setItems(data?.announcements ?? []);
         setResolved(true);
       })
@@ -53,18 +62,21 @@ export default function DashboardAnnouncements({ personId }: { personId: string 
     }
   };
 
+  const showArt = artEnabled && !artDismissed;
+  const dismissArt = () => {
+    setArtDismissed(true);
+    try { localStorage.setItem(artBannerDismissalKey(personId), "1"); } catch {}
+  };
+
   useEffect(() => {
-    if (!resolved || !items.length) {
-      setVisible(false);
-      return;
-    }
-    const frame = requestAnimationFrame(() => setVisible(true));
+    const frame = requestAnimationFrame(() => setVisible(resolved && (items.length > 0 || showArt)));
     return () => cancelAnimationFrame(frame);
-  }, [resolved, items.length]);
+  }, [resolved, items.length, showArt]);
 
   return <div className={`dashboard-announcements-reveal${visible ? " is-visible" : ""}`} aria-hidden={!visible}>
     <div className="dashboard-announcements-reveal-inner">
-      {items.length > 0 && <section className="dashboard-announcements" aria-label="Объявления">
+      {(items.length > 0 || showArt) && <section className="dashboard-announcements" aria-label="Объявления">
+        {showArt && <ArtAppBanner key={personId} onDismiss={dismissArt} />}
         {items.map(item => {
           const colors = announcementColors(item);
           const style = {

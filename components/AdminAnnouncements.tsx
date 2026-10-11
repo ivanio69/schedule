@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import AdminArtBanner from "@/components/AdminArtBanner";
 import AdminHeading from "@/components/AdminHeading";
 import LoadingState from "@/components/LoadingState";
 import type { Person } from "@/lib/people";
@@ -167,6 +168,8 @@ export default function AdminAnnouncements() {
       description="Показывай сообщения на дашборде всем или выбранным людям, настраивай цвет и при необходимости дублируй публикацию Push-уведомлением."
       actions={<button className="admin-secondary" disabled={loading} onClick={() => void load()}>↻ Обновить</button>}
     />
+
+    <AdminArtBanner />
 
     <section ref={formRef} className="admin-card admin-form-panel admin-announcement-create">
       <div className="admin-announcement-form-head">
