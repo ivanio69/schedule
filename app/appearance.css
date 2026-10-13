@@ -349,11 +349,8 @@ html[data-theme="light"] .ambient-background { --spot-strength:22%; --neutral-st
   left:var(--ambient-left);
   top:var(--ambient-top);
   transform:none!important;
-  transition:
-    left .46s cubic-bezier(.22,1,.36,1),
-    top .46s cubic-bezier(.22,1,.36,1),
-    width .34s cubic-bezier(.22,1,.36,1),
-    height .34s cubic-bezier(.22,1,.36,1);
+  /* Loading changes size once; tweening large gradients forces a repaint every frame. */
+  transition:none;
 }
 .ambient-spots > span > i {
   display:block;
@@ -362,6 +359,7 @@ html[data-theme="light"] .ambient-background { --spot-strength:22%; --neutral-st
   border-radius:50%;
   transform:translate(-50%,-50%);
   background:radial-gradient(ellipse,color-mix(in srgb,var(--accent) var(--spot-strength),transparent),transparent 70%);
+  will-change:transform;
   animation:ambient-float var(--ambient-duration) ease-in-out var(--ambient-delay) infinite;
 }
 html[data-accent="default"] .ambient-spots > span > i {
@@ -383,7 +381,6 @@ html[data-accent="default"] .ambient-spots > span > i {
 .ambient-background[data-loading="true"] .ambient-spots > span > i {
   transform:none;
   background:radial-gradient(circle,color-mix(in srgb,var(--accent) 84%,transparent) 0%,color-mix(in srgb,var(--accent) 44%,transparent) 42%,transparent 74%);
-  filter:blur(.5px);
   animation:ambient-loading-dots .78s ease-in-out var(--ring-delay) infinite;
 }
 html[data-accent="default"] .ambient-background[data-loading="true"] .ambient-spots > span > i {
@@ -411,4 +408,15 @@ body .app-loading-state.is-screen { visibility:visible; }
     opacity:.82;
     transform:translate(-50%,-50%);
   }
+}
+
+/* Moving gradients beneath backdrop filters require continuous sampling.
+   Keep persistent chrome opaque; overlays retain their dimming and fades. */
+body :is(.app-navigation,.day-tabs,.bottom-nav,.admin-modebar,.rehearsal-editor-footer,.admin-sidebar,.admin-mobile-bar){
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  background:var(--surface)!important;
+}
+@media(prefers-reduced-motion:reduce){
+  .ambient-spots > span > i{will-change:auto}
 }

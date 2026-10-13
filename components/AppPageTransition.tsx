@@ -8,14 +8,12 @@ const EXIT = {
   opacity: 0,
   y: -5,
   scale: 0.995,
-  filter: "blur(4px)",
 };
 
 const VISIBLE = {
   opacity: 1,
   y: 0,
   scale: 1,
-  filter: "blur(0px)",
 };
 
 export default function AppPageTransition({ children }: { children: ReactNode }) {

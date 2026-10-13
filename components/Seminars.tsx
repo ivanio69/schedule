@@ -5,7 +5,7 @@ import Link from "next/link";
 import AdminHeading from "@/components/AdminHeading";
 import LoadingState from "@/components/LoadingState";
 import AsyncContentTransition from "@/components/AsyncContentTransition";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useRef, useState } from "react";
 import type { SeminarList, SeminarTopic } from "@/lib/seminars";
 
 type Person = { id: string; name: string };
@@ -78,7 +78,8 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
     } catch (e) { setNotice(e instanceof Error ? e.message : "Не удалось сохранить. Проверь подключение к сети"); return false; }
     finally { setBusy(false); }
   }
-  const search = query.trim().toLocaleLowerCase("ru");
+  const deferredQuery = useDeferredValue(query);
+  const search = deferredQuery.trim().toLocaleLowerCase("ru");
   const matches = (list: SeminarList, topic: SeminarTopic) => admin || (
     (!search || `${list.subject} ${list.title} ${topic.title} ${(topic.studentNames ?? []).join(" ")}`.toLocaleLowerCase("ru").includes(search)) &&
     (filter === "all" || (filter === "free" ? topic.studentIds.length < list.capacity : !!personId && topic.studentIds.includes(personId)))

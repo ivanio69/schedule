@@ -166,9 +166,9 @@ export default function LoginPage(){
 
   return <motion.main className={styles.page} animate={success&&!reducedMotion?{backgroundColor:"rgba(0,0,0,.2)"}:{}} transition={{duration:.32}}>
     <motion.div className={styles.glow} aria-hidden="true" animate={success&&!reducedMotion?{scale:1.14,opacity:.3}:{scale:1,opacity:1}} transition={{duration:.48}}/>
-    <AnimatePresence>{success&&<motion.div className={styles.loginSuccess} initial={reducedMotion?false:{opacity:0,scale:.88,filter:"blur(12px)"}} animate={{opacity:1,scale:1,filter:"blur(0px)"}}><span>✓</span><strong>Вход выполнен</strong><small>{successText}</small></motion.div>}</AnimatePresence>
+    <AnimatePresence>{success&&<motion.div className={styles.loginSuccess} initial={reducedMotion?false:{opacity:0,scale:.88}} animate={{opacity:1,scale:1}}><span>✓</span><strong>Вход выполнен</strong><small>{successText}</small></motion.div>}</AnimatePresence>
 
-    <motion.section className={styles.shell} initial={reducedMotion?false:{opacity:0,y:28,scale:.97,filter:"blur(12px)"}} animate={success&&!reducedMotion?{opacity:0,y:-12,scale:.96,filter:"blur(16px)"}:{opacity:1,y:0,scale:1,filter:"blur(0px)"}} transition={{duration:success?.36:.46,ease:[.22,1,.36,1]}}>
+    <motion.section className={styles.shell} initial={reducedMotion?false:{opacity:0,y:28,scale:.97}} animate={success&&!reducedMotion?{opacity:0,y:-12,scale:.96}:{opacity:1,y:0,scale:1}} transition={{duration:success?.36:.46,ease:[.22,1,.36,1]}}>
       <header className={styles.head}>
         <motion.div className={styles.mark} initial={reducedMotion?false:{scale:.78,rotate:-6,opacity:0}} animate={{scale:1,rotate:0,opacity:1}} transition={{delay:.08,duration:.4,ease:[.22,1,.36,1]}}>214Р</motion.div>
         <motion.div initial={reducedMotion?false:{opacity:0,x:-8}} animate={{opacity:1,x:0}} transition={{delay:.13,duration:.38}}>
