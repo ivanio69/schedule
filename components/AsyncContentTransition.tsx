@@ -26,8 +26,8 @@ export default function AsyncContentTransition({
           key="loading"
           className="async-content-transition async-content-transition--loading"
           initial={false}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          exit={reduceMotion ? undefined : { opacity: 0, y: -5, filter: "blur(1px)" }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
           transition={{ duration, ease: [0.22, 1, 0.36, 1] }}
         >
           {loadingNode}
@@ -36,9 +36,9 @@ export default function AsyncContentTransition({
         <motion.div
           key="content"
           className={`async-content-transition async-content-transition--content ${className}`.trim()}
-          initial={reduceMotion ? false : { opacity: 0, y: 8, filter: "blur(1.5px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          exit={reduceMotion ? undefined : { opacity: 0, y: -5, filter: "blur(1px)" }}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
           transition={{ duration: reduceMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
           {children}

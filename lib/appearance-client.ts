@@ -16,6 +16,15 @@ export function applyAppearance(
 ) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
+  const accent = settings.appAccentMode === "time" ? getTimeBasedAccent(options.now) : settings.appAccent;
+  // Storage/profile events can repeat the same settings. Avoid a forced style
+  // flush and restarting inherited color transitions when nothing changed.
+  if (root.dataset.theme === settings.theme
+    && root.dataset.accentMode === settings.appAccentMode
+    && root.dataset.accent === accent
+    && root.dataset.rehearsalAccent === settings.rehearsalAccent
+    && root.dataset.individualAccent === settings.individualAccent
+    && root.dataset.seminarAccent === settings.seminarAccent) return;
   const animate = options.animate !== false;
   const timeBased = options.timeBased === true && settings.appAccentMode === "time";
 
@@ -32,7 +41,7 @@ export function applyAppearance(
   root.dataset.theme = settings.theme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", settings.theme === "light" ? "#f5f5f6" : "#09090b");
   root.dataset.accentMode = settings.appAccentMode;
-  root.dataset.accent = settings.appAccentMode === "time" ? getTimeBasedAccent(options.now) : settings.appAccent;
+  root.dataset.accent = accent;
   root.dataset.rehearsalAccent = settings.rehearsalAccent;
   root.dataset.individualAccent = settings.individualAccent;
   root.dataset.seminarAccent = settings.seminarAccent;

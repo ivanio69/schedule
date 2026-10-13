@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import ScheduleApp from "@/components/ScheduleApp";
 import BookedIndividualSlotsInSchedule from "@/components/BookedIndividualSlotsInSchedule";
 import type { ScheduleData } from "@/lib/schedule";
@@ -36,10 +36,30 @@ function updatePastState(schedule: ScheduleData) {
 }
 
 export default function TodaySchedule() {
+  const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let schedule: ScheduleData | null = null;
     let stopped = false;
-    const sync = () => { if (schedule) updatePastState(schedule); };
+    let frame = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const sync = () => { if (!stopped && !document.hidden && schedule) updatePastState(schedule); };
+    const queueSync = () => {
+      if (frame || stopped || document.hidden) return;
+      frame = requestAnimationFrame(() => { frame = 0; sync(); });
+    };
+    const syncClock = () => {
+      if (timer) clearTimeout(timer);
+      sync();
+      if (!stopped && !document.hidden) timer = setTimeout(syncClock, 60000 - Date.now() % 60000);
+    };
+    // Also refresh immediately after React swaps a day/week or inserts cards.
+    // Only buttons' class changes matter; ignore our own is-past mutations.
+    const observer = new MutationObserver(records => {
+      if (records.some(record => record.type !== "attributes"
+        || record.target instanceof HTMLButtonElement)) queueSync();
+    });
+    const shell = rootRef.current;
+    if (shell) observer.observe(shell, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["class"] });
     const load = async () => {
       try {
         const response = await fetch("/api/schedule", { cache: "no-store" });
@@ -53,12 +73,19 @@ export default function TodaySchedule() {
       } catch {}
     };
     void load();
-    const timer = window.setInterval(sync, 1000);
-    return () => { stopped = true; window.clearInterval(timer); };
+    syncClock();
+    document.addEventListener("visibilitychange", syncClock);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", syncClock);
+    };
   }, []);
 
   return (
-    <>
+    <div ref={rootRef} style={{ display: "contents" }}>
       <style jsx global>{`
         .schedule-panel.is-past-day .schedule-card,
         .schedule-panel.is-past-day .rehearsal-card,
@@ -76,6 +103,6 @@ export default function TodaySchedule() {
       `}</style>
       <ScheduleApp />
       <BookedIndividualSlotsInSchedule />
-    </>
+    </div>
   );
 }
