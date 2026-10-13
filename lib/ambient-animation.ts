@@ -13,6 +13,7 @@ export function startAmbientAnimation(root: HTMLElement, subscribe: Subscribe) {
     duration: random(24000, 44000),
   }));
   const animations = new Map<HTMLElement, Animation>();
+  const dotAnimations = new Map<HTMLElement, Animation>();
   const media = window.matchMedia("(prefers-reduced-motion: reduce)");
   let loading: boolean | undefined;
   let disposed = false;
@@ -36,14 +37,17 @@ export function startAmbientAnimation(root: HTMLElement, subscribe: Subscribe) {
   const startLoop = (node: HTMLElement, index: number, isLoading: boolean) => {
     if (disposed || media.matches) return;
     if (isLoading) {
-      const scale = DOT_SIZE / TEXTURE_SIZE;
-      // Negative stagger starts every dot immediately at a different phase.
-      remember(node, node.animate([
-        { transform: destination(index, true), opacity: .28 },
-        { transform: transform(DOT_OFFSETS[index], -8, scale * 1.12, scale * 1.12), opacity: 1, offset: .35 },
-        { transform: destination(index, true), opacity: .72, offset: .55 },
-        { transform: destination(index, true), opacity: .28 },
-      ], { duration: 780, delay: -index * 110, iterations: Infinity, easing: "ease-in-out" }));
+      // Geometry and jumping use independent compositor properties. Start the
+      // first jump during the morph, then follow in left-to-right order.
+      if (dotAnimations.has(node)) return;
+      const bounce = node.animate([
+        { translate: "0px 0px", opacity: 1 },
+        { translate: "0px -8px", opacity: 1, offset: .28 },
+        { translate: "0px 0px", opacity: .72, offset: .55 },
+        { translate: "0px 0px", opacity: 1 },
+      ], { duration: 680, delay: index * 90, iterations: Infinity, easing: "ease-in-out" });
+      dotAnimations.set(node, bounce);
+      if (document.hidden) bounce.pause();
     } else {
       remember(node, node.animate([
         { transform: destination(index, false) },
@@ -58,12 +62,18 @@ export function startAmbientAnimation(root: HTMLElement, subscribe: Subscribe) {
     nodes.forEach((node, index) => {
       // Read only the five compositor matrices at a loading boundary. Capture
       // before cancelling so an interrupted morph continues from its current frame.
-      const from = tween ? getComputedStyle(node).transform : "";
+      const style = tween ? getComputedStyle(node) : null;
+      const jumpY = style ? parseFloat(style.translate?.split(" ")[1] ?? "0") || 0 : 0;
+      const from = style ? `translateY(${jumpY}px) ${style.transform}` : "";
       animations.get(node)?.cancel();
       animations.delete(node);
+      dotAnimations.get(node)?.cancel();
+      dotAnimations.delete(node);
+      node.style.translate = "0px 0px";
       const target = destination(index, next);
       node.style.transform = target;
       node.style.opacity = "1";
+      if (next) startLoop(node, index, true);
       if (!tween || media.matches) { startLoop(node, index, next); return; }
       const animation = node.animate([{ transform: from }, { transform: target }],
         { duration: next ? 320 : 460, easing: "cubic-bezier(.22,1,.36,1)" });
@@ -86,7 +96,7 @@ export function startAmbientAnimation(root: HTMLElement, subscribe: Subscribe) {
     render(next, tween);
   });
   const visibility = () => {
-    for (const animation of animations.values()) {
+    for (const animation of [...animations.values(), ...dotAnimations.values()]) {
       if (document.hidden) animation.pause(); else animation.play();
     }
   };
@@ -105,7 +115,8 @@ export function startAmbientAnimation(root: HTMLElement, subscribe: Subscribe) {
     document.removeEventListener("visibilitychange", visibility);
     window.removeEventListener("resize", resize);
     media.removeEventListener("change", motionPreference);
-    for (const animation of animations.values()) animation.cancel();
+    for (const animation of [...animations.values(), ...dotAnimations.values()]) animation.cancel();
     animations.clear();
+    dotAnimations.clear();
   };
 }
