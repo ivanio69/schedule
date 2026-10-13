@@ -116,6 +116,10 @@ export default function DashboardV2() {
   }, []);
   useEffect(() => {
     let cancelled=false;
+    const today=dateKey(new Date());
+    // Public quote data does not depend on the session. Start it immediately,
+    // while keeping the quote inside the dashboard loading boundary.
+    const quoteRequest=loadDashboardDailyQuote(today);
     void (async()=>{
       try{
         const authResponse=await fetch("/api/auth/session",{cache:"no-store"});
@@ -124,11 +128,10 @@ export default function DashboardV2() {
         const current=auth.person as {id:string;name:string;role?:Person["role"]};
         if(!current?.id){window.location.replace("/login");return;}
         localStorage.setItem(PERSON_KEY,current.id);
-        const today=dateKey(new Date());
         const [s,seminarData,quote]=await Promise.all([
           fetch(`/api/schedule?date=${today}&personId=${encodeURIComponent(current.id)}`,{cache:"no-store"}).then(r=>r.json()),
           fetch("/api/seminars",{cache:"no-store"}).then(r=>r.json()),
-          loadDashboardDailyQuote(today),
+          quoteRequest,
         ]);
         if(cancelled)return;
         setPerson({id:current.id,name:current.name,active:true,role:current.role,createdAt:""});

@@ -325,94 +325,22 @@ body .seminars-client .seminar-filters button[aria-pressed="true"]:hover{
   }
 }
 
-/* Keep the five background spots morphing into the loading dots. */
-html body { position:relative; isolation:isolate; background:var(--bg)!important; animation:none!important; }
-.ambient-background {
-  position:fixed;
-  inset:0;
-  z-index:-1;
-  overflow:hidden;
-  contain:layout paint;
-  pointer-events:none;
-  opacity:.34;
-  transition:opacity .42s ease;
-  --spot-strength:38%;
-  --neutral-strength:18%;
-}
-html[data-theme="light"] .ambient-background { --spot-strength:22%; --neutral-strength:10%; }
-
-.ambient-spots {
-  position:absolute;
-  inset:0;
-}
-.ambient-spots > span {
-  position:absolute;
-  left:var(--ambient-left);
-  top:var(--ambient-top);
-  transform:none!important;
-  transition:
-    left .46s cubic-bezier(.22,1,.36,1),
-    top .46s cubic-bezier(.22,1,.36,1),
-    width .34s cubic-bezier(.22,1,.36,1),
-    height .34s cubic-bezier(.22,1,.36,1);
-}
-.ambient-spots > span > i {
-  display:block;
-  width:100%;
-  height:100%;
-  border-radius:50%;
-  transform:translate(-50%,-50%);
-  background:radial-gradient(ellipse,color-mix(in srgb,var(--accent) var(--spot-strength),transparent),transparent 70%);
-  animation:ambient-float var(--ambient-duration) ease-in-out var(--ambient-delay) infinite;
-}
-html[data-accent="default"] .ambient-spots > span > i {
-  background:radial-gradient(ellipse,color-mix(in srgb,var(--text) var(--neutral-strength),transparent),transparent 70%);
-}
-
-.ambient-background[data-loading="true"] {
-  opacity:1;
-  transform:none!important;
-  animation:none!important;
-}
-.ambient-background[data-loading="true"] .ambient-spots > span {
-  left:calc(50% + var(--ring-x) - 12px);
-  top:calc(50% - 12px);
-  width:24px!important;
-  height:24px!important;
-  transform:none!important;
-}
-.ambient-background[data-loading="true"] .ambient-spots > span > i {
-  transform:none;
-  background:radial-gradient(circle,color-mix(in srgb,var(--accent) 84%,transparent) 0%,color-mix(in srgb,var(--accent) 44%,transparent) 42%,transparent 74%);
-  filter:blur(.5px);
-  animation:ambient-loading-dots .78s ease-in-out var(--ring-delay) infinite;
-}
-html[data-accent="default"] .ambient-background[data-loading="true"] .ambient-spots > span > i {
-  background:radial-gradient(circle,color-mix(in srgb,var(--text) 78%,transparent) 0%,color-mix(in srgb,var(--text) 34%,transparent) 42%,transparent 74%);
-}
-
-body:has(.app-loading-state.is-screen) .app-page-transition { visibility:hidden; }
-body:has(.app-loading-state.is-screen) .app-navigation { visibility:visible; }
-body .app-loading-state.is-screen { visibility:visible; }
-
-@keyframes ambient-float {
-  0%,100% { transform:translate(-50%,-50%) scale(1); }
-  33% { transform:translate(calc(-50% + var(--drift-x)),calc(-50% + var(--drift-y))) scale(1.08); }
-  66% { transform:translate(calc(-50% + var(--drift-x2)),calc(-50% + var(--drift-y2))) scale(.94); }
-}
-@keyframes ambient-loading-dots {
-  0%,100% { opacity:.28; transform:translateY(0) scale(.82); }
-  35% { opacity:1; transform:translateY(-8px) scale(1.12); }
-  55% { opacity:.72; transform:translateY(0) scale(.96); }
-}
-@media(prefers-reduced-motion:reduce) {
-  .ambient-spots > span,
-  .ambient-spots > span > i { transition:none; animation:none!important; }
-  .ambient-background[data-loading="true"] .ambient-spots > span > i {
-    opacity:.82;
-    transform:translate(-50%,-50%);
-  }
-}
-
-/* Pause decoration without resetting its animation phase. */
-.ambient-background[data-paused="true"] .ambient-spots > span > i{animation-play-state:paused}
+/* The five 256px textures keep their geometry for both background and loader.
+   Only compositor transforms move and shrink them into the loading dots. */
+html body{position:relative;isolation:isolate;background:var(--bg)!important;animation:none!important}
+.ambient-background{position:fixed;inset:0;z-index:-1;overflow:hidden;contain:layout paint;pointer-events:none;opacity:.34;transition:opacity .42s ease;--spot-opacity:.45}
+html[data-theme="light"] .ambient-background{--spot-opacity:.26}
+html[data-accent="default"] .ambient-background{--spot-opacity:.23}
+html[data-theme="light"][data-accent="default"] .ambient-background{--spot-opacity:.13}
+.ambient-spots{position:absolute;inset:0}
+.ambient-spots>span{position:absolute;left:calc(50% - 128px);top:calc(50% - 128px);width:256px;height:256px;opacity:0;transform-origin:center;will-change:transform,opacity}
+.ambient-spots>span>i{display:block;width:100%;height:100%;border-radius:50%;background:radial-gradient(ellipse,color-mix(in srgb,var(--accent) 84%,transparent),transparent 74%);opacity:var(--spot-opacity);transition:opacity .42s ease}
+html[data-accent="default"] .ambient-spots>span>i{background:radial-gradient(ellipse,color-mix(in srgb,var(--text) 78%,transparent),transparent 74%)}
+.ambient-background[data-loading="true"]{opacity:1}
+.ambient-background[data-loading="true"] .ambient-spots>span>i{opacity:1}
+body:has(.app-loading-state.is-screen) .app-page-transition{visibility:hidden}
+body:has(.app-loading-state.is-screen) .app-navigation{visibility:visible}
+body .app-loading-state.is-screen{visibility:visible}
+@media(prefers-reduced-motion:reduce){.ambient-background,.ambient-spots>span>i{transition:none}.ambient-spots>span{will-change:auto}}
+/* Keep the progress fill on its own compositor layer; it never animates width. */
+.dashboard-progress i{will-change:transform;backface-visibility:hidden;background-position:0 0!important;animation:none!important}
