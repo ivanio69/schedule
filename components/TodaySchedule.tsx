@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import ScheduleApp from "@/components/ScheduleApp";
 import BookedIndividualSlotsInSchedule from "@/components/BookedIndividualSlotsInSchedule";
 import type { ScheduleData } from "@/lib/schedule";
@@ -36,6 +36,7 @@ function updatePastState(schedule: ScheduleData) {
 }
 
 export default function TodaySchedule() {
+  const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let schedule: ScheduleData | null = null;
     let stopped = false;
@@ -57,7 +58,7 @@ export default function TodaySchedule() {
       if (records.some(record => record.type !== "attributes"
         || record.target instanceof HTMLButtonElement)) queueSync();
     });
-    const shell = document.querySelector(".schedule-shell");
+    const shell = rootRef.current;
     if (shell) observer.observe(shell, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["class"] });
     const load = async () => {
       try {
@@ -84,7 +85,7 @@ export default function TodaySchedule() {
   }, []);
 
   return (
-    <>
+    <div ref={rootRef} style={{ display: "contents" }}>
       <style jsx global>{`
         .schedule-panel.is-past-day .schedule-card,
         .schedule-panel.is-past-day .rehearsal-card,
@@ -102,6 +103,6 @@ export default function TodaySchedule() {
       `}</style>
       <ScheduleApp />
       <BookedIndividualSlotsInSchedule />
-    </>
+    </div>
   );
 }
