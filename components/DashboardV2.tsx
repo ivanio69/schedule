@@ -19,6 +19,7 @@ import type { SeminarList } from "@/lib/seminars";
 import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
 import DashboardDailyQuote from "@/components/DashboardDailyQuote";
+import { loadDashboardDailyQuote, type DashboardDailyQuoteData } from "@/lib/dashboard-daily-quote";
 import AttendanceActions from "@/components/AttendanceActions";
 import type { AttendanceReport } from "@/lib/attendance";
 const PERSON_KEY = "schedule_person_id";
@@ -62,6 +63,7 @@ type Event = {
 export default function DashboardV2() {
   const reducedMotion = useReducedMotion();
   const [modalPortalReady, setModalPortalReady] = useState(false);
+  const [dailyQuote, setDailyQuote] = useState<DashboardDailyQuoteData | null>(null);
   const [person, setPerson] = useState<Person | null>(null),
     [schedule, setSchedule] = useState<ScheduleData | null>(null),
     [individuals, setIndividuals] = useState<IndividualLesson[]>([]),
@@ -123,15 +125,17 @@ export default function DashboardV2() {
         if(!current?.id){window.location.replace("/login");return;}
         localStorage.setItem(PERSON_KEY,current.id);
         const today=dateKey(new Date());
-        const [s,seminarData]=await Promise.all([
+        const [s,seminarData,quote]=await Promise.all([
           fetch(`/api/schedule?date=${today}&personId=${encodeURIComponent(current.id)}`,{cache:"no-store"}).then(r=>r.json()),
           fetch("/api/seminars",{cache:"no-store"}).then(r=>r.json()),
+          loadDashboardDailyQuote(today),
         ]);
         if(cancelled)return;
         setPerson({id:current.id,name:current.name,active:true,role:current.role,createdAt:""});
         setSchedule(s.schedule??null);
         setRehearsals(s.rehearsals??[]);
         setSeminars(seminarData.lists??[]);
+        setDailyQuote(quote);
         void loadProfile(current.id);
         void loadAttendance();
       }finally{
@@ -946,7 +950,7 @@ export default function DashboardV2() {
         </div>
       </header>
       <DashboardAnnouncements personId={person.id} />
-      <DashboardDailyQuote />
+      <DashboardDailyQuote quote={dailyQuote} />
       {(noPairs || current || next) && (
         <section className={`dashboard-focus${current ? " is-current" : ""}`}>
           <div className="dashboard-focus-top">
