@@ -49,3 +49,7 @@ body .app-navigation.navigation-labelled.is-exiting{
 /* Motion owns route-level enter/exit; suppress the legacy CSS animation on
    the same wrapper to avoid transform fights and first-frame jumps. */
 .app-page-transition{animation:none!important}
+
+/* The parent already reveals these surfaces. Avoid compositing every card
+   simultaneously when a page or async section enters. */
+.async-content-transition--content :is(.schedule-card,.rehearsal-card,.admin-card,.settings-section,.empty-state,.dashboard-rehearsal){animation:none}

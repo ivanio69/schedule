@@ -346,6 +346,8 @@ html[data-theme="light"] .ambient-background { --spot-strength:22%; --neutral-st
 }
 .ambient-spots > span {
   position:absolute;
+  max-width:640px;
+  max-height:520px;
   left:var(--ambient-left);
   top:var(--ambient-top);
   transform:none!important;
@@ -392,9 +394,9 @@ body:has(.app-loading-state.is-screen) .app-navigation { visibility:visible; }
 body .app-loading-state.is-screen { visibility:visible; }
 
 @keyframes ambient-float {
-  0%,100% { transform:translate(-50%,-50%) scale(1); }
-  33% { transform:translate(calc(-50% + var(--drift-x)),calc(-50% + var(--drift-y))) scale(1.08); }
-  66% { transform:translate(calc(-50% + var(--drift-x2)),calc(-50% + var(--drift-y2))) scale(.94); }
+  0%,100% { transform:translate(-50%,-50%); }
+  33% { transform:translate(calc(-50% + var(--drift-x)),calc(-50% + var(--drift-y))); }
+  66% { transform:translate(calc(-50% + var(--drift-x2)),calc(-50% + var(--drift-y2))); }
 }
 @keyframes ambient-loading-dots {
   0%,100% { opacity:.28; transform:translateY(0) scale(.82); }
