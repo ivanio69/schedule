@@ -37,12 +37,13 @@ export function startAmbientAnimation(root: HTMLElement, subscribe: Subscribe) {
     if (disposed || media.matches) return;
     if (isLoading) {
       const scale = DOT_SIZE / TEXTURE_SIZE;
+      // Negative stagger starts every dot immediately at a different phase.
       remember(node, node.animate([
         { transform: destination(index, true), opacity: .28 },
         { transform: transform(DOT_OFFSETS[index], -8, scale * 1.12, scale * 1.12), opacity: 1, offset: .35 },
         { transform: destination(index, true), opacity: .72, offset: .55 },
         { transform: destination(index, true), opacity: .28 },
-      ], { duration: 780, delay: index * 110, iterations: Infinity, easing: "ease-in-out" }));
+      ], { duration: 780, delay: -index * 110, iterations: Infinity, easing: "ease-in-out" }));
     } else {
       remember(node, node.animate([
         { transform: destination(index, false) },
@@ -65,7 +66,7 @@ export function startAmbientAnimation(root: HTMLElement, subscribe: Subscribe) {
       node.style.opacity = "1";
       if (!tween || media.matches) { startLoop(node, index, next); return; }
       const animation = node.animate([{ transform: from }, { transform: target }],
-        { duration: 460, easing: "cubic-bezier(.22,1,.36,1)" });
+        { duration: next ? 320 : 460, easing: "cubic-bezier(.22,1,.36,1)" });
       remember(node, animation);
       animation.onfinish = () => {
         if (disposed || animations.get(node) !== animation) return;
