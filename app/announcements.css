@@ -1,5 +1,5 @@
-.dashboard-announcements-reveal{display:grid;grid-template-rows:0fr;transition:grid-template-rows .46s cubic-bezier(.22,1,.36,1)}
-.dashboard-announcements-reveal.is-visible{grid-template-rows:1fr}
+.dashboard-announcements-reveal{display:grid;grid-template-rows:0fr;opacity:0;transform:translateY(6px);transition:opacity .3s ease,transform .3s cubic-bezier(.22,1,.36,1)}
+.dashboard-announcements-reveal.is-visible{grid-template-rows:1fr;opacity:1;transform:none}
 .dashboard-announcements-reveal-inner{min-height:0;overflow:hidden}
 .dashboard-announcements{display:grid;gap:12px;margin:16px 0 0}
 .dashboard-announcements article{position:relative;overflow:hidden;padding:18px 19px 17px 21px;border:1px solid color-mix(in srgb,var(--announcement-accent) 52%,transparent);border-radius:18px;color:var(--announcement-text)!important;background:var(--announcement-bg)!important;box-shadow:0 14px 34px color-mix(in srgb,var(--announcement-accent) 12%,transparent);animation:dashboard-announcement-in .34s cubic-bezier(.22,1,.36,1) both}

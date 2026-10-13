@@ -45,8 +45,6 @@ export default function AppNavigation(){
      cancelAnimationFrame(firstFrame);
      cancelAnimationFrame(secondFrame);
      if(loading) return;
-     cancelAnimationFrame(firstFrame);
-     cancelAnimationFrame(secondFrame);
      firstFrame=requestAnimationFrame(()=>{
        secondFrame=requestAnimationFrame(()=>setInitialReady(true));
      });

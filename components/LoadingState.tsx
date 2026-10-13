@@ -18,9 +18,10 @@ export default function LoadingState({
   compact = false,
   className = "",
 }: LoadingStateProps) {
+  const tracksScreen = screen && !className.split(/\s+/).includes("app-loading-ghost");
   useEffect(() => {
-    if (screen && !className.split(/\s+/).includes("app-loading-ghost")) return registerScreenLoading();
-  }, [screen, className]);
+    if (tracksScreen) return registerScreenLoading();
+  }, [tracksScreen]);
 
   const classes = ["app-loading-state", screen ? "is-screen" : "", compact ? "is-compact" : "", className].filter(Boolean).join(" ");
   const accessibleLabel = detail ? `${label}. ${detail}` : label;

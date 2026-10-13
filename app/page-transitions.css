@@ -2,7 +2,7 @@
 
 /* Route transitions are driven by AppPageTransition. Keep the wrapper itself
    neutral so Motion can animate both the outgoing and incoming page. */
-.app-page-transition{min-height:1px;will-change:auto}
+.app-page-transition{min-height:1px;will-change:opacity,transform}
 @keyframes app-content-reveal{
   from{opacity:0;transform:translateY(7px);}
   to{opacity:1;transform:none;}
@@ -17,7 +17,7 @@
     .admin-shell,
     .app-loading-state
   ){
-    animation:none;
+    animation:app-content-reveal .24s cubic-bezier(.22,1,.36,1) both;
   }
 }
 body .app-navigation.navigation-labelled{
