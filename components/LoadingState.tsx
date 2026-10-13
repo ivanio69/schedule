@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { registerScreenLoading } from "@/lib/screen-loading";
+
 type LoadingStateProps = {
   label?: string;
   detail?: string;
@@ -15,8 +18,13 @@ export default function LoadingState({
   compact = false,
   className = "",
 }: LoadingStateProps) {
+  useEffect(() => {
+    if (screen && !className.split(/\s+/).includes("app-loading-ghost")) return registerScreenLoading();
+  }, [screen, className]);
+
   const classes = ["app-loading-state", screen ? "is-screen" : "", compact ? "is-compact" : "", className].filter(Boolean).join(" ");
   const accessibleLabel = detail ? `${label}. ${detail}` : label;
 
   return <div className={classes} role="status" aria-live="polite" aria-busy="true" aria-label={accessibleLabel} />;
 }
+

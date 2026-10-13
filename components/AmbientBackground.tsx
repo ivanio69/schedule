@@ -1,5 +1,6 @@
 "use client";
 
+import { subscribeScreenLoading } from "@/lib/screen-loading";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 const LOADING_POINTS = [
@@ -35,14 +36,13 @@ export default function AmbientBackground() {
         "--drift-y": `${random(-25, 25)}vh`,
         "--drift-x2": `${random(-25, 25)}vw`,
         "--drift-y2": `${random(-25, 25)}vh`,
-        width: `${random(45, 85)}vmax`,
-        height: `${random(35, 65)}vmax`,
+        width: `${random(35, 55)}vmax`,
+        height: `${random(30, 45)}vmax`,
       } as CSSProperties)));
     });
 
     let loading: boolean | undefined;
-    const syncLoading = () => {
-      const next = !!document.querySelector(".app-loading-state.is-screen:not(.app-loading-ghost)");
+    const syncLoading = (next: boolean) => {
       if (next === loading) return;
 
       const root = rootRef.current;
@@ -55,13 +55,17 @@ export default function AmbientBackground() {
       loading = next;
     };
 
-    const observer = new MutationObserver(syncLoading);
-    observer.observe(document.body, { childList: true, subtree: true });
-    syncLoading();
+    const unsubscribe = subscribeScreenLoading(syncLoading);
+    const syncVisibility = () => {
+      if (rootRef.current) rootRef.current.dataset.paused = String(document.hidden);
+    };
+    syncVisibility();
+    document.addEventListener("visibilitychange", syncVisibility);
 
     return () => {
       cancelAnimationFrame(frame);
-      observer.disconnect();
+      unsubscribe();
+      document.removeEventListener("visibilitychange", syncVisibility);
     };
   }, []);
 
@@ -71,3 +75,4 @@ export default function AmbientBackground() {
     </div>
   </div>;
 }
+

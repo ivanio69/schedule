@@ -72,7 +72,7 @@ export default function DashboardV2() {
       {},
     ),
     [notes, setNotes] = useState<Record<string, string>>({}),
-    [now, setNow] = useState(new Date()),
+    [now, setNow] = useState(() => new Date()),
     [noteEvent, setNoteEvent] = useState<Event | null>(null),
     [noteText, setNoteText] = useState(""),
     [saving, setSaving] = useState(false),
@@ -141,12 +141,23 @@ export default function DashboardV2() {
     return()=>{cancelled=true};
   }, []);
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 10000);
-    return () => clearInterval(t);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const syncClock = () => {
+      if (timer) clearTimeout(timer);
+      if (document.hidden) return;
+      setNow(new Date());
+      timer = setTimeout(syncClock, 60000 - Date.now() % 60000);
+    };
+    syncClock();
+    document.addEventListener("visibilitychange", syncClock);
+    return () => {
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", syncClock);
+    };
   }, []);
   useEffect(() => {
     if (!person) return;
-    const t = setInterval(() => void loadAttendance(), 60000);
+    const t = setInterval(() => { if (!document.hidden) void loadAttendance(); }, 60000);
     return () => clearInterval(t);
   }, [person?.id]);
   const today = todayIndex(),
@@ -253,7 +264,7 @@ export default function DashboardV2() {
   const tomorrowDate = new Date(now);
   tomorrowDate.setDate(now.getDate() + 1);
   const tomorrowKey = dateKey(tomorrowDate),
-    tomorrowLessons = schedule
+    tomorrowLessons = useMemo(() => schedule
       ? getOccurrences(schedule, tomorrowKey).filter((x) => {
           if (x.occurrence?.status === "cancelled") return false;
           if (!lessonMatchesChinaMode(x, chinaMode)) return false;
@@ -265,7 +276,7 @@ export default function DashboardV2() {
             x.group.includes(Number(preference))
           );
         })
-      : [],
+      : [], [schedule, tomorrowKey, chinaMode, preferences]),
     tomorrowRehearsals = rehearsals.filter((x) => x.date === tomorrowKey),
     tomorrowIndividuals = individuals.filter((x) => x.date === tomorrowKey),
     tomorrowEvents = [
@@ -287,7 +298,7 @@ export default function DashboardV2() {
     ].sort((a, b) => a.start.localeCompare(b.start)),
     todayFinished = events.length > 0 && !current && !next,
     showTomorrow = todayFinished || (!events.length && hour >= 18);
-  const mySeminars = seminars.flatMap((list) =>
+  const mySeminars = useMemo(() => seminars.flatMap((list) =>
     list.topics
       .filter((topic) => topic.studentIds.includes(person?.id ?? ""))
       .map((topic) => ({
@@ -298,7 +309,7 @@ export default function DashboardV2() {
         topicTitle: topic.title,
         participants: topic.studentNames ?? [],
       })),
-  );
+  ), [seminars, person?.id]);
   const countdown = (v: string) => {
     const d = mins(v) - currentMin;
     if (d <= 0) return "сейчас";
@@ -455,7 +466,9 @@ export default function DashboardV2() {
           height: 100%;
           border-radius: inherit;
           background: #f2f2f2;
-          transition: width 0.5s;
+          width: 100%;
+          transform-origin: left;
+          transition: transform 0.5s;
         }
         .dashboard-progress-labels {
           display: flex;
@@ -966,7 +979,7 @@ export default function DashboardV2() {
               <div
                 className={`dashboard-progress${breakFinished ? " break-finished" : ""}`}
               >
-                <i style={{ width: `${progress}%` }} />
+                <i style={{ transform: `scaleX(${progress / 100})` }} />
               </div>
               <div className="dashboard-progress-labels">
                 <span>{current.start}</span>
@@ -1209,3 +1222,4 @@ export default function DashboardV2() {
     </main>
   );
 }
+

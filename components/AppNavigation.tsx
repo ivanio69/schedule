@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { subscribeScreenLoading } from "@/lib/screen-loading";
 import { usePathname } from "next/navigation";
 
 const items = [
@@ -40,8 +41,10 @@ export default function AppNavigation(){
 
    let firstFrame=0;
    let secondFrame=0;
-   const revealWhenReady=()=>{
-     if(document.querySelector(".app-loading-state.is-screen")) return;
+   const revealWhenReady=(loading: boolean)=>{
+     cancelAnimationFrame(firstFrame);
+     cancelAnimationFrame(secondFrame);
+     if(loading) return;
      cancelAnimationFrame(firstFrame);
      cancelAnimationFrame(secondFrame);
      firstFrame=requestAnimationFrame(()=>{
@@ -49,12 +52,10 @@ export default function AppNavigation(){
      });
    };
 
-   const observer=new MutationObserver(revealWhenReady);
-   observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["class"]});
-   revealWhenReady();
+   const unsubscribe=subscribeScreenLoading(revealWhenReady);
 
    return()=>{
-     observer.disconnect();
+     unsubscribe();
      cancelAnimationFrame(firstFrame);
      cancelAnimationFrame(secondFrame);
    };
@@ -112,3 +113,4 @@ export default function AppNavigation(){
    })}
  </nav>;
 }
+
