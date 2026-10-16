@@ -11,33 +11,33 @@ struct ClassLiveActivity: Widget {
                 .activitySystemActionForegroundColor(palette.text)
                 .widgetURL(URL(string: "schedule214://schedule"))
         } dynamicIsland: { context in
-            let ended = context.isStale || context.state.ended
             let lesson = context.state.lesson
+            let phase: ClassActivityLesson.Phase = context.state.ended ? .finished : lesson.phase(at: context.isStale ? max(Date(), lesson.end) : Date())
             // Dynamic Island has a system black background, including in light mode.
             let palette = ClassActivityPalette(appearance: lesson.appearance, date: lesson.start, forceDark: true)
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Text(ended ? "ПАРА ЗАВЕРШЕНА" : "СЕЙЧАС ИДЁТ")
+                    Text(phase == .breakTime ? "ПЕРЕРЫВ" : phase == .finished ? "ПАРА ЗАВЕРШЕНА" : "СЕЙЧАС ИДЁТ")
                         .font(.system(size: 10, weight: .semibold)).tracking(0.8)
                         .foregroundStyle(palette.muted)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    ClassActivityBadge(ended: ended, palette: palette)
+                    ClassActivityBadge(phase: phase, palette: palette)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    ClassActivityDetails(lesson: lesson, ended: ended, palette: palette, compact: true)
+                    ClassActivityDetails(lesson: lesson, phase: phase, palette: palette, compact: true)
                         .padding(.top, 4).padding(.bottom, 8)
                 }
             } compactLeading: {
-                Image(systemName: ended ? "checkmark.circle.fill" : "graduationcap.fill")
+                Image(systemName: phase == .breakTime ? "pause.fill" : phase == .finished ? "checkmark.circle.fill" : "graduationcap.fill")
                     .foregroundStyle(palette.accent)
             } compactTrailing: {
-                ClassCountdown(lesson: lesson, ended: ended)
+                ClassCountdown(lesson: lesson, phase: phase)
                     .font(.caption.monospacedDigit().weight(.semibold))
                     .foregroundStyle(palette.accent)
                     .frame(width: 48)
             } minimal: {
-                Image(systemName: ended ? "checkmark" : "graduationcap.fill")
+                Image(systemName: phase == .breakTime ? "pause.fill" : phase == .finished ? "checkmark" : "graduationcap.fill")
                     .foregroundStyle(palette.accent)
             }
             .keylineTint(palette.accent)
@@ -50,20 +50,20 @@ private struct ClassActivityCard: View {
     let state: ClassActivityAttributes.ContentState
     let expired: Bool
     let palette: ClassActivityPalette
-    private var ended: Bool { expired || state.ended }
+    private var phase: ClassActivityLesson.Phase { state.ended ? .finished : state.lesson.phase(at: expired ? max(Date(), state.lesson.end) : Date()) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(ended ? "ПАРА ЗАВЕРШЕНА" : "СЕЙЧАС ИДЁТ")
+                Text(phase == .breakTime ? "ПЕРЕРЫВ" : phase == .finished ? "ПАРА ЗАВЕРШЕНА" : "СЕЙЧАС ИДЁТ")
                     .font(.system(size: 10, weight: .semibold)).tracking(0.8)
                     .foregroundStyle(palette.muted)
                 Spacer(minLength: 8)
-                ClassActivityBadge(ended: ended, palette: palette)
+                ClassActivityBadge(phase: phase, palette: palette)
             }
-            ClassActivityDetails(lesson: state.lesson, ended: ended, palette: palette, compact: false)
+            ClassActivityDetails(lesson: state.lesson, phase: phase, palette: palette, compact: false)
         }
-        .padding(.horizontal, 20).padding(.vertical, 10)
+        .padding(.horizontal, 20).padding(.vertical, 12)
         .background {
             // Match dashboard-focus: diagonal tinted surface + upper-right glow.
             GeometryReader { geometry in
@@ -84,56 +84,67 @@ private struct ClassActivityCard: View {
 
 private struct ClassActivityDetails: View {
     let lesson: ClassActivityLesson
-    let ended: Bool
+    let phase: ClassActivityLesson.Phase
     let palette: ClassActivityPalette
     let compact: Bool
 
+    private var subtitle: String {
+        phase == .breakTime ? lesson.nextTitle.map { "Дальше · \($0)" } ?? "Следующая пара скоро" : lesson.subtitle
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(lesson.title)
+            Text(phase == .breakTime ? "Перерыв" : lesson.title)
                 .font(.system(size: compact ? 20 : 22, weight: .semibold))
                 .tracking(-0.7)
                 .foregroundStyle(palette.text)
-                .lineLimit(2).minimumScaleFactor(0.85)
+                .lineLimit(1).minimumScaleFactor(0.85)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            if !lesson.subtitle.isEmpty {
-                Text(lesson.subtitle)
-                    .font(.system(size: compact ? 12 : 11))
+            if !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.system(size: 11))
                     .foregroundStyle(palette.secondary)
                     .lineLimit(1)
                     .padding(.top, 3)
             }
-            HStack(spacing: 6) {
-                Text(ended ? "Пара завершена" : "до конца ·")
-                if !ended {
-                    ClassCountdown(lesson: lesson, ended: false)
-                        .frame(width: 76, alignment: .leading)
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if phase == .finished {
+                    Text("Пара завершена")
+                        .font(.system(size: 20, weight: .semibold))
+                } else {
+                    Text(phase == .breakTime ? "до начала" : "до конца")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(palette.secondary)
+                    ClassCountdown(lesson: lesson, phase: phase)
+                        .font(.system(size: compact ? 30 : 36, weight: .semibold).monospacedDigit())
+                        .tracking(-1)
+                        .frame(width: compact ? 116 : 136, alignment: .leading)
                 }
             }
-            .font(.system(size: 15, weight: .semibold).monospacedDigit())
             .foregroundStyle(palette.text)
-            .padding(.top, compact ? 10 : 6)
+            .padding(.top, 6)
 
-            ClassProgress(lesson: lesson, ended: ended, tint: palette.accent)
-                .padding(.top, compact ? 8 : 4)
+            ClassProgress(lesson: lesson, phase: phase, tint: palette.accent)
+                .padding(.top, 6)
             HStack {
-                Text(lesson.start, style: .time)
+                Text(phase == .breakTime ? lesson.end : lesson.start, style: .time)
                 Spacer()
-                Text(lesson.end, style: .time)
+                Text(phase == .breakTime ? lesson.nextStart ?? lesson.end : lesson.end, style: .time)
             }
             .font(.system(size: 9, weight: .medium).monospacedDigit())
             .foregroundStyle(palette.muted)
-            .padding(.top, 1)
+            .padding(.top, 3)
         }
     }
 }
 
 private struct ClassActivityBadge: View {
-    let ended: Bool
+    let phase: ClassActivityLesson.Phase
     let palette: ClassActivityPalette
 
     var body: some View {
-        Label(ended ? "Готово" : "Пара", systemImage: ended ? "checkmark" : "graduationcap.fill")
+        Label(phase == .breakTime ? "Перерыв" : phase == .finished ? "Готово" : "Пара",
+              systemImage: phase == .breakTime ? "pause.fill" : phase == .finished ? "checkmark" : "graduationcap.fill")
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(palette.text)
             .padding(.horizontal, 8).padding(.vertical, 3)
@@ -144,35 +155,44 @@ private struct ClassActivityBadge: View {
 
 private struct ClassCountdown: View {
     let lesson: ClassActivityLesson
-    let ended: Bool
+    let phase: ClassActivityLesson.Phase
     var body: some View {
-        if ended {
+        if phase == .finished {
             Image(systemName: "checkmark")
         } else {
-            // System-rendered while suspended. No TimelineView or app timer required.
-            Text(timerInterval: lesson.interval, countsDown: true, showsHours: false)
+            // Both countdowns are system-rendered while the app is suspended.
+            Text(timerInterval: phase == .breakTime ? lesson.breakInterval ?? lesson.interval : lesson.interval,
+                 countsDown: true, showsHours: false)
                 .monospacedDigit().minimumScaleFactor(0.8)
                 .multilineTextAlignment(.leading)
-                .accessibilityLabel("До конца пары")
+                .accessibilityLabel(phase == .breakTime ? "До начала следующей пары" : "До конца пары")
         }
     }
 }
 
 private struct ClassProgress: View {
     let lesson: ClassActivityLesson
-    let ended: Bool
+    let phase: ClassActivityLesson.Phase
     let tint: Color
     var body: some View {
         Group {
-            if ended {
-                ProgressView(value: 1)
+            if phase == .breakTime {
+                GeometryReader { geometry in
+                    Path { path in
+                        path.move(to: CGPoint(x: 2, y: 2))
+                        path.addLine(to: CGPoint(x: max(2, geometry.size.width - 2), y: 2))
+                    }
+                    .stroke(tint.opacity(0.65), style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [5, 6]))
+                }
+                .frame(height: 4)
+            } else if phase == .finished {
+                ProgressView(value: 1).progressViewStyle(.linear)
             } else {
-                ProgressView(timerInterval: lesson.interval, countsDown: false)
+                ProgressView(timerInterval: lesson.interval, countsDown: false).progressViewStyle(.linear)
             }
         }
-        .progressViewStyle(.linear)
         .labelsHidden().tint(tint)
-        .accessibilityLabel(ended ? "Пара завершена" : "Прогресс пары")
+        .accessibilityLabel(phase == .breakTime ? "Перерыв между парами" : phase == .finished ? "Пара завершена" : "Прогресс пары")
     }
 }
 
@@ -258,5 +278,23 @@ private func previewState(theme: String, accent: String, ended: Bool = false) ->
     ClassActivityCard(state: state, expired: true,
                       palette: ClassActivityPalette(appearance: state.lesson.appearance, date: state.lesson.start))
         .frame(width: 360).padding()
+}
+#endif
+
+#if DEBUG
+private func breakPreviewState() -> ClassActivityAttributes.ContentState {
+    let template = previewState(theme: "dark", accent: "mint").lesson
+    let lesson = ClassActivityLesson(id: template.id, profileID: template.profileID, title: template.title,
+                                     subtitle: template.subtitle, start: Date().addingTimeInterval(-5400),
+                                     end: Date().addingTimeInterval(-300), appearance: template.appearance,
+                                     nextStart: Date().addingTimeInterval(1200), nextTitle: "История театра")
+    return ClassActivityAttributes.ContentState(lesson: lesson)
+}
+
+#Preview("Dashboard · Break") {
+    let state = breakPreviewState()
+    ClassActivityCard(state: state, expired: true,
+                      palette: ClassActivityPalette(appearance: state.lesson.appearance, date: state.lesson.start))
+        .frame(width: 320).padding()
 }
 #endif

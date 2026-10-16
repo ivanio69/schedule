@@ -26,7 +26,7 @@ final class ClassActivityController {
         // because today's feed hasn't loaded yet. Still clear expired cards.
         guard let feeds else {
             for activity in Activity<ClassActivityAttributes>.activities
-                where activity.content.state.lesson.end <= now || !ActivityAuthorizationInfo().areActivitiesEnabled {
+                where activity.content.state.lesson.visibleUntil <= now || !ActivityAuthorizationInfo().areActivitiesEnabled {
                 await finish(activity)
             }
             return
@@ -43,6 +43,8 @@ final class ClassActivityController {
         if ActivityAuthorizationInfo().areActivitiesEnabled {
             if let current = lessons.first(where: { $0.isCurrent(at: now) && !dismissed.contains($0.id) }) {
                 desired.append(current)
+            } else if let previous = lessons.last(where: { $0.phase(at: now) == .breakTime && !dismissed.contains($0.id) }) {
+                desired.append(previous)
             }
             if #available(iOS 26.0, *) {
                 // Leave room for the current class; the OS remains the final capacity authority.
@@ -84,7 +86,7 @@ final class ClassActivityController {
             )
             do {
                 if lesson.start <= Date() {
-                    guard lesson.end > Date() else { continue }
+                    guard lesson.visibleUntil > Date() else { continue }
                     _ = try Activity<ClassActivityAttributes>.request(
                         attributes: ClassActivityAttributes(lessonID: lesson.id), content: content, pushType: nil
                     )

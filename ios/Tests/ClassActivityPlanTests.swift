@@ -40,6 +40,21 @@ struct ClassActivityPlanTests {
         precondition(ClassActivityPlan.lessons(from: [standard, otherProfile], now: now).count == 2)
         let invalid = try feed(event(), date: "2026-02-30")
         precondition(ClassActivityPlan.lessons(from: [invalid], now: now).isEmpty)
+        let withBreak = try feed([event(), event(id: "next", start: "10:45", end: "12:00")].joined(separator: ","))
+        let breakLesson = ClassActivityPlan.lessons(from: [withBreak], now: now)[0]
+        precondition(breakLesson.nextTitle == "Режиссура")
+        precondition(breakLesson.phase(at: breakLesson.end.addingTimeInterval(-1)) == .lesson)
+        precondition(breakLesson.phase(at: breakLesson.end) == .breakTime, "Break begins exactly at class end")
+        precondition(breakLesson.phase(at: breakLesson.nextStart!) == .finished, "Break end is exclusive")
+        precondition(ClassActivityPlan.lessons(from: [withBreak], now: breakLesson.end).count == 2, "Previous card survives during the break")
+        precondition(ClassActivityPlan.lessons(from: [withBreak], now: breakLesson.nextStart!).count == 1)
+        let overlapping = try feed([event(), event(id: "overlap", start: "10:00", end: "11:30")].joined(separator: ","))
+        precondition(ClassActivityPlan.lessons(from: [overlapping], now: now)[0].nextStart == nil)
+        precondition(ClassActivityPlan.lessons(from: [standard, tomorrow], now: now)[0].nextStart == nil, "No overnight break")
+        let cancelledNext = try feed([event(), event(id: "cancelled", status: "cancelled", start: "10:45", end: "12:00")].joined(separator: ","))
+        precondition(ClassActivityPlan.lessons(from: [cancelledNext], now: now)[0].nextStart == nil)
+        let lateLesson = try feed(event(id: "late", start: "18:00", end: "19:30"))
+        precondition(ClassActivityPlan.lessons(from: [standard, lateLesson], now: now)[0].nextStart == nil, "Do not extend beyond ActivityKit lifetime")
         print("ClassActivityPlan: all cases passed")
     }
 }
