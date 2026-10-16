@@ -63,7 +63,7 @@ private struct ClassActivityCard: View {
             }
             ClassActivityDetails(lesson: state.lesson, ended: ended, palette: palette, compact: false)
         }
-        .padding(.horizontal, 20).padding(.vertical, 12)
+        .padding(.horizontal, 20).padding(.vertical, 14)
         .background {
             // Match dashboard-focus: diagonal tinted surface + upper-right glow.
             GeometryReader { geometry in
@@ -90,38 +90,39 @@ private struct ClassActivityDetails: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(lesson.title)
-                .font(.system(size: compact ? 20 : 22, weight: .semibold))
-                .tracking(-0.7)
-                .foregroundStyle(palette.text)
-                .lineLimit(1).minimumScaleFactor(0.85)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if !lesson.subtitle.isEmpty {
-                Text(lesson.subtitle)
-                    .font(.system(size: compact ? 12 : 11))
-                    .foregroundStyle(palette.secondary)
-                    .lineLimit(1)
-                    .padding(.top, 3)
-            }
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                if ended {
-                    Text("Пара завершена")
-                        .font(.system(size: 20, weight: .semibold))
-                } else {
-                    Text("до конца")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(palette.secondary)
-                    ClassCountdown(lesson: lesson, ended: false)
-                        .font(.system(size: compact ? 30 : 36, weight: .semibold).monospacedDigit())
-                        .tracking(-1)
-                        .frame(width: compact ? 116 : 136, alignment: .leading)
+            HStack(alignment: .center, spacing: compact ? 12 : 16) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(lesson.title)
+                        .font(.system(size: compact ? 18 : 21, weight: .semibold))
+                        .tracking(-0.6)
+                        .foregroundStyle(palette.text)
+                        .lineLimit(2).minimumScaleFactor(0.85)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !lesson.subtitle.isEmpty {
+                        Text(lesson.subtitle)
+                            .font(.system(size: 11))
+                            .foregroundStyle(palette.secondary)
+                            .lineLimit(1)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .trailing, spacing: 3) {
+                    ClassCountdown(lesson: lesson, ended: ended)
+                        .font(.system(size: compact ? 30 : 38, weight: .semibold, design: .rounded).monospacedDigit())
+                        .tracking(-1.2)
+                        .foregroundStyle(palette.text)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    Text(ended ? "завершена" : "до конца")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(palette.secondary)
+                }
+                .frame(width: compact ? 104 : 126, alignment: .trailing)
+                .layoutPriority(1)
             }
-            .foregroundStyle(palette.text)
-            .padding(.top, 6)
 
             ClassProgress(lesson: lesson, ended: ended, tint: palette.accent, surface: palette.surface)
-                .padding(.top, 6)
+                .padding(.top, 12)
             HStack {
                 Text(lesson.start, style: .time)
                 Spacer(minLength: 4)
@@ -168,7 +169,7 @@ private struct ClassCountdown: View {
             // System-rendered while suspended. No TimelineView or app timer required.
             Text(timerInterval: lesson.interval, countsDown: true, showsHours: false)
                 .monospacedDigit().minimumScaleFactor(0.8)
-                .multilineTextAlignment(.leading)
+                .multilineTextAlignment(.trailing)
                 .accessibilityLabel("До конца пары")
         }
     }
