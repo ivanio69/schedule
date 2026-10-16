@@ -8,6 +8,7 @@ struct ClassActivityLesson: Codable, Hashable, Identifiable {
     let subtitle: String
     let start: Date
     let end: Date
+    var appearance: WidgetAppearance? = nil
 
     var interval: ClosedRange<Date> { start...end }
     func isCurrent(at date: Date) -> Bool { start <= date && date < end }
@@ -41,7 +42,7 @@ enum ClassActivityPlan {
                 let id = "\(feed.profile.id)|\(feed.date)|\(event.id)"
                 unique[id] = ClassActivityLesson(
                     id: id, profileID: feed.profile.id, title: event.title,
-                    subtitle: event.subtitle, start: start, end: end
+                    subtitle: event.subtitle, start: start, end: end, appearance: feed.appearance
                 )
             }
         }

@@ -18,6 +18,13 @@ struct ClassActivityPlanTests {
         let now = ISO8601DateFormatter().date(from: "2026-10-06T06:00:00Z")!
         let standard = try feed(event())
         let lesson = ClassActivityPlan.lessons(from: [standard], now: now)[0]
+        precondition(lesson.appearance?.appAccent == "mint", "Profile accent reaches Live Activity")
+        precondition(lesson.appearance?.theme == "dark", "Profile theme reaches Live Activity")
+        let encoded = try JSONEncoder().encode(lesson)
+        var legacy = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        legacy.removeValue(forKey: "appearance")
+        let legacyLesson = try decoder.decode(ClassActivityLesson.self, from: JSONSerialization.data(withJSONObject: legacy))
+        precondition(legacyLesson.appearance == nil, "Existing Activity payloads remain decodable")
         precondition(lesson.start == now, "Feed uses Minsk time regardless of device timezone")
         precondition(lesson.isCurrent(at: now), "Start is inclusive")
         precondition(!lesson.isCurrent(at: lesson.end), "End is exclusive")

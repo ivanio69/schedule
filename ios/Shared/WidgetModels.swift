@@ -5,7 +5,7 @@ struct WidgetProfile: Codable {
     let name: String
 }
 
-struct WidgetAppearance: Codable {
+struct WidgetAppearance: Codable, Hashable {
     let theme: String
     let appAccentMode: String
     let appAccent: String
