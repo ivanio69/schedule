@@ -23,12 +23,16 @@ struct ClassActivityPlanTests {
         let encoded = try JSONEncoder().encode(lesson)
         var legacy = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
         legacy.removeValue(forKey: "appearance")
+        legacy.removeValue(forKey: "nextClass")
+        legacy.removeValue(forKey: "lastClassEnd")
         let legacyLesson = try decoder.decode(ClassActivityLesson.self, from: JSONSerialization.data(withJSONObject: legacy))
         precondition(legacyLesson.appearance == nil, "Existing Activity payloads remain decodable")
         precondition(lesson.start == now, "Feed uses Minsk time regardless of device timezone")
         precondition(lesson.isCurrent(at: now), "Start is inclusive")
         precondition(!lesson.isCurrent(at: lesson.end), "End is exclusive")
-        precondition(ClassActivityPlan.lessons(from: [standard], now: lesson.end).isEmpty)
+        precondition(ClassActivityPlan.lessons(from: [standard], now: lesson.end).count == 1, "Final card survives the class")
+        precondition(lesson.phase(at: lesson.end) == .dayFinished)
+        precondition(ClassActivityPlan.lessons(from: [standard], now: lesson.dayEnd).isEmpty, "Yesterday is cleared")
         precondition(ClassActivityPlan.lessons(from: [standard, standard], now: now).count == 1)
         let filtered = try feed([event(status: "cancelled"), event(id: "2", kind: "rehearsal"), event(id: "3", kind: "individual"), event(id: "4", start: "25:00"), event(id: "5", end: "08:00")].joined(separator: ","))
         precondition(ClassActivityPlan.lessons(from: [filtered], now: now).isEmpty)
@@ -49,6 +53,23 @@ struct ClassActivityPlanTests {
         precondition(ClassActivityPlan.lessons(from: [singlePeriod], now: now)[0].breakInterval == nil)
         let movedClass = ClassActivityPlan.lessons(from: [moved], now: now)[0]
         precondition(movedClass.breakInterval?.lowerBound == movedClass.start.addingTimeInterval(40 * 60))
+        let twoClasses = try feed([event(), event(id: "next", start: "11:00", end: "12:30")].joined(separator: ","))
+        let pair = ClassActivityPlan.lessons(from: [twoClasses], now: now)
+        precondition(pair[0].phase(at: pair[0].end.addingTimeInterval(-1)) == .lesson)
+        precondition(pair[0].phase(at: pair[0].end) == .betweenClasses)
+        precondition(pair[0].nextClass?.start == pair[1].start)
+        precondition(pair[0].countdownInterval(for: .betweenClasses) == pair[0].end...pair[1].start)
+        precondition(pair[0].phase(at: pair[1].start) == .nextStarted)
+        precondition(pair[0].phase(at: pair[1].end) == .dayFinished)
+        precondition(pair[1].phase(at: pair[1].end) == .dayFinished)
+        precondition(ClassActivityPlan.lessons(from: [twoClasses], now: pair[0].end).count == 2)
+        precondition(ClassActivityPlan.lessons(from: [standard, tomorrow], now: now)[0].nextClass == nil, "No overnight countdown")
+        let cancelledLater = try feed([event(), event(id: "cancelled", status: "cancelled", start: "11:00", end: "12:30")].joined(separator: ","))
+        let last = ClassActivityPlan.lessons(from: [cancelledLater], now: now)[0]
+        precondition(last.nextClass == nil && last.phase(at: last.end) == .dayFinished)
+        let overlapping = try feed([event(), event(id: "overlap", start: "10:00", end: "11:00")].joined(separator: ","))
+        let overlap = ClassActivityPlan.lessons(from: [overlapping], now: now)[0]
+        precondition(overlap.nextClass == nil && overlap.phase(at: overlap.end) == .nextStarted, "An overlapping active class is not end of day")
         print("ClassActivityPlan: all cases passed")
     }
 }

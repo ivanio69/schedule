@@ -11,33 +11,33 @@ struct ClassLiveActivity: Widget {
                 .activitySystemActionForegroundColor(palette.text)
                 .widgetURL(URL(string: "schedule214://schedule"))
         } dynamicIsland: { context in
-            let ended = context.isStale || context.state.ended
             let lesson = context.state.lesson
+            let phase = lesson.phase(at: context.isStale ? max(Date(), lesson.end) : Date())
             // Dynamic Island has a system black background, including in light mode.
             let palette = ClassActivityPalette(appearance: lesson.appearance, date: lesson.start, forceDark: true)
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Text(ended ? "ПАРА ЗАВЕРШЕНА" : "СЕЙЧАС ИДЁТ")
+                    Text(phase.heading)
                         .font(.system(size: 10, weight: .semibold)).tracking(0.8)
                         .foregroundStyle(palette.muted)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    ClassActivityBadge(ended: ended, palette: palette)
+                    ClassActivityBadge(phase: phase, palette: palette)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    ClassActivityDetails(lesson: lesson, ended: ended, palette: palette, compact: true)
+                    ClassActivityDetails(lesson: lesson, phase: phase, palette: palette, compact: true)
                         .padding(.top, 4).padding(.bottom, 8)
                 }
             } compactLeading: {
-                Image(systemName: ended ? "checkmark.circle.fill" : "graduationcap.fill")
+                Image(systemName: phase.symbol)
                     .foregroundStyle(palette.accent)
             } compactTrailing: {
-                ClassCountdown(lesson: lesson, ended: ended)
+                ClassCountdown(lesson: lesson, phase: phase)
                     .font(.caption.monospacedDigit().weight(.semibold))
                     .foregroundStyle(palette.accent)
-                    .frame(width: 48)
+                    .frame(width: 64)
             } minimal: {
-                Image(systemName: ended ? "checkmark" : "graduationcap.fill")
+                Image(systemName: phase.symbol)
                     .foregroundStyle(palette.accent)
             }
             .keylineTint(palette.accent)
@@ -50,18 +50,18 @@ private struct ClassActivityCard: View {
     let state: ClassActivityAttributes.ContentState
     let expired: Bool
     let palette: ClassActivityPalette
-    private var ended: Bool { expired || state.ended }
+    private var phase: ClassActivityLesson.Phase { state.lesson.phase(at: expired ? max(Date(), state.lesson.end) : Date()) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(ended ? "ПАРА ЗАВЕРШЕНА" : "СЕЙЧАС ИДЁТ")
+                Text(phase.heading)
                     .font(.system(size: 10, weight: .semibold)).tracking(0.8)
                     .foregroundStyle(palette.muted)
                 Spacer(minLength: 8)
-                ClassActivityBadge(ended: ended, palette: palette)
+                ClassActivityBadge(phase: phase, palette: palette)
             }
-            ClassActivityDetails(lesson: state.lesson, ended: ended, palette: palette, compact: false)
+            ClassActivityDetails(lesson: state.lesson, phase: phase, palette: palette, compact: false)
         }
         .padding(.horizontal, 20).padding(.vertical, 14)
         .background {
@@ -84,22 +84,43 @@ private struct ClassActivityCard: View {
 
 private struct ClassActivityDetails: View {
     let lesson: ClassActivityLesson
-    let ended: Bool
+    let phase: ClassActivityLesson.Phase
     let palette: ClassActivityPalette
     let compact: Bool
+
+    private var title: String {
+        switch phase {
+        case .lesson: return lesson.title
+        case .betweenClasses: return "Перерыв"
+        case .dayFinished: return "Сегодня больше пар нет"
+        case .nextStarted: return "Следующая пара началась"
+        }
+    }
+    private var subtitle: String {
+        switch phase {
+        case .lesson: return lesson.subtitle
+        case .betweenClasses, .nextStarted: return lesson.nextClass.map { "Дальше · \($0.title)" } ?? "Открой расписание"
+        case .dayFinished: return "Можно отдыхать"
+        }
+    }
+    private var timerWidth: CGFloat {
+        let interval = lesson.countdownInterval(for: phase)
+        let long = interval.upperBound.timeIntervalSince(interval.lowerBound) > 3600
+        return compact ? (long ? 116 : 104) : (long ? 144 : 126)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: compact ? 12 : 16) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(lesson.title)
+                    Text(title)
                         .font(.system(size: compact ? 18 : 21, weight: .semibold))
                         .tracking(-0.6)
                         .foregroundStyle(palette.text)
                         .lineLimit(2).minimumScaleFactor(0.85)
                         .fixedSize(horizontal: false, vertical: true)
-                    if !lesson.subtitle.isEmpty {
-                        Text(lesson.subtitle)
+                    if !subtitle.isEmpty {
+                        Text(subtitle)
                             .font(.system(size: 11))
                             .foregroundStyle(palette.secondary)
                             .lineLimit(1)
@@ -108,49 +129,60 @@ private struct ClassActivityDetails: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 VStack(alignment: .trailing, spacing: 3) {
-                    ClassCountdown(lesson: lesson, ended: ended)
+                    ClassCountdown(lesson: lesson, phase: phase)
                         .font(.system(size: compact ? 30 : 38, weight: .semibold, design: .rounded).monospacedDigit())
                         .tracking(-1.2)
                         .foregroundStyle(palette.text)
                         .frame(maxWidth: .infinity, alignment: .trailing)
-                    Text(ended ? "завершена" : "до конца")
+                    Text(phase.timerCaption)
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(palette.secondary)
                 }
-                .frame(width: compact ? 104 : 126, alignment: .trailing)
+                .frame(width: timerWidth, alignment: .trailing)
                 .layoutPriority(1)
             }
 
-            ClassProgress(lesson: lesson, ended: ended, tint: palette.accent, surface: palette.surface)
-                .padding(.top, 12)
-            HStack {
-                Text(lesson.start, style: .time)
-                Spacer(minLength: 4)
-                if let pause = lesson.breakInterval {
-                    HStack(spacing: 2) {
-                        Text("перерыв")
-                        Text(pause.lowerBound, style: .time)
-                        Text("–")
-                        Text(pause.upperBound, style: .time)
+            if phase == .lesson {
+                ClassProgress(lesson: lesson, ended: false, tint: palette.accent, surface: palette.surface)
+                    .padding(.top, 12)
+                HStack {
+                    Text(lesson.start, style: .time)
+                    Spacer(minLength: 4)
+                    if let pause = lesson.breakInterval {
+                        HStack(spacing: 2) {
+                            Text("перерыв")
+                            Text(pause.lowerBound, style: .time)
+                            Text("–")
+                            Text(pause.upperBound, style: .time)
+                        }
+                        .lineLimit(1).minimumScaleFactor(0.85)
                     }
-                    .lineLimit(1).minimumScaleFactor(0.85)
+                    Spacer(minLength: 4)
+                    Text(lesson.end, style: .time)
                 }
-                Spacer(minLength: 4)
-                Text(lesson.end, style: .time)
+                .font(.system(size: 9, weight: .medium).monospacedDigit())
+                .foregroundStyle(palette.muted)
+                .padding(.top, 3)
+            } else if phase == .betweenClasses, let next = lesson.nextClass {
+                HStack(spacing: 4) {
+                    Text("Следующая пара в")
+                    Text(next.start, style: .time)
+                }
+                .font(.system(size: 10, weight: .medium).monospacedDigit())
+                .foregroundStyle(palette.muted)
+                .padding(.top, 12)
             }
-            .font(.system(size: 9, weight: .medium).monospacedDigit())
-            .foregroundStyle(palette.muted)
-            .padding(.top, 3)
+
         }
     }
 }
 
 private struct ClassActivityBadge: View {
-    let ended: Bool
+    let phase: ClassActivityLesson.Phase
     let palette: ClassActivityPalette
 
     var body: some View {
-        Label(ended ? "Готово" : "Пара", systemImage: ended ? "checkmark" : "graduationcap.fill")
+        Label(phase.badge, systemImage: phase.symbol)
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(palette.text)
             .padding(.horizontal, 8).padding(.vertical, 3)
@@ -159,18 +191,51 @@ private struct ClassActivityBadge: View {
     }
 }
 
+private extension ClassActivityLesson.Phase {
+    var heading: String {
+        switch self {
+        case .lesson: return "СЕЙЧАС ИДЁТ"
+        case .betweenClasses: return "СЕЙЧАС ПЕРЕРЫВ"
+        case .dayFinished: return "НА СЕГОДНЯ ВСЁ"
+        case .nextStarted: return "РАСПИСАНИЕ"
+        }
+    }
+    var badge: String {
+        switch self {
+        case .lesson: return "Пара"
+        case .betweenClasses: return "Перерыв"
+        case .dayFinished, .nextStarted: return "Готово"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .lesson: return "graduationcap.fill"
+        case .betweenClasses: return "pause.circle.fill"
+        case .dayFinished, .nextStarted: return "checkmark.circle.fill"
+        }
+    }
+    var timerCaption: String {
+        switch self {
+        case .lesson: return "до конца"
+        case .betweenClasses: return "до начала"
+        case .dayFinished: return "на сегодня всё"
+        case .nextStarted: return "началась"
+        }
+    }
+}
+
 private struct ClassCountdown: View {
     let lesson: ClassActivityLesson
-    let ended: Bool
+    let phase: ClassActivityLesson.Phase
     var body: some View {
-        if ended {
+        if phase == .dayFinished || phase == .nextStarted {
             Image(systemName: "checkmark")
         } else {
-            // System-rendered while suspended. No TimelineView or app timer required.
-            Text(timerInterval: lesson.interval, countsDown: true, showsHours: false)
-                .monospacedDigit().minimumScaleFactor(0.8)
+            // showsHours adds H:MM:SS above one hour and returns to MM:SS below it.
+            Text(timerInterval: lesson.countdownInterval(for: phase), countsDown: true, showsHours: true)
+                .monospacedDigit().minimumScaleFactor(0.75).lineLimit(1)
                 .multilineTextAlignment(.trailing)
-                .accessibilityLabel("До конца пары")
+                .accessibilityLabel(phase == .betweenClasses ? "До начала следующей пары" : "До конца пары")
         }
     }
 }
@@ -277,7 +342,7 @@ private func previewState(theme: String, accent: String, ended: Bool = false) ->
                                       rehearsalAccent: "default", individualAccent: "default", seminarAccent: "default")
     let lesson = ClassActivityLesson(id: "preview", profileID: "preview", title: "Режиссура театрализованных представлений",
                                      subtitle: "Урбан А. М. · ауд. 214", start: Date().addingTimeInterval(-1800),
-                                     end: Date().addingTimeInterval(3600), appearance: appearance)
+                                     end: Date().addingTimeInterval(ended ? -60 : 5400), appearance: appearance)
     return ClassActivityAttributes.ContentState(lesson: lesson, ended: ended)
 }
 
@@ -297,6 +362,25 @@ private func previewState(theme: String, accent: String, ended: Bool = false) ->
 
 #Preview("Dashboard · Finished") {
     let state = previewState(theme: "dark", accent: "default", ended: true)
+    ClassActivityCard(state: state, expired: true,
+                      palette: ClassActivityPalette(appearance: state.lesson.appearance, date: state.lesson.start))
+        .frame(width: 360).padding()
+}
+#endif
+
+#if DEBUG
+private func intermissionPreview() -> ClassActivityAttributes.ContentState {
+    var lesson = previewState(theme: "dark", accent: "mint").lesson
+    lesson = ClassActivityLesson(id: lesson.id, profileID: lesson.profileID, title: lesson.title,
+                                 subtitle: lesson.subtitle, start: Date().addingTimeInterval(-6000),
+                                 end: Date().addingTimeInterval(-600), appearance: lesson.appearance,
+                                 nextClass: ClassActivityNext(title: "История театра", start: Date().addingTimeInterval(4500)),
+                                 lastClassEnd: Date().addingTimeInterval(9900))
+    return ClassActivityAttributes.ContentState(lesson: lesson)
+}
+
+#Preview("Dashboard · Between classes") {
+    let state = intermissionPreview()
     ClassActivityCard(state: state, expired: true,
                       palette: ClassActivityPalette(appearance: state.lesson.appearance, date: state.lesson.start))
         .frame(width: 360).padding()
