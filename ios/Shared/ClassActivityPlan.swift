@@ -9,22 +9,15 @@ struct ClassActivityLesson: Codable, Hashable, Identifiable {
     let start: Date
     let end: Date
     var appearance: WidgetAppearance? = nil
-    var nextStart: Date? = nil
-    var nextTitle: String? = nil
-
-    enum Phase { case lesson, breakTime, finished }
-    var visibleUntil: Date { nextStart ?? end }
-    var breakInterval: ClosedRange<Date>? {
-        guard let nextStart, nextStart > end else { return nil }
-        return end...nextStart
-    }
-    func phase(at date: Date) -> Phase {
-        if date < end { return .lesson }
-        if let nextStart, end <= date && date < nextStart { return .breakTime }
-        return .finished
-    }
 
     var interval: ClosedRange<Date> { start...end }
+    /// Same five-minute pause as DashboardV2: minutes 40–45 of a full class.
+    var breakInterval: ClosedRange<Date>? {
+        let breakStart = start.addingTimeInterval(40 * 60)
+        let breakEnd = start.addingTimeInterval(45 * 60)
+        guard breakEnd < end else { return nil }
+        return breakStart...breakEnd
+    }
     func isCurrent(at date: Date) -> Bool { start <= date && date < end }
 }
 
@@ -51,7 +44,7 @@ enum ClassActivityPlan {
                       let end = formatter.date(from: endText),
                       formatter.string(from: start) == startText,
                       formatter.string(from: end) == endText,
-                      start < end,
+                      start < end, end > now,
                       end.timeIntervalSince(start) <= 8 * 3600 else { continue }
                 let id = "\(feed.profile.id)|\(feed.date)|\(event.id)"
                 unique[id] = ClassActivityLesson(
@@ -60,20 +53,8 @@ enum ClassActivityPlan {
                 )
             }
         }
-        let sorted = unique.values.sorted {
+        return unique.values.sorted {
             $0.start == $1.start ? $0.id < $1.id : $0.start < $1.start
-        }
-        return sorted.enumerated().compactMap { index, item in
-            var lesson = item
-            // Only the immediately following class of this profile/day creates a break.
-            // Overlapping classes and the overnight gap are not a break.
-            if let next = sorted.dropFirst(index + 1).first(where: {
-                $0.profileID == item.profileID && calendar.isDate($0.start, inSameDayAs: item.start)
-            }), next.start > item.end, next.start.timeIntervalSince(item.start) < 8 * 3600 {
-                lesson.nextStart = next.start
-                lesson.nextTitle = next.title
-            }
-            return lesson.visibleUntil > now ? lesson : nil
         }
     }
 }
