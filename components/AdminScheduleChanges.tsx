@@ -2,6 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { DAY_NAMES, getCurrentWeek, getTotalWeeks, getScheduleDate, getOccurrences, formatWeekRange, type Lesson, type ScheduleData } from "@/lib/schedule";
+import { buildLessonConflictMap } from "@/lib/conflicts";
 import styles from "./AdminScheduleChanges.module.css";
 
 type BatchItem = {
@@ -28,6 +29,7 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
   const lastTrigger = useRef<HTMLButtonElement | null>(null);
   const date = getScheduleDate(schedule, week, day);
   const lessons = getOccurrences(schedule, date);
+  const lessonConflicts = buildLessonConflictMap(lessons);
   const changes = (schedule.changes ?? []).filter(c => c.date === date || c.targetDate === date);
   const close = () => { setEditing(null); setMoveConflicts([]); lastTrigger.current?.focus(); };
   const reload = async () => {
@@ -148,14 +150,15 @@ export default function AdminScheduleChanges({ initialSchedule, onChange }: { in
     {message && <p className={styles.notice} role="status">{message}</p>}
     {error && <p className={styles.error} role="alert">{error}</p>}
     {!lessons.length && <div className={styles.empty}>На этот день пар нет</div>}
-    <div className={styles.list}>{lessons.map(lesson => {
+    <div className={styles.list}>{lessons.map((lesson, index) => {
       const key = lesson.occurrence!.date + lesson.occurrence!.key;
       const active = editing?.lesson.occurrence?.key === lesson.occurrence!.key && editing?.lesson.occurrence?.date === lesson.occurrence!.date;
       const status = lesson.occurrence?.status;
-      return <article className={`${styles.card}${status === "cancelled" ? ` ${styles.cardCancelled}` : status === "moved" ? ` ${styles.cardMoved}` : ""}`} key={key}>
+      const overlaps = lessonConflicts.get(index) ?? [];
+      return <article className={`${styles.card}${status === "cancelled" ? ` ${styles.cardCancelled}` : status === "moved" ? ` ${styles.cardMoved}` : ""}${overlaps.length ? ` ${styles.cardConflict}` : ""}`} key={key}>
         <div className={styles.summary}>
           <div className={styles.time}><strong>{lesson.timeStart}</strong><span>{lesson.timeEnd}</span></div>
-          <div className={styles.subject}><h2>{lesson.class}</h2><p>{[lesson.professor, lesson.auditorium && `Ауд. ${lesson.auditorium}`, lesson.group.length === 1 ? `Подгруппа ${lesson.group[0]}` : "Вся группа"].filter(Boolean).join(" · ")}</p>{status && <small className={`${styles.badge}${status === "cancelled" ? ` ${styles.badgeCancelled}` : ""}`}>{status === "cancelled" ? "Отменена" : "Перенесена"}</small>}</div>
+          <div className={styles.subject}><h2>{lesson.class}</h2><p>{[lesson.professor, lesson.auditorium && `Ауд. ${lesson.auditorium}`, lesson.group.length === 1 ? `Подгруппа ${lesson.group[0]}` : "Вся группа"].filter(Boolean).join(" · ")}</p>{status && <small className={`${styles.badge}${status === "cancelled" ? ` ${styles.badgeCancelled}` : ""}`}>{status === "cancelled" ? "Отменена" : "Перенесена"}</small>}{overlaps.length > 0 && <div className={styles.overlaps}><span className={styles.conflictBadge} title={overlaps.join("; ")}>Конфликт · {overlaps.length}</span><small className={styles.conflictDetails}>Пересекается с: {overlaps.join("; ")}</small></div>}</div>
           <div className={styles.actions}>{status === "cancelled" ? <span className={styles.cancelledState}>Пара отменена</span> : <><button className="admin-secondary" disabled={busy} aria-expanded={active && editing.kind === "move"} onClick={e => { lastTrigger.current = e.currentTarget; setError(""); setMoveConflicts([]); setEditing({ lesson, kind: "move" }); }}>Перенести</button><button className="admin-danger" disabled={busy} aria-expanded={active && editing.kind === "cancel"} onClick={e => { lastTrigger.current = e.currentTarget; setError(""); setMoveConflicts([]); setEditing({ lesson, kind: "cancel" }); }}>Отменить пару</button></>}</div>
         </div>
         {active && <form key={editing.kind} className={styles.form} onSubmit={submit} onChange={() => { if (moveConflicts.length) setMoveConflicts([]); }}>
