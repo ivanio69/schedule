@@ -15,8 +15,11 @@ export async function getSeminars() {
   })) }));
 }
 export async function createSeminar(input: SeminarInput) {
-  const list: SeminarList = { ...input, id: randomUUID(), revision: 0, createdAt: new Date().toISOString(),
-    topics: input.topics.map(title => ({ id: randomUUID(), title, studentIds: [] })) };
+  const list: SeminarList = { subject: input.subject, title: input.title, capacity: input.capacity,
+    dateMode: input.dateMode, ...(input.date ? { date: input.date } : {}),
+    id: randomUUID(), revision: 0, createdAt: new Date().toISOString(),
+    topics: input.topics.map((title, index) => ({ id: randomUUID(), title, studentIds: [],
+      ...(input.dateMode === "topics" && input.topicDates[index] ? { date: input.topicDates[index] } : {}) })) };
   await (await getDatabase()).collection<SeminarList>("seminars").insertOne(list);
   return list;
 }
@@ -79,10 +82,11 @@ export async function editSeminar(input: SeminarEditInput) {
     return { error: "Лимит меньше числа записавшихся участников", status: 400 };
   const topics = input.topics.map(topic => ({
     id: topic.id ?? randomUUID(), title: topic.title,
+    ...(input.dateMode === "topics" && topic.date ? { date: topic.date } : {}),
     studentIds: topic.id ? existing.get(topic.id)!.studentIds : [],
   }));
   const result = await collection.updateOne({ id: list.id, revision: input.revision }, {
-    $set: { subject: input.subject, title: input.title, capacity: input.capacity, topics },
+    $set: { subject: input.subject, title: input.title, capacity: input.capacity, dateMode: input.dateMode, date: input.date ?? "", topics },
     $inc: { revision: 1 },
   });
   return result.modifiedCount ? { ok: true } : conflict;
