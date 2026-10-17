@@ -43,7 +43,7 @@ struct WebAppView: UIViewRepresentable {
             const style = document.createElement('style');
             style.textContent = `html { min-height: 100%; } body {
                 box-sizing: border-box; min-height: 100dvh;
-                padding-top: env(safe-area-inset-top);
+                padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
                 padding-left: env(safe-area-inset-left);
                 padding-right: env(safe-area-inset-right);
             }`;
