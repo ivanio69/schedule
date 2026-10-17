@@ -5,7 +5,7 @@ import { getDatabase } from "@/lib/database";
 import type { SeminarAttachment, SeminarList } from "@/lib/seminars";
 
 export const runtime = "nodejs";
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024;
 const MAX_COUNT = 20;
 const ALLOWED_EXTENSIONS = new Set(["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt", "rtf", "odt", "odp", "ods", "jpg", "jpeg", "png", "webp", "gif", "mp3", "wav", "m4a", "mp4", "mov", "zip"]);
 function authenticated(request: NextRequest) {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     if (!name || !ALLOWED_EXTENSIONS.has(extension))
       return NextResponse.json({ error: "Этот формат файла не поддерживается" }, { status: 400 });
     if (!file.size || file.size > MAX_BYTES)
-      return NextResponse.json({ error: "Размер файла должен быть не больше 10 МБ" }, { status: 413 });
+      return NextResponse.json({ error: "Размер файла должен быть не больше 4 МБ" }, { status: 413 });
     const db = await getDatabase();
     const lists = db.collection<SeminarList>("seminars");
     const list = await lists.findOne({ id: listId });
