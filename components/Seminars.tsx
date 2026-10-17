@@ -6,7 +6,7 @@ import AdminHeading from "@/components/AdminHeading";
 import LoadingState from "@/components/LoadingState";
 import AsyncContentTransition from "@/components/AsyncContentTransition";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { SeminarList, SeminarTopic } from "@/lib/seminars";
+import type { SeminarList, SeminarTopic, SeminarDateMode } from "@/lib/seminars";
 
 type Person = { id: string; name: string };
 type Editor = { listId: string; topicId: string; revision: number; ids: string[] };
@@ -29,6 +29,9 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
   const [title, setTitle] = useState("");
   const [capacity, setCapacity] = useState(1);
   const [topics, setTopics] = useState("");
+  const [newDateMode, setNewDateMode] = useState<SeminarDateMode>("none");
+  const [newSeminarDate, setNewSeminarDate] = useState("");
+  const [newTopicDates, setNewTopicDates] = useState<string[]>([]);
   const generation = useRef(0);
   const endpoint = admin ? "/api/admin/seminars" : "/api/seminars";
   const load = useCallback(async () => {
@@ -78,6 +81,8 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
     } catch (e) { setNotice(e instanceof Error ? e.message : "Не удалось сохранить. Проверь подключение к сети"); return false; }
     finally { setBusy(false); }
   }
+  const dateText = (value?: string) => value ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${value}T12:00:00`)) : "";
+  const draftTopicTitles = topics.split("\n").map(value => value.trim()).filter(Boolean);
   const search = query.trim().toLocaleLowerCase("ru");
   const matches = (list: SeminarList, topic: SeminarTopic) => admin || (
     (!search || `${list.subject} ${list.title} ${topic.title} ${(topic.studentNames ?? []).join(" ")}`.toLocaleLowerCase("ru").includes(search)) &&
@@ -112,7 +117,7 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
     <AnimatePresence mode="wait">{notice && <motion.p key={notice} role="status" className="seminar-message" initial={{ opacity: 0, y: reducedMotion ? 0 : -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : .18 }}>{notice}</motion.p>}</AnimatePresence>
     {admin && <form className="seminar-create admin-card admin-form-panel" onSubmit={async e => {
       e.preventDefault();
-      if (await mutate("POST", { subject, title, capacity, topics: topics.split("\n").map(t => t.trim()).filter(Boolean) }, "Список создан")) { setTitle(""); setTopics(""); }
+      if (await mutate("POST", { subject, title, capacity, topics: draftTopicTitles, dateMode: newDateMode, date: newDateMode === "all" ? newSeminarDate : undefined, topicDates: newDateMode === "topics" ? draftTopicTitles.map((_, index) => newTopicDates[index] ?? "") : [] }, "Список создан")) { setTitle(""); setTopics(""); setNewTopicDates([]); setNewSeminarDate(""); }
     }}>
       <p className="admin-eyebrow">Новый список</p><h2>Добавить семинар</h2>
       <div className="seminar-fields"><label>Предмет<input required maxLength={200} list="seminar-subjects" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Выбери или введи предмет" /></label>
@@ -120,6 +125,10 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
       <label>Название списка<input required maxLength={200} value={title} onChange={e => setTitle(e.target.value)} placeholder="Например, Семинар 3 · Культура речи" /></label>
       <label>Участников на одну тему<select value={capacity} onChange={e => setCapacity(Number(e.target.value))}>{[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} {n === 1 || n === 5 ? "человек" : "человека"}</option>)}</select></label></div>
       <label>Темы — каждая с новой строки<textarea required rows={5} value={topics} onChange={e => setTopics(e.target.value)} placeholder={"Первая тема\nВторая тема\nТретья тема"} /></label>
+      <div className="seminar-date-settings"><label>Даты проведения<select value={newDateMode} onChange={e => setNewDateMode(e.target.value as SeminarDateMode)}><option value="none">Пока без дат</option><option value="all">Одна дата для всех тем</option><option value="topics">Своя дата для каждой темы</option></select></label>
+        {newDateMode === "all" && <label>Дата семинара<input type="date" required value={newSeminarDate} onChange={e => setNewSeminarDate(e.target.value)}/></label>}
+        {newDateMode === "topics" && <div className="seminar-topic-dates">{draftTopicTitles.map((topic, index) => <label key={index}><span>{index + 1}. {topic}</span><input type="date" value={newTopicDates[index] ?? ""} onChange={e => setNewTopicDates(values => { const next = [...values]; next[index] = e.target.value; return next; })}/></label>)}</div>}
+      </div>
       <div className="seminar-create-footer"><small>До 200 тем. Лимит действует на каждую тему списка.</small><button disabled={busy} className="seminar-primary" type="submit">{busy ? "Сохранение…" : "Создать список"}</button></div>
     </form>}
     <AsyncContentTransition loading={loading} loadingNode={<LoadingState screen={!admin} compact={admin} label="Загружаем семинары" detail={admin ? "Получаем темы и участников." : "Получаем актуальные темы и записи."}/>} className="seminars-loaded-content">
@@ -132,10 +141,10 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
     </div>}
     {!admin && lists.length > 0 && !visibleLists.length && <div className="seminar-empty"><h2>{filter === "mine" && !search ? "Пока нет твоих тем" : "Ничего не найдено"}</h2><p>Попробуй другой запрос или посмотри все темы.</p><button type="button" onClick={() => { setQuery(""); setFilter("all"); }}>Показать все темы</button></div>}
     {groups.map(group => <section key={group} className="seminar-subject"><h2>{group}</h2>{visibleLists.filter(l => l.subject === group).map(list => { const listIsMine = !admin && list.topics.some(topic => topic.studentIds.includes(personId ?? "")); return <article key={list.id} className={`seminar-list${listIsMine ? " seminar-list-mine" : ""}`}>
-      <header className="seminar-list-header"><h3>{admin ? <span className="seminar-summary"><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span><button type="button" disabled={busy || listEditor !== null} onClick={() => { setEditor(null); setListEditor({ ...list, topics: list.topics.map(topic => ({ ...topic })) }); }} aria-label={`Редактировать семинар ${list.title}`}>Изменить</button><button type="button" className="seminar-delete admin-danger" disabled={busy} onClick={() => void remove(list)} aria-label={`Удалить семинар ${list.title}`}>Удалить</button></span> : <button className="seminar-summary" disabled={filtering} aria-expanded={isOpen(list.id)} aria-controls={`seminar-topics-${list.id}`} onClick={() => setExpanded(current => { const next = new Set(current); if (next.has(list.id)) next.delete(list.id); else next.add(list.id); return next; })}><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему</small></span>{listIsMine && <span className="seminar-mine-badge">Мой семинар</span>}<span className="seminar-summary-count">{list.topics.filter(t => t.studentIds.length < list.capacity).length} свободно</span><svg className={isOpen(list.id) ? "is-open" : ""} viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></button>}</h3></header>
+      <header className="seminar-list-header"><h3>{admin ? <span className="seminar-summary"><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему{list.dateMode === "all" && list.date ? ` · ${dateText(list.date)}` : ""}</small></span><button type="button" disabled={busy || listEditor !== null} onClick={() => { setEditor(null); setListEditor({ ...list, dateMode: list.dateMode ?? "none", topics: list.topics.map(topic => ({ ...topic })) }); }} aria-label={`Редактировать семинар ${list.title}`}>Изменить</button><button type="button" className="seminar-delete admin-danger" disabled={busy} onClick={() => void remove(list)} aria-label={`Удалить семинар ${list.title}`}>Удалить</button></span> : <button className="seminar-summary" disabled={filtering} aria-expanded={isOpen(list.id)} aria-controls={`seminar-topics-${list.id}`} onClick={() => setExpanded(current => { const next = new Set(current); if (next.has(list.id)) next.delete(list.id); else next.add(list.id); return next; })}><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему{list.dateMode === "all" && list.date ? ` · ${dateText(list.date)}` : ""}</small></span>{listIsMine && <span className="seminar-mine-badge">Мой семинар</span>}<span className="seminar-summary-count">{list.topics.filter(t => t.studentIds.length < list.capacity).length} свободно</span><svg className={isOpen(list.id) ? "is-open" : ""} viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></button>}</h3></header>
       {admin && listEditor?.id === list.id && <form className="seminar-list-edit" onSubmit={async e => {
         e.preventDefault();
-        if (await mutate("PATCH", { listId: listEditor.id, revision: listEditor.revision, subject: listEditor.subject, title: listEditor.title, capacity: listEditor.capacity, topics: listEditor.topics.map(topic => ({ ...(list.topics.some(existing => existing.id === topic.id) ? { id: topic.id } : {}), title: topic.title })) }, "Семинар обновлён")) setListEditor(null);
+        if (await mutate("PATCH", { listId: listEditor.id, revision: listEditor.revision, subject: listEditor.subject, title: listEditor.title, capacity: listEditor.capacity, topics: listEditor.topics.map(topic => ({ ...(list.topics.some(existing => existing.id === topic.id) ? { id: topic.id } : {}), title: topic.title, date: listEditor.dateMode === "topics" ? topic.date ?? "" : "" })), dateMode: listEditor.dateMode ?? "none", date: listEditor.dateMode === "all" ? listEditor.date : undefined }, "Семинар обновлён")) setListEditor(null);
       }}>
         <fieldset disabled={busy}>
           <legend>Редактирование семинара</legend>
@@ -144,9 +153,12 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
             <label>Название списка<input required maxLength={200} value={listEditor.title} onChange={e => setListEditor({ ...listEditor, title: e.target.value })} /></label>
             <label>Участников на одну тему<select value={listEditor.capacity} onChange={e => setListEditor({ ...listEditor, capacity: Number(e.target.value) as SeminarList["capacity"] })}>{[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
           </div>
+          <div className="seminar-date-settings"><label>Даты проведения<select value={listEditor.dateMode ?? "none"} onChange={e => setListEditor({ ...listEditor, dateMode: e.target.value as SeminarDateMode })}><option value="none">Пока без дат</option><option value="all">Одна дата для всех тем</option><option value="topics">Своя дата для каждой темы</option></select></label>
+            {listEditor.dateMode === "all" && <label>Дата семинара<input type="date" required value={listEditor.date ?? ""} onChange={e => setListEditor({ ...listEditor, date: e.target.value })}/></label>}
+          </div>
           <p>Записи сохранятся при переименовании. Для удаления занятой темы сначала освободи места через «Участники».</p>
           <div className="seminar-edit-topics">{listEditor.topics.map((topic, index) => <div className="seminar-edit-topic" key={topic.id}>
-            <label>Тема {index + 1}<textarea required maxLength={1000} rows={2} value={topic.title} onChange={e => setListEditor({ ...listEditor, topics: listEditor.topics.map(item => item.id === topic.id ? { ...item, title: e.target.value } : item) })} /><small>{topic.studentIds.length} записавшихся</small></label>
+            <label>Тема {index + 1}<textarea required maxLength={1000} rows={2} value={topic.title} onChange={e => setListEditor({ ...listEditor, topics: listEditor.topics.map(item => item.id === topic.id ? { ...item, title: e.target.value } : item) })} /><small>{topic.studentIds.length} записавшихся</small></label>{listEditor.dateMode === "topics" && <label className="seminar-edit-topic-date">Дата темы<input type="date" value={topic.date ?? ""} onChange={e => setListEditor({ ...listEditor, topics: listEditor.topics.map(item => item.id === topic.id ? { ...item, date: e.target.value } : item) })}/></label>}
             <button type="button" disabled={topic.studentIds.length > 0 || listEditor.topics.length === 1} aria-label={`Удалить тему ${index + 1}`} onClick={() => setListEditor({ ...listEditor, topics: listEditor.topics.filter(item => item.id !== topic.id) })}>Удалить тему</button>
           </div>)}</div>
           <button type="button" disabled={listEditor.topics.length >= 200} onClick={() => setListEditor({ ...listEditor, topics: [...listEditor.topics, { id: crypto.randomUUID(), title: "", studentIds: [] }] })}>＋ Добавить тему</button>
@@ -159,7 +171,7 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
         const full = topic.studentIds.length >= list.capacity;
         const editing = editor?.listId === list.id && editor.topicId === topic.id;
         return <li key={topic.id} className={mine ? "seminar-mine" : ""}>
-          <div className="seminar-topic"><span className="seminar-number">{String(index + 1).padStart(2,"0")}</span><div className="seminar-topic-info"><h4>{topic.title}</h4><p>{topic.studentNames?.length ? topic.studentNames.join(" · ") : "Пока никто не записан"}</p>{mine && <small>Твоя тема</small>}</div><span className="seminar-capacity">{topic.studentIds.length}/{list.capacity}</span>
+          <div className="seminar-topic"><span className="seminar-number">{String(index + 1).padStart(2,"0")}</span><div className="seminar-topic-info"><h4>{topic.title}</h4>{(topic.date || (list.dateMode === "all" && list.date)) && <div className="seminar-topic-date">📅 {dateText(topic.date || list.date)}</div>}<p>{topic.studentNames?.length ? topic.studentNames.join(" · ") : "Пока никто не записан"}</p>{mine && <small>Твоя тема</small>}</div><span className="seminar-capacity">{topic.studentIds.length}/{list.capacity}</span>
           {admin ? <button disabled={busy || listEditor !== null} onClick={() => edit(list, topic)}>Участники</button> : mine ? <button disabled={busy} onClick={() => void mutate("POST", { action: "release", listId: list.id, topicId: topic.id, studentId: personId }, "Запись отменена")}>Отменить запись</button> : <button className={!full ? "seminar-primary" : ""} disabled={busy || full || !personId} onClick={() => void mutate("POST", { action: "claim", listId: list.id, topicId: topic.id, studentId: personId }, "Сохранено")}>{full ? "Занято" : "Забить тему"}</button>}</div>
           {editing && <motion.div initial={{ opacity: 0, y: reducedMotion ? 0 : -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : .2 }} className="seminar-editor"><p>Лимит — {list.capacity} чел. Можно освободить все места.</p>
             {Array.from({ length: list.capacity }, (_, slot) => <label key={slot}>Участник {slot + 1}<select value={editor.ids[slot] ?? ""} onChange={e => { const ids = [...editor.ids]; ids[slot] = e.target.value; setEditor({ ...editor, ids }); }}><option value="">Свободное место</option>{editor.ids[slot] && !people.some(p => p.id === editor.ids[slot]) && <option value={editor.ids[slot]}>Недоступный пользователь — замени или убери</option>}{people.map(p => <option key={p.id} value={p.id} disabled={editor.ids.some((id, i) => i !== slot && id === p.id)}>{p.name}</option>)}</select></label>)}
