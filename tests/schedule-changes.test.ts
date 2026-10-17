@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { buildLessonConflictMap } from "../lib/conflicts";
 import { filterScheduleByChinaMode, getLessonsForWeek, getOccurrences, getScheduleDate, lessonMatchesChinaMode, validScheduleDate, type Lesson, type ScheduleData, type ScheduleChange } from "../lib/schedule";
 
 const lesson: Lesson = { id: "history", class: "История", professor: "Преподаватель", auditorium: "1", timeStart: "09:00", timeEnd: "10:30", group: [1], weeks: [1,2,3] };
@@ -44,4 +45,15 @@ assert.equal(movedOccurrence.occurrence?.status,"moved");
 assert.equal(movedOccurrence.occurrence?.reason,"Замена аудитории");
 assert.equal(movedOccurrence.occurrence?.originalDate,"2026-09-07");
 
-console.log("Schedule occurrence tests passed.");
+
+const other = (id: string, group: Lesson["group"], weeks: number[], start = "09:30", end = "10:45"): Lesson => ({
+  ...lesson, id, class: id, group, weeks, timeStart: start, timeEnd: end,
+});
+assert.equal(buildLessonConflictMap([other("a", [1], [1]), other("b", [2], [1])], true).size, 0, "different subgroups do not clash");
+assert.equal(buildLessonConflictMap([other("a", [1], [1]), other("b", [1], [2])], true).size, 0, "different weeks do not clash in template");
+assert.equal(buildLessonConflictMap([other("a", [1], [1]), other("b", [1], [2])]).size, 2, "a single-date schedule is already week-specific");
+assert.equal(buildLessonConflictMap([other("a", [1,2], []), other("b", [2], [3])], true).size, 2, "whole-group all-week classes overlap subgroups");
+assert.equal(buildLessonConflictMap([other("a", [1], [1]), other("b", [1], [1], "10:45", "12:00")], true).size, 0, "back-to-back classes are not a conflict");
+assert.equal(buildLessonConflictMap([other("a", [1], [1]), {...other("b", [1], [1]), occurrence: {key:"b",date:"2026-09-07",revision:1,status:"cancelled"}}],true).size,0,"cancelled lessons do not trigger conflicts");
+
+console.log("Schedule occurrence and conflict tests passed.");
