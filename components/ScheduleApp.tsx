@@ -122,6 +122,7 @@ export default function ScheduleApp() {
   const lessons = useMemo(() => schedule ? getLessonsForWeek(schedule, day, week, preferences, chinaMode) : [], [schedule, day, week, preferences, chinaMode]);
   const selectedDate = useMemo(() => schedule ? getDateForSelection(schedule, week, day) : "", [schedule, week, day]);
   const creatorName = useMemo(() => people.find(person => person.id === creatorId)?.name ?? "", [people, creatorId]);
+  const isAdmin = people.some(person => person.id === creatorId && person.role === "admin");
   const visibleRehearsalConflicts = useMemo(() => rehearsalConflicts.filter(conflict => !rehearsalIgnoredConflictKeys.includes(conflict.key)), [rehearsalConflicts, rehearsalIgnoredConflictKeys]);
   const ignoredRehearsalConflicts = useMemo(() => rehearsalConflicts.filter(conflict => rehearsalIgnoredConflictKeys.includes(conflict.key)), [rehearsalConflicts, rehearsalIgnoredConflictKeys]);
   const ignoreRehearsalConflict = (key: string) => setRehearsalIgnoredConflictKeys(current => current.includes(key) ? current : [...current, key]);
@@ -503,7 +504,8 @@ export default function ScheduleApp() {
     ...rehearsals.map(item => ({ key: `rehearsal-${item.id}`, type: "rehearsal" as const, time: item.timeStart, item })),
   ].sort((a, b) => a.time.localeCompare(b.time));
 
-  const personalIntervals: ConflictInterval[] = entries.flatMap(entry => {
+  // Conflict badges on event cards are for administrators only.
+  const personalIntervals: ConflictInterval[] = isAdmin ? entries.flatMap(entry => {
     if (entry.type === "lesson") {
       if (entry.item.occurrence?.status === "cancelled") return [];
       return [{ key: entry.key, label: `Пара: ${entry.item.class}`, timeStart: entry.item.timeStart, timeEnd: entry.item.timeEnd }];
@@ -518,8 +520,8 @@ export default function ScheduleApp() {
         .map(block => ({ key: entry.key, label: `Репетиция: ${entry.item.subject} · ${block.title}`, timeStart: block.timeStart, timeEnd: block.timeEnd }));
     }
     return [{ key: entry.key, label: `Репетиция: ${entry.item.subject}`, timeStart: entry.item.timeStart, timeEnd: entry.item.timeEnd }];
-  });
-  const conflictMap = buildConflictMap(personalIntervals);
+  }) : [];
+  const conflictMap = isAdmin ? buildConflictMap(personalIntervals) : new Map<string, string[]>();
 
   return <MotionConfig reducedMotion="user"><main className="schedule-shell">
     <header className="schedule-header"><div><p className="eyebrow">214Р · расписание</p><h1>{view === "schedule" ? "Учебная неделя" : "Настройки"}</h1>{view === "schedule" && <p className="week-caption">{formatWeekRange(schedule, week)}</p>}</div></header>
