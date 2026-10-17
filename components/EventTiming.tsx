@@ -39,7 +39,7 @@ export default function EventTiming({ date, start, end, cancelled, lesson = fals
   if (!Number.isFinite(startAt) || !Number.isFinite(endAt) || endAt <= startAt) return null;
   // Lesson countdowns are useful only in the final hour and while the lesson is underway.
   // Keep the component mounted so the countdown appears without reopening the modal.
-  if (lesson && (cancelled || now < startAt - 60 * 60 * 1000 || now >= endAt)) return null;
+  if (lesson && (cancelled || now < startAt - 60 * 60 * 1000 || now >= endAt)) return <p className="event-timing__static-time" aria-label="Время пары">{start}–{end}</p>;
   const started = now >= startAt;
   const finished = now >= endAt;
   const ongoing = started && !finished && !cancelled;
