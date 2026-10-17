@@ -24,7 +24,6 @@ const blankBlock = (id = "block-1"): RehearsalBlock => ({
 });
 
 const unique = (values: string[]) => [...new Set(values)];
-const parseTags = (value: string) => [...new Set(value.split(/[,\n]/).map(tag => tag.trim().replace(/^#/, "").toLowerCase().slice(0, 24)).filter(Boolean))].slice(0, 8);
 
 export default function RehearsalScheduleEditor({ admin = false, initialDate = "", editId = "" }: Props) {
   const [people, setPeople] = useState<Person[]>([]);
@@ -33,7 +32,6 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
   const [responsible, setResponsible] = useState("");
   const [date, setDate] = useState(initialDate);
   const [notes, setNotes] = useState("");
-  const [tags, setTags] = useState("");
   const [participantMode, setParticipantMode] = useState<RehearsalParticipantMode>("rehearsal");
   const [participants, setParticipants] = useState<string[]>([]);
   const [blocks, setBlocks] = useState<RehearsalBlock[]>([blankBlock()]);
@@ -89,7 +87,6 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
       setResponsible(rehearsal.responsible);
       setDate(rehearsal.date);
       setNotes(rehearsal.notes ?? "");
-      setTags((rehearsal.tags ?? []).join(", "));
       setIgnoredConflictKeys(rehearsal.ignoredConflictKeys ?? []);
       setParticipantMode(rehearsal.participantMode === "blocks" && rehearsal.blocks?.length ? "blocks" : "rehearsal");
       setParticipants(rehearsal.participants ?? []);
@@ -193,7 +190,6 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
     setResponsible(draft.responsible);
     setDate(draft.date);
     setNotes(draft.notes);
-    setTags((draft.tags ?? []).join(", "));
     setIgnoredConflictKeys(draft.ignoredConflictKeys ?? []);
     setParticipantMode(draft.participantMode);
     setParticipants(draft.participants);
@@ -205,7 +201,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
     setDraftSaving(true); setDraftNotice("");
     try {
       const response = await fetch("/api/rehearsal-drafts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-        id: activeDraftId || undefined, ownerId: creatorId, kind: "scheduled", subject, responsible, date, notes, tags: parseTags(tags),
+        id: activeDraftId || undefined, ownerId: creatorId, kind: "scheduled", subject, responsible, date, notes,
         ignoredConflictKeys,
         timeStart: bounds.timeStart, timeEnd: bounds.timeEnd, participantMode, participants, blocks,
       }) });
@@ -241,7 +237,6 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
         responsible,
         date,
         notes,
-        tags: parseTags(tags),
         ignoredConflictKeys,
         participantMode,
         participants: participantMode === "rehearsal" ? (!admin && creatorName ? unique([creatorName, ...participants]) : participants) : [],
@@ -280,7 +275,6 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
         <label>Название<input value={subject} onChange={event => setSubject(event.target.value)} placeholder="Например, прогон первого акта" autoFocus /></label>
         <label>Дата<input type="date" value={date} onChange={event => setDate(event.target.value)} /></label>
         <label>Ответственный<input value={responsible} onChange={event => setResponsible(event.target.value)} placeholder="ФИО" /></label>
-        <label>Теги<input value={tags} onChange={event => setTags(event.target.value)} placeholder="прогон, сцена, костюмы" /></label>
       </div>
       <label className="rehearsal-editor-notes">Заметки к репетиции<textarea value={notes} onChange={event => setNotes(event.target.value)} placeholder="Общие заметки, что взять, что подготовить…" /></label>
       <div className="rehearsal-editor-summary"><span>Общее время</span><strong>{bounds.timeStart}–{bounds.timeEnd}</strong><small>{blocks.length} {blocks.length === 1 ? "блок" : "блоков"}</small></div>

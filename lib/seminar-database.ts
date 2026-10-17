@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { GridFSBucket, ObjectId } from "mongodb";
 import { getDatabase, getPeople } from "@/lib/database";
 import type { SeminarEditInput, SeminarInput, SeminarList } from "@/lib/seminars";
 import { sendPush } from "@/lib/push";
@@ -15,15 +16,28 @@ export async function getSeminars() {
   })) }));
 }
 export async function createSeminar(input: SeminarInput) {
-  const list: SeminarList = { ...input, id: randomUUID(), revision: 0, createdAt: new Date().toISOString(),
-    topics: input.topics.map(title => ({ id: randomUUID(), title, studentIds: [] })) };
+  const list: SeminarList = { subject: input.subject, title: input.title, capacity: input.capacity,
+    dateMode: input.dateMode, ...(input.date ? { date: input.date } : {}),
+    id: randomUUID(), revision: 0, createdAt: new Date().toISOString(),
+    topics: input.topics.map((title, index) => ({ id: randomUUID(), title, studentIds: [],
+      ...(input.dateMode === "topics" && input.topicDates[index] ? { date: input.topicDates[index] } : {}) })) };
   await (await getDatabase()).collection<SeminarList>("seminars").insertOne(list);
   return list;
 }
 
 export async function deleteSeminar(id: string) {
-  const result = await (await getDatabase()).collection<SeminarList>("seminars").deleteOne({ id });
-  return result.deletedCount === 1;
+  const db = await getDatabase();
+  const collection = db.collection<SeminarList>("seminars");
+  const list = await collection.findOne({ id });
+  if (!list) return false;
+  const result = await collection.deleteOne({ id });
+  if (result.deletedCount !== 1) return false;
+  if (list.files?.length) {
+    const bucket = new GridFSBucket(db, { bucketName: "seminar_attachments" });
+    const cleanup = await Promise.allSettled(list.files.map(file => bucket.delete(new ObjectId(file.id))));
+    cleanup.forEach(item => { if (item.status === "rejected") console.error("Failed to clean seminar file", item.reason); });
+  }
+  return true;
 }
 
 // Compare-and-swap protects both capacity and administrator overrides from concurrent writes.
@@ -79,10 +93,11 @@ export async function editSeminar(input: SeminarEditInput) {
     return { error: "Лимит меньше числа записавшихся участников", status: 400 };
   const topics = input.topics.map(topic => ({
     id: topic.id ?? randomUUID(), title: topic.title,
+    ...(input.dateMode === "topics" && topic.date ? { date: topic.date } : {}),
     studentIds: topic.id ? existing.get(topic.id)!.studentIds : [],
   }));
   const result = await collection.updateOne({ id: list.id, revision: input.revision }, {
-    $set: { subject: input.subject, title: input.title, capacity: input.capacity, topics },
+    $set: { subject: input.subject, title: input.title, capacity: input.capacity, dateMode: input.dateMode, date: input.date ?? "", topics },
     $inc: { revision: 1 },
   });
   return result.modifiedCount ? { ok: true } : conflict;
