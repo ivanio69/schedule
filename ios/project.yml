@@ -1,0 +1,45 @@
+name: Schedule214
+options:
+  createIntermediateGroups: true
+  bundleIdPrefix: com.schedule214
+  developmentLanguage: ru
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    MARKETING_VERSION: "5.6.0"
+    CURRENT_PROJECT_VERSION: "15"
+
+targets:
+  Schedule214:
+    type: application
+    platform: iOS
+    sources:
+      - path: Schedule214
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.schedule214.app
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_FILE: Schedule214/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Schedule214/Schedule214.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
+    dependencies:
+      - target: ScheduleWidget
+
+  ScheduleWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ScheduleWidget
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.schedule214.app.widget
+        INFOPLIST_FILE: ScheduleWidget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: ScheduleWidget/ScheduleWidget.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
+        SKIP_INSTALL: YES

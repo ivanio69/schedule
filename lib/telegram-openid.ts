@@ -1,5 +1,6 @@
 import { createHash, createPublicKey, randomBytes, verify as verifySignature } from "node:crypto";
 import { authHmac, safeEqualHex } from "@/lib/auth-session";
+import { safeAuthNext } from "@/lib/auth-next";
 
 const AUTHORIZATION_ENDPOINT="https://oauth.telegram.org/auth";
 const TOKEN_ENDPOINT="https://oauth.telegram.org/token";
@@ -15,6 +16,7 @@ type FlowState={
   next:string;
   redirectUri:string;
   exp:number;
+  nativeChallenge?:string;
 };
 
 export type TelegramIdClaims={
@@ -51,22 +53,22 @@ function clientSecret(){return process.env.TELEGRAM_OIDC_CLIENT_SECRET?.trim()??
 export function telegramOpenIdConfigured(){return Boolean(clientId()&&clientSecret())}
 
 function safeNext(value:string|null){
-  if(!value||!value.startsWith("/")||value.startsWith("//")||value.startsWith("/login"))return "/";
-  return value;
+  return safeAuthNext(value);
 }
 
 function b64url(bytes:Buffer){return bytes.toString("base64url")}
 
-export function createTelegramOpenIdFlow(origin:string,nextValue:string|null){
+export function createTelegramOpenIdFlow(origin:string,nextValue:string|null,nativeChallenge?:string){
   if(!telegramOpenIdConfigured())throw new Error("Telegram OpenID не настроен");
-  const state=b64url(randomBytes(24));
+  if(nativeChallenge&&!/^[A-Za-z0-9_-]{43}$/.test(nativeChallenge))throw new Error("Invalid native challenge");
+  const state=(nativeChallenge?"ios.":"")+b64url(randomBytes(24));
   const verifier=b64url(randomBytes(48));
   const nonce=b64url(randomBytes(24));
   const challenge=b64url(createHash("sha256").update(verifier).digest());
   const redirectUri=origin.replace(/\/$/,"")+"/api/auth/openid/callback";
   const next=safeNext(nextValue);
   const exp=Math.floor(Date.now()/1000)+10*60;
-  const flow:FlowState={state,verifier,nonce,next,redirectUri,exp};
+  const flow:FlowState={state,verifier,nonce,next,redirectUri,exp,...(nativeChallenge?{nativeChallenge}:{})};
   const encoded=Buffer.from(JSON.stringify(flow)).toString("base64url");
   const cookie=encoded+"."+authHmac("telegram-oidc:"+encoded);
   const params=new URLSearchParams({

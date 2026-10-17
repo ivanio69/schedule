@@ -20,7 +20,7 @@ function staticPath(pathname:string){
 }
 function publicApi(request:NextRequest){
   const pathname=request.nextUrl.pathname;
-  if(pathname.startsWith("/api/auth/")||pathname==="/api/telegram/webhook"||pathname.startsWith("/api/environment")||pathname.startsWith("/api/build-version")||pathname.startsWith("/api/cron/"))return true;
+  if(pathname.startsWith("/api/auth/")||pathname==="/api/telegram/webhook"||pathname.startsWith("/api/environment")||pathname.startsWith("/api/build-version")||pathname.startsWith("/api/cron/")||pathname.startsWith("/api/widget/"))return true;
   if(pathname==="/api/calendar/apple"&&Boolean(request.nextUrl.searchParams.get("token")))return true;
   return false;
 }
@@ -37,30 +37,36 @@ function forbidden(request:NextRequest){
 
 export function proxy(request: NextRequest) {
   const {pathname,search}=request.nextUrl;
-  if(staticPath(pathname))return NextResponse.next();
+  const isStatic=staticPath(pathname);
 
-  const isLogin=pathname==="/login";
-  const isPublicApi=publicApi(request);
-  const session=verifyAuthSessionToken(request.cookies.get(AUTH_COOKIE)?.value);
+  if(!isStatic){
+    const isLogin=pathname==="/login";
+    const isPublicApi=publicApi(request);
+    const session=verifyAuthSessionToken(request.cookies.get(AUTH_COOKIE)?.value);
 
-  if(!session&&!isLogin&&!isPublicApi)return unauthorized(request);
-  if(session&&isLogin&&request.nextUrl.searchParams.get("openid")!=="success"){const home=request.nextUrl.clone();home.pathname="/";home.search="";return NextResponse.redirect(home)}
-  if(session&&(pathname.startsWith("/admin")||pathname.startsWith("/api/admin"))&&session.role!=="admin")return forbidden(request);
-  if(session&&(pathname.startsWith("/headman")||pathname.startsWith("/api/headman"))&&session.role!=="headman"&&session.role!=="admin")return forbidden(request);
+    if(!session&&!isLogin&&!isPublicApi)return unauthorized(request);
+    if(session&&isLogin&&request.nextUrl.searchParams.get("openid")!=="success"){const home=request.nextUrl.clone();home.pathname="/";home.search="";return NextResponse.redirect(home)}
+    if(session&&(pathname.startsWith("/admin")||pathname.startsWith("/api/admin"))&&session.role!=="admin")return forbidden(request);
+    if(session&&(pathname.startsWith("/headman")||pathname.startsWith("/api/headman"))&&session.role!=="headman"&&session.role!=="admin")return forbidden(request);
+
+  }
 
   // Preview deployments render directly. Production remains the same-origin
   // gateway for the selected DEV environment after authentication.
   if(process.env.VERCEL_ENV!=="production")return NextResponse.next();
-  if(pathname.startsWith("/api/environment")||pathname==="/api/telegram/webhook"||staticPath(pathname))return NextResponse.next();
+  if(pathname.startsWith("/api/environment")||pathname.startsWith("/api/auth/")||pathname==="/api/telegram/webhook"||pathname==="/sw.js")return NextResponse.next();
   if(request.cookies.get(ENV_COOKIE)?.value!=="dev")return NextResponse.next();
 
   const devPr=Number(request.cookies.get("schedule_dev_pr")?.value??"");
   const host=request.cookies.get(DEV_HOST_COOKIE)?.value;
-  if(!isAllowedPreviewHost(host)||!Number.isFinite(devPr)||devPr<=versionInfo.pr)return clearDevCookies(NextResponse.next());
+  if(!isAllowedPreviewHost(host)||!Number.isFinite(devPr)||devPr<=versionInfo.pr)return clearDevCookies(NextResponse.redirect(request.nextUrl));
 
+  // HTML, RSC, scripts and styles must all come from the selected build.
+  // Static resources stay public, while page/API auth above remains enforced.
   const target=new URL(pathname+search,"https://"+host);
   const response=NextResponse.rewrite(target);
   response.headers.set("x-schedule-environment","dev");
+  response.headers.set("Cache-Control","private, no-store");
   return response;
 }
 

@@ -138,7 +138,7 @@ export async function recordUsageEvent(raw: UsageEvent) {
 export async function deleteUsageAnalyticsForPerson(personId: string) {
   const db = await getDatabase();
   await Promise.all([
-    db.collection("usage_analytics_users").deleteOne({ _id: personId }),
+    db.collection<UsageUserDocument>("usage_analytics_users").deleteOne({ _id: personId }),
     db.collection("usage_analytics_sessions").deleteMany({ personId }),
   ]);
 }

@@ -120,7 +120,7 @@ export function getOccurrences(schedule: ScheduleData, date: string): Lesson[] {
   if (!validScheduleDate(schedule,date)) return [];
   const {week,day} = datePosition(schedule,date);
   const changes = schedule.changes ?? [];
-  const lessons = (schedule.days[day]?.table ?? [])
+  const lessons: Lesson[] = (schedule.days[day]?.table ?? [])
     .filter(l=>!l.weeks.length || l.weeks.includes(week))
     .filter(l=>!changes.some(c=>c.date===date&&c.key===lessonKey(l)))
     .map(l=>({...l,occurrence:{key:lessonKey(l),date,revision:0}}));

@@ -3,15 +3,20 @@ import { ADMIN_COOKIE, AUTH_COOKIE, PROFILE_COOKIE, adminCookieToken, authCookie
 import { getDatabase, getPeople } from "@/lib/database";
 import { normalizePersonRole, type Person } from "@/lib/people";
 import { exchangeTelegramOpenIdCode, readTelegramOpenIdFlow, TELEGRAM_OIDC_FLOW_COOKIE, verifyTelegramIdToken } from "@/lib/telegram-openid";
+import { createNativeHandoff } from "@/lib/native-auth";
 
 export const dynamic="force-dynamic";
 
 function clearFlow(response:NextResponse){
+  response.headers.set("Cache-Control","no-store");
+  response.headers.set("Referrer-Policy","no-referrer");
   response.cookies.set(TELEGRAM_OIDC_FLOW_COOKIE,"",{...authCookieOptions(0),sameSite:"lax"});
   return response;
 }
 function fail(request:NextRequest,code:string,next="/"){
-  const url=new URL("/login",request.url);
+  const flow=readTelegramOpenIdFlow(request.cookies.get(TELEGRAM_OIDC_FLOW_COOKIE)?.value);
+  const native=Boolean(flow?.nativeChallenge)||request.nextUrl.searchParams.get("state")?.startsWith("ios.");
+  const url=native?new URL("schedule214://auth/callback"):new URL("/login",request.url);
   url.searchParams.set("openid_error",code);
   url.searchParams.set("next",next);
   return clearFlow(NextResponse.redirect(url));
@@ -60,6 +65,12 @@ export async function GET(request:NextRequest){
     await (await getDatabase()).collection<Person>("people").updateOne({id:person.id},{$set:identityUpdate});
 
     const role=normalizePersonRole(person.role,person.adminLink);
+    if(flow.nativeChallenge){
+      const code=await createNativeHandoff(person.id,flow.nativeChallenge,flow.next);
+      const destination=new URL("schedule214://auth/callback");
+      destination.searchParams.set("code",code);
+      return clearFlow(NextResponse.redirect(destination));
+    }
     const success=new URL("/login",request.url);
     success.searchParams.set("openid","success");
     success.searchParams.set("next",flow.next);

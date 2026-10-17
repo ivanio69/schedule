@@ -21,7 +21,15 @@ assert.equal(
   null,
 );
 assert.equal(
-  getDueDigestDate(new Date("2026-09-23T08:46:00Z"), "UTC", "08:00"),
+  getDueDigestDate(new Date("2026-09-23T12:44:00Z"), "UTC", "08:05"),
+  "2026-09-23",
+);
+assert.equal(
+  getDueDigestDate(new Date("2026-09-23T15:59:00Z"), "UTC", "08:00"),
+  "2026-09-23",
+);
+assert.equal(
+  getDueDigestDate(new Date("2026-09-23T16:00:00Z"), "UTC", "08:00"),
   null,
 );
 assert.equal(
