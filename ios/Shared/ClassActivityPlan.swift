@@ -8,6 +8,21 @@ struct ClassActivityLesson: Codable, Hashable, Identifiable {
     let subtitle: String
     let start: Date
     let end: Date
+    var kind: String? = nil
+    var kindTitle: String {
+        switch kind {
+        case "rehearsal": return "Репетиция"
+        case "individual": return "Индивидуальное"
+        default: return "Пара"
+        }
+    }
+    var eventSymbol: String {
+        switch kind {
+        case "rehearsal": return "theatermasks.fill"
+        case "individual": return "person.fill"
+        default: return "graduationcap.fill"
+        }
+    }
     var appearance: WidgetAppearance? = nil
     var nextClass: ClassActivityNext? = nil
     var lastClassEnd: Date? = nil
@@ -34,6 +49,7 @@ struct ClassActivityLesson: Codable, Hashable, Identifiable {
     var interval: ClosedRange<Date> { start...end }
     /// Same five-minute pause as DashboardV2: minutes 40–45 of a full class.
     var breakInterval: ClosedRange<Date>? {
+        guard kind == nil || kind == "lesson" else { return nil }
         let breakStart = start.addingTimeInterval(40 * 60)
         let breakEnd = start.addingTimeInterval(45 * 60)
         guard breakEnd < end else { return nil }
@@ -45,6 +61,11 @@ struct ClassActivityLesson: Codable, Hashable, Identifiable {
 struct ClassActivityNext: Codable, Hashable {
     let title: String
     let start: Date
+    var kind: String? = nil
+    var label: String {
+        let category = kind == "rehearsal" ? "Репетиция" : kind == "individual" ? "Индивидуальное" : "Пара"
+        return "\(category) · \(title)"
+    }
 }
 
 enum ClassActivityPlan {
@@ -63,7 +84,7 @@ enum ClassActivityPlan {
         formatter.isLenient = false
         var unique: [String: ClassActivityLesson] = [:]
         for feed in feeds {
-            for event in feed.events where event.kind == "lesson" && event.status != "cancelled" {
+            for event in feed.events where ["lesson", "rehearsal", "individual"].contains(event.kind) && event.status != "cancelled" {
                 let startText = "\(feed.date) \(event.start)"
                 let endText = "\(feed.date) \(event.end)"
                 guard let start = formatter.date(from: startText),
@@ -75,7 +96,7 @@ enum ClassActivityPlan {
                 let id = "\(feed.profile.id)|\(feed.date)|\(event.id)"
                 unique[id] = ClassActivityLesson(
                     id: id, profileID: feed.profile.id, title: event.title,
-                    subtitle: event.subtitle, start: start, end: end, appearance: feed.appearance
+                    subtitle: event.subtitle, start: start, end: end, kind: event.kind, appearance: feed.appearance
                 )
             }
         }
@@ -91,11 +112,11 @@ enum ClassActivityPlan {
             if let next = sorted.dropFirst(index + 1).first(where: {
                 $0.profileID == item.profileID && calendar.isDate($0.start, inSameDayAs: item.start)
             }), next.start >= item.end {
-                lesson.nextClass = ClassActivityNext(title: next.title, start: next.start)
+                lesson.nextClass = ClassActivityNext(title: next.title, start: next.start, kind: next.kind)
             }
             // Preserve today's completed classes so the last card can bridge a
             // gap or show the end-of-day message. Yesterday never resurfaces.
-            return lesson.end > now || calendar.isDate(lesson.start, inSameDayAs: now) ? lesson : nil
+            return lesson.end.addingTimeInterval(3600) > now || calendar.isDate(lesson.start, inSameDayAs: now) ? lesson : nil
         }
     }
 }
@@ -109,6 +130,7 @@ struct ClassActivityDay: Codable, Hashable, Identifiable {
         let subtitle: String
         let start: Date
         let end: Date
+        var kind: String? = nil
     }
 
     let profileID: String
@@ -118,20 +140,22 @@ struct ClassActivityDay: Codable, Hashable, Identifiable {
 
     var id: String { "day:\(profileID):\(date)" }
     var start: Date { entries[0].start }
+    var lastEventEnd: Date { entries.map(\.end).max()! }
+    var dismissalDate: Date { lastEventEnd.addingTimeInterval(3600) }
     var dayEnd: Date {
         ClassActivityPlan.calendar.date(byAdding: .day, value: 1,
             to: ClassActivityPlan.calendar.startOfDay(for: start))!
     }
 
     func presentation(at now: Date) -> ClassActivityLesson {
-        let entry = entries.first(where: { $0.start <= now && now < $0.end })
+        let entry = entries.last(where: { $0.start <= now && now < $0.end })
             ?? entries.last(where: { $0.start <= now }) ?? entries[0]
         let next = entries.first(where: { $0.start >= entry.end && $0.id != entry.id })
         return ClassActivityLesson(
             id: entry.id, profileID: profileID, title: entry.title, subtitle: entry.subtitle,
-            start: entry.start, end: entry.end, appearance: appearance,
-            nextClass: next.map { ClassActivityNext(title: $0.title, start: $0.start) },
-            lastClassEnd: entries.map(\.end).max()
+            start: entry.start, end: entry.end, kind: entry.kind, appearance: appearance,
+            nextClass: next.map { ClassActivityNext(title: $0.title, start: $0.start, kind: $0.kind) },
+            lastClassEnd: lastEventEnd
         )
     }
 
@@ -159,9 +183,10 @@ extension ClassActivityPlan {
             formatter.timeZone = calendar.timeZone
             formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = "yyyy-MM-dd"
-            return ClassActivityDay(profileID: first.profileID, date: formatter.string(from: first.start),
+            let day = ClassActivityDay(profileID: first.profileID, date: formatter.string(from: first.start),
                 appearance: first.appearance,
-                entries: sorted.map { .init(id: $0.id, title: $0.title, subtitle: $0.subtitle, start: $0.start, end: $0.end) })
+                entries: sorted.map { .init(id: $0.id, title: $0.title, subtitle: $0.subtitle, start: $0.start, end: $0.end, kind: $0.kind) })
+            return day.dismissalDate > now ? day : nil
         }.sorted { $0.start == $1.start ? $0.id < $1.id : $0.start < $1.start }
     }
 }

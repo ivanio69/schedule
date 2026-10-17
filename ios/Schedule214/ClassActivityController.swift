@@ -6,6 +6,9 @@ final class ClassActivityController {
     private var operation: Task<Void, Never>?
     private var retryAfter = Date.distantPast
     private var dismissed = Set(UserDefaults.standard.stringArray(forKey: "classActivity.dismissedDays") ?? [])
+    private var finishedDays = UserDefaults.standard.dictionary(forKey: "classActivity.finishedDays")?.compactMapValues {
+        ($0 as? NSNumber)?.doubleValue
+    } ?? [:]
     var onError: ((String) -> Void)?
 
     func synchronize(feeds: [WidgetFeed]?) async {
@@ -21,14 +24,31 @@ final class ClassActivityController {
 
     private func reconcile(feeds: [WidgetFeed]?) async {
         let now = Date()
+        finishedDays = finishedDays.filter { $0.value > now.timeIntervalSince1970 }
         guard let feeds else {
             for activity in Activity<ClassActivityAttributes>.activities {
-                let dayEnd = activity.content.state.day?.dayEnd ?? activity.content.state.lesson.dayEnd
-                if dayEnd <= now || !ActivityAuthorizationInfo().areActivitiesEnabled { await finish(activity) }
+                let day = activity.content.state.day
+                let deadline = day?.dismissalDate ?? (activity.content.state.lesson.lastClassEnd ?? activity.content.state.lesson.end).addingTimeInterval(3600)
+                if deadline <= now || !ActivityAuthorizationInfo().areActivitiesEnabled {
+                    await finish(activity)
+                } else if let day, now >= day.lastEventEnd, activity.activityState != .ended,
+                          activity.activityState != .dismissed {
+                    await finishDay(activity, day: day, now: now)
+                }
             }
             return
         }
-        let days = ClassActivityPlan.days(from: feeds, now: now)
+        var days = ClassActivityPlan.days(from: feeds, now: now)
+        for activity in Activity<ClassActivityAttributes>.activities {
+            guard let old = activity.content.state.day,
+                  old.lastEventEnd <= now, now < old.dismissalDate,
+                  feeds.contains(where: { $0.profile.id == old.profileID }),
+                  !feeds.contains(where: { $0.profile.id == old.profileID && $0.date == old.date }),
+                  !days.contains(where: { $0.id == old.id }) else { continue }
+            // Today's feed doesn't overwrite yesterday's late-rehearsal grace period.
+            days.append(old)
+        }
+        days.sort { $0.start < $1.start }
         dismissed.formIntersection(Set(days.map(\.id)))
         for activity in Activity<ClassActivityAttributes>.activities where activity.activityState == .dismissed {
             dismissed.insert(activity.attributes.lessonID)
@@ -37,17 +57,13 @@ final class ClassActivityController {
 
         var desired: [ClassActivityDay] = []
         if ActivityAuthorizationInfo().areActivitiesEnabled {
-            // One stable ID for today; changing class/phase never requests another card.
-            if let today = days.first(where: { ClassActivityPlan.calendar.isDate($0.start, inSameDayAs: now) }),
-               !dismissed.contains(today.id) {
-                desired.append(today)
-            }
+            let currentDay = days.first(where: { $0.start <= now && now < $0.dismissalDate })
+                ?? days.first(where: { ClassActivityPlan.calendar.isDate($0.start, inSameDayAs: now) })
+            if let currentDay, !dismissed.contains(currentDay.id) { desired.append(currentDay) }
             if #available(iOS 26.0, *) {
-                // At most one pending card for tomorrow, never a queue of classes.
-                if let tomorrow = days.first(where: {
-                    !ClassActivityPlan.calendar.isDate($0.start, inSameDayAs: now) && $0.start > now
-                }), !dismissed.contains(tomorrow.id) {
-                    desired.append(tomorrow)
+                if let nextDay = days.first(where: { $0.start > now && $0.id != currentDay?.id }),
+                   !dismissed.contains(nextDay.id) {
+                    desired.append(nextDay)
                 }
             }
         }
@@ -56,9 +72,22 @@ final class ClassActivityController {
         for activity in Activity<ClassActivityAttributes>.activities {
             let id = activity.attributes.lessonID
             guard let day = desired.first(where: { $0.id == id }), !retained.contains(id),
-                  activity.activityState != .ended, activity.activityState != .dismissed else {
+                  activity.activityState != .dismissed else {
                 // Also removes cards created by older per-class versions.
                 await finish(activity)
+                continue
+            }
+            if activity.activityState == .ended {
+                if now >= day.lastEventEnd, activity.content.state.day == day {
+                    retained.insert(id) // Don't recreate the one-hour final card.
+                } else {
+                    await finish(activity) // New event added after the day was ended.
+                }
+                continue
+            }
+            if now >= day.lastEventEnd {
+                retained.insert(id)
+                await finishDay(activity, day: day, now: now)
                 continue
             }
             if #available(iOS 26.0, *), activity.activityState == .pending,
@@ -77,16 +106,20 @@ final class ClassActivityController {
 
         guard UIApplication.shared.applicationState == .active, Date() >= retryAfter else { return }
         for day in desired where !retained.contains(day.id) {
-            let scheduled = !ClassActivityPlan.calendar.isDate(day.start, inSameDayAs: now)
+            if now >= day.lastEventEnd, finishedDays[day.id] == day.dismissalDate.timeIntervalSince1970 {
+                continue // end() may remove it from activities while its final card is still visible.
+            }
+            let scheduled = !ClassActivityPlan.calendar.isDate(day.start, inSameDayAs: now) && day.start > now
             let effectiveNow = scheduled ? day.start : now
             let state = makeState(day: day, now: effectiveNow)
             guard validate(state) else { continue }
             let content = ActivityContent(state: state, staleDate: day.nextBoundary(after: effectiveNow))
             do {
                 if !scheduled {
-                    _ = try Activity<ClassActivityAttributes>.request(
+                    let activity = try Activity<ClassActivityAttributes>.request(
                         attributes: ClassActivityAttributes(lessonID: day.id), content: content, pushType: nil
                     )
+                    if now >= day.lastEventEnd { await finishDay(activity, day: day, now: now) }
                 } else if #available(iOS 26.0, *) {
                     _ = try Activity<ClassActivityAttributes>.request(
                         attributes: ClassActivityAttributes(lessonID: day.id),
@@ -118,6 +151,18 @@ final class ClassActivityController {
             return false
         }
         return true
+    }
+
+    private func finishDay(_ activity: Activity<ClassActivityAttributes>, day: ClassActivityDay, now: Date) async {
+        var state = makeState(day: day, now: now)
+        state.ended = true
+        guard validate(state) else { return }
+        finishedDays[day.id] = day.dismissalDate.timeIntervalSince1970
+        UserDefaults.standard.set(finishedDays, forKey: "classActivity.finishedDays")
+        // The system removes the final Lock Screen card at the deadline even
+        // after the app is suspended. Dynamic Island ends immediately by design.
+        await activity.end(ActivityContent(state: state, staleDate: nil),
+                           dismissalPolicy: .after(day.dismissalDate))
     }
 
     private func finish(_ activity: Activity<ClassActivityAttributes>) async {

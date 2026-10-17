@@ -5,7 +5,8 @@ import WidgetKit
 struct ClassLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ClassActivityAttributes.self) { context in
-            let palette = ClassActivityPalette(appearance: context.state.lesson.appearance, date: context.state.lesson.start)
+            let current = context.state.presentation(at: Date())
+            let palette = ClassActivityPalette(appearance: current.appearance, date: current.start, kind: current.kind)
             ClassActivityCard(state: context.state, expired: context.isStale, palette: palette)
                 .activityBackgroundTint(palette.surface)
                 .activitySystemActionForegroundColor(palette.text)
@@ -14,7 +15,7 @@ struct ClassLiveActivity: Widget {
             let lesson = context.state.presentation(at: Date())
             let phase = lesson.phase(at: Date())
             // Dynamic Island has a system black background, including in light mode.
-            let palette = ClassActivityPalette(appearance: lesson.appearance, date: lesson.start, forceDark: true)
+            let palette = ClassActivityPalette(appearance: lesson.appearance, date: lesson.start, forceDark: true, kind: lesson.kind)
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Text(phase.heading)
@@ -22,14 +23,14 @@ struct ClassLiveActivity: Widget {
                         .foregroundStyle(palette.muted)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    ClassActivityBadge(phase: phase, palette: palette)
+                    ClassActivityBadge(phase: phase, palette: palette, kind: lesson.kind)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     ClassActivityDetails(lesson: lesson, phase: phase, palette: palette, compact: true)
                         .padding(.top, 4).padding(.bottom, 8)
                 }
             } compactLeading: {
-                Image(systemName: phase.symbol)
+                Image(systemName: phase == .lesson ? lesson.eventSymbol : phase.symbol)
                     .foregroundStyle(palette.accent)
             } compactTrailing: {
                 ClassCountdown(lesson: lesson, phase: phase)
@@ -37,7 +38,7 @@ struct ClassLiveActivity: Widget {
                     .foregroundStyle(palette.accent)
                     .frame(width: 64)
             } minimal: {
-                Image(systemName: phase.symbol)
+                Image(systemName: phase == .lesson ? lesson.eventSymbol : phase.symbol)
                     .foregroundStyle(palette.accent)
             }
             .keylineTint(palette.accent)
@@ -60,7 +61,7 @@ private struct ClassActivityCard: View {
                     .font(.system(size: 10, weight: .semibold)).tracking(0.8)
                     .foregroundStyle(palette.muted)
                 Spacer(minLength: 8)
-                ClassActivityBadge(phase: phase, palette: palette)
+                ClassActivityBadge(phase: phase, palette: palette, kind: lesson.kind)
             }
             ClassActivityDetails(lesson: lesson, phase: phase, palette: palette, compact: false)
         }
@@ -92,19 +93,19 @@ private struct ClassActivityDetails: View {
 
     private var title: String {
         switch phase {
-        case .beforeClasses: return "Первая пара скоро"
+        case .beforeClasses: return "Скоро начало"
         case .lesson: return lesson.title
         case .betweenClasses: return "Перерыв"
-        case .dayFinished: return "Сегодня больше пар нет"
-        case .nextStarted: return "Следующая пара началась"
+        case .dayFinished: return "На сегодня всё"
+        case .nextStarted: return "Следующее занятие началось"
         }
     }
     private var subtitle: String {
         switch phase {
-        case .beforeClasses: return lesson.title
+        case .beforeClasses: return "\(lesson.kindTitle) · \(lesson.title)"
         case .lesson: return lesson.subtitle
-        case .betweenClasses, .nextStarted: return lesson.nextClass.map { "Дальше · \($0.title)" } ?? "Открой расписание"
-        case .dayFinished: return "Можно отдыхать"
+        case .betweenClasses, .nextStarted: return lesson.nextClass.map { "Дальше · \($0.label)" } ?? "Открой расписание"
+        case .dayFinished: return "Все занятия завершены"
         }
     }
     private var timerWidth: CGFloat {
@@ -169,7 +170,7 @@ private struct ClassActivityDetails: View {
                 .padding(.top, 3)
             } else if phase == .betweenClasses, let next = lesson.nextClass {
                 HStack(spacing: 4) {
-                    Text("Следующая пара в")
+                    Text("Следующее занятие в")
                     Text(next.start, style: .time)
                 }
                 .font(.system(size: 10, weight: .medium).monospacedDigit())
@@ -184,9 +185,13 @@ private struct ClassActivityDetails: View {
 private struct ClassActivityBadge: View {
     let phase: ClassActivityLesson.Phase
     let palette: ClassActivityPalette
+    var kind: String? = nil
+
+    private var category: String { kind == "rehearsal" ? "Репетиция" : kind == "individual" ? "Индивидуальное" : "Пара" }
+    private var symbol: String { kind == "rehearsal" ? "theatermasks.fill" : kind == "individual" ? "person.fill" : "graduationcap.fill" }
 
     var body: some View {
-        Label(phase.badge, systemImage: phase.symbol)
+        Label(phase == .lesson ? category : phase.badge, systemImage: phase == .lesson ? symbol : phase.symbol)
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(palette.text)
             .padding(.horizontal, 8).padding(.vertical, 3)
@@ -243,7 +248,7 @@ private struct ClassCountdown: View {
             Text(timerInterval: lesson.countdownInterval(for: phase), countsDown: true, showsHours: true)
                 .monospacedDigit().minimumScaleFactor(0.75).lineLimit(1)
                 .multilineTextAlignment(.trailing)
-                .accessibilityLabel(phase == .betweenClasses || phase == .beforeClasses ? "До начала следующей пары" : "До конца пары")
+                .accessibilityLabel(phase == .betweenClasses || phase == .beforeClasses ? "До начала следующего занятия" : "До конца занятия")
         }
     }
 }
@@ -300,10 +305,11 @@ private struct ClassActivityPalette {
     let secondary: Color
     let muted: Color
 
-    init(appearance: WidgetAppearance?, date: Date, forceDark: Bool = false) {
+    init(appearance: WidgetAppearance?, date: Date, forceDark: Bool = false, kind: String? = nil) {
         let dark = forceDark || appearance?.theme != "light"
         var accentHex: UInt32
-        if appearance?.appAccentMode == "time" {
+        let preset = kind == "rehearsal" ? appearance?.rehearsalAccent : kind == "individual" ? appearance?.individualAccent : appearance?.appAccent
+        if kind != "rehearsal" && kind != "individual" && appearance?.appAccentMode == "time" {
             // Scheduled cards use their class's start time, not the scheduling time.
             switch Calendar.current.component(.hour, from: date) {
             case 6..<11: accentHex = 0xf2a06d
@@ -312,13 +318,13 @@ private struct ClassActivityPalette {
             default: accentHex = 0x48699f
             }
         } else {
-            switch appearance?.appAccent {
+            switch preset {
             case "mint": accentHex = 0x79d9b0
             case "blue": accentHex = 0x76aef8
             case "violet": accentHex = 0xaa8df5
             case "amber": accentHex = 0xedb761
             case "rose": accentHex = 0xed8ca1
-            default: accentHex = dark ? 0xf4f4f5 : 0x17171a
+            default: accentHex = kind == "rehearsal" ? 0xf0a45d : kind == "individual" ? 0xef6a6a : dark ? 0xf4f4f5 : 0x17171a
             }
         }
         accent = Self.color(accentHex)
@@ -392,5 +398,27 @@ private func intermissionPreview() -> ClassActivityAttributes.ContentState {
     ClassActivityCard(state: state, expired: true,
                       palette: ClassActivityPalette(appearance: state.lesson.appearance, date: state.lesson.start))
         .frame(width: 360).padding()
+}
+#endif
+
+#if DEBUG
+private func eventPreview(_ kind: String) -> ClassActivityAttributes.ContentState {
+    var lesson = previewState(theme: "dark", accent: "default").lesson
+    lesson.kind = kind
+    return ClassActivityAttributes.ContentState(lesson: lesson)
+}
+
+#Preview("Rehearsal") {
+    let state = eventPreview("rehearsal")
+    ClassActivityCard(state: state, expired: false,
+        palette: ClassActivityPalette(appearance: state.lesson.appearance, date: state.lesson.start, kind: state.lesson.kind))
+        .frame(width: 360).padding()
+}
+
+#Preview("Individual") {
+    let state = eventPreview("individual")
+    ClassActivityCard(state: state, expired: false,
+        palette: ClassActivityPalette(appearance: state.lesson.appearance, date: state.lesson.start, kind: state.lesson.kind))
+        .frame(width: 320).padding()
 }
 #endif

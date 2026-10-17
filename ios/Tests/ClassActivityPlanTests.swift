@@ -23,6 +23,7 @@ struct ClassActivityPlanTests {
         let encoded = try JSONEncoder().encode(lesson)
         var legacy = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
         legacy.removeValue(forKey: "appearance")
+        legacy.removeValue(forKey: "kind")
         legacy.removeValue(forKey: "nextClass")
         legacy.removeValue(forKey: "lastClassEnd")
         let legacyLesson = try decoder.decode(ClassActivityLesson.self, from: JSONSerialization.data(withJSONObject: legacy))
@@ -35,7 +36,10 @@ struct ClassActivityPlanTests {
         precondition(ClassActivityPlan.lessons(from: [standard], now: lesson.dayEnd).isEmpty, "Yesterday is cleared")
         precondition(ClassActivityPlan.lessons(from: [standard, standard], now: now).count == 1)
         let filtered = try feed([event(status: "cancelled"), event(id: "2", kind: "rehearsal"), event(id: "3", kind: "individual"), event(id: "4", start: "25:00"), event(id: "5", end: "08:00")].joined(separator: ","))
-        precondition(ClassActivityPlan.lessons(from: [filtered], now: now).isEmpty)
+        let personalEvents = ClassActivityPlan.lessons(from: [filtered], now: now)
+        precondition(personalEvents.count == 2, "Rehearsals and individual events are included")
+        precondition(Set(personalEvents.compactMap(\.kind)) == Set(["rehearsal", "individual"]))
+        precondition(personalEvents.allSatisfy { $0.breakInterval == nil }, "Only classes have the five-minute pause")
         let moved = try feed(event(status: "moved", start: "11:00", end: "12:30"))
         precondition(ClassActivityPlan.lessons(from: [moved], now: now).count == 1, "Moved feed event has destination time")
         let tomorrow = try feed(event(), date: "2026-10-07")
@@ -89,6 +93,27 @@ struct ClassActivityPlanTests {
         precondition(roundTripDay == day)
         let otherDay = ClassActivityPlan.days(from: [otherProfile], now: now)[0]
         precondition(otherDay.id != day.id)
+        let mixed = try feed([
+            event(), event(id: "individual", kind: "individual", start: "11:00", end: "12:00"),
+            event(id: "rehearsal", kind: "rehearsal", start: "18:00", end: "20:00")
+        ].joined(separator: ","))
+        let mixedDay = ClassActivityPlan.days(from: [mixed], now: now)[0]
+        precondition(mixedDay.entries.count == 3)
+        precondition(mixedDay.presentation(at: mixedDay.entries[1].start).kind == "individual")
+        precondition(mixedDay.presentation(at: mixedDay.entries[2].start).kind == "rehearsal")
+        precondition(mixedDay.presentation(at: mixedDay.entries[1].end).phase(at: mixedDay.entries[1].end) == .betweenClasses)
+        precondition(mixedDay.lastEventEnd == mixedDay.entries[2].end)
+        precondition(mixedDay.dismissalDate.timeIntervalSince(mixedDay.lastEventEnd) == 3600)
+        precondition(ClassActivityPlan.days(from: [mixed], now: mixedDay.dismissalDate.addingTimeInterval(-1)).count == 1)
+        precondition(ClassActivityPlan.days(from: [mixed], now: mixedDay.dismissalDate).isEmpty, "No recreation after the deadline")
+        let cancelledRehearsal = try feed([event(), event(id: "cancelled-r", kind: "rehearsal", status: "cancelled", start: "18:00", end: "20:00")].joined(separator: ","))
+        let cancelledDay = ClassActivityPlan.days(from: [cancelledRehearsal], now: now)[0]
+        precondition(cancelledDay.lastEventEnd == lesson.end)
+        let late = try feed(event(id: "late", kind: "rehearsal", start: "23:00", end: "23:30"))
+        let lateDay = ClassActivityPlan.days(from: [late], now: now)[0]
+        let afterMidnight = lateDay.dayEnd.addingTimeInterval(10 * 60)
+        precondition(ClassActivityPlan.days(from: [late], now: afterMidnight).first?.id == lateDay.id, "One-hour grace can cross midnight")
+        precondition(ClassActivityPlan.days(from: [late], now: lateDay.dismissalDate).isEmpty)
         print("ClassActivityPlan: all cases passed")
     }
 }
