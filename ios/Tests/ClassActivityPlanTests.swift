@@ -70,6 +70,25 @@ struct ClassActivityPlanTests {
         let overlapping = try feed([event(), event(id: "overlap", start: "10:00", end: "11:00")].joined(separator: ","))
         let overlap = ClassActivityPlan.lessons(from: [overlapping], now: now)[0]
         precondition(overlap.nextClass == nil && overlap.phase(at: overlap.end) == .nextStarted, "An overlapping active class is not end of day")
+        let day = ClassActivityPlan.days(from: [twoClasses], now: now)[0]
+        let early = now.addingTimeInterval(-1800)
+        precondition(day.presentation(at: early).phase(at: early) == .beforeClasses)
+        precondition(day.nextBoundary(after: early) == pair[0].start)
+        precondition(day.nextBoundary(after: pair[0].start) == pair[0].end)
+        precondition(day.presentation(at: pair[0].end).phase(at: pair[0].end) == .betweenClasses)
+        precondition(day.nextBoundary(after: pair[0].end) == pair[1].start)
+        precondition(day.presentation(at: pair[1].start).id == pair[1].id, "One daily snapshot selects the next class")
+        precondition(day.presentation(at: pair[1].end).phase(at: pair[1].end) == .dayFinished)
+        precondition(day.nextBoundary(after: pair[1].end) == nil)
+        let dayAfterBreak = ClassActivityPlan.days(from: [twoClasses], now: pair[1].start)[0]
+        precondition(day.id == dayAfterBreak.id, "Identity remains stable across every class")
+        precondition(day.entries == dayAfterBreak.entries, "Complete schedule survives phase changes")
+        precondition(ClassActivityPlan.days(from: [twoClasses, tomorrow], now: now).count == 2, "One record per day, not per class")
+        precondition(ClassActivityPlan.days(from: [twoClasses], now: day.dayEnd).isEmpty)
+        let roundTripDay = try decoder.decode(ClassActivityDay.self, from: JSONEncoder().encode(day))
+        precondition(roundTripDay == day)
+        let otherDay = ClassActivityPlan.days(from: [otherProfile], now: now)[0]
+        precondition(otherDay.id != day.id)
         print("ClassActivityPlan: all cases passed")
     }
 }

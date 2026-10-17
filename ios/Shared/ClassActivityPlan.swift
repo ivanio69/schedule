@@ -12,7 +12,7 @@ struct ClassActivityLesson: Codable, Hashable, Identifiable {
     var nextClass: ClassActivityNext? = nil
     var lastClassEnd: Date? = nil
 
-    enum Phase { case lesson, betweenClasses, dayFinished, nextStarted }
+    enum Phase { case beforeClasses, lesson, betweenClasses, dayFinished, nextStarted }
     var dayEnd: Date {
         ClassActivityPlan.calendar.date(byAdding: .day, value: 1, to: ClassActivityPlan.calendar.startOfDay(for: start))!
     }
@@ -21,12 +21,14 @@ struct ClassActivityLesson: Codable, Hashable, Identifiable {
         return end...nextClass.start
     }
     func phase(at date: Date) -> Phase {
+        if date < start { return .beforeClasses }
         if date < end { return .lesson }
         if let nextClass, date < nextClass.start { return .betweenClasses }
         return date >= (lastClassEnd ?? end) ? .dayFinished : .nextStarted
     }
     func countdownInterval(for phase: Phase) -> ClosedRange<Date> {
-        phase == .betweenClasses ? intermissionInterval ?? interval : interval
+        if phase == .beforeClasses { return ClassActivityPlan.calendar.startOfDay(for: start)...start }
+        return phase == .betweenClasses ? intermissionInterval ?? interval : interval
     }
 
     var interval: ClosedRange<Date> { start...end }
@@ -95,5 +97,71 @@ enum ClassActivityPlan {
             // gap or show the end-of-day message. Yesterday never resurfaces.
             return lesson.end > now || calendar.isDate(lesson.start, inSameDayAs: now) ? lesson : nil
         }
+    }
+}
+
+/// A compact full-day snapshot shared by the app and its single Live Activity.
+/// Appearance/profile are stored once, rather than repeated for every class.
+struct ClassActivityDay: Codable, Hashable, Identifiable {
+    struct Entry: Codable, Hashable {
+        let id: String
+        let title: String
+        let subtitle: String
+        let start: Date
+        let end: Date
+    }
+
+    let profileID: String
+    let date: String
+    let appearance: WidgetAppearance?
+    let entries: [Entry]
+
+    var id: String { "day:\(profileID):\(date)" }
+    var start: Date { entries[0].start }
+    var dayEnd: Date {
+        ClassActivityPlan.calendar.date(byAdding: .day, value: 1,
+            to: ClassActivityPlan.calendar.startOfDay(for: start))!
+    }
+
+    func presentation(at now: Date) -> ClassActivityLesson {
+        let entry = entries.first(where: { $0.start <= now && now < $0.end })
+            ?? entries.last(where: { $0.start <= now }) ?? entries[0]
+        let next = entries.first(where: { $0.start >= entry.end && $0.id != entry.id })
+        return ClassActivityLesson(
+            id: entry.id, profileID: profileID, title: entry.title, subtitle: entry.subtitle,
+            start: entry.start, end: entry.end, appearance: appearance,
+            nextClass: next.map { ClassActivityNext(title: $0.title, start: $0.start) },
+            lastClassEnd: entries.map(\.end).max()
+        )
+    }
+
+    func nextBoundary(after now: Date) -> Date? {
+        entries.flatMap { [$0.start, $0.end] }.filter { $0 > now }.min()
+    }
+}
+
+extension ClassActivityPlan {
+    static func days(from feeds: [WidgetFeed], now: Date) -> [ClassActivityDay] {
+        let lessons = lessons(from: feeds, now: now)
+        let groups = Dictionary(grouping: lessons) { lesson in
+            let formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.timeZone = calendar.timeZone
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = "yyyy-MM-dd"
+            return "\(lesson.profileID)|\(formatter.string(from: lesson.start))"
+        }
+        return groups.values.compactMap { group -> ClassActivityDay? in
+            let sorted = group.sorted { $0.start == $1.start ? $0.id < $1.id : $0.start < $1.start }
+            guard let first = sorted.first else { return nil }
+            let formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.timeZone = calendar.timeZone
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = "yyyy-MM-dd"
+            return ClassActivityDay(profileID: first.profileID, date: formatter.string(from: first.start),
+                appearance: first.appearance,
+                entries: sorted.map { .init(id: $0.id, title: $0.title, subtitle: $0.subtitle, start: $0.start, end: $0.end) })
+        }.sorted { $0.start == $1.start ? $0.id < $1.id : $0.start < $1.start }
     }
 }

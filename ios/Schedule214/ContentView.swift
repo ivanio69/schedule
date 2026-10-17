@@ -8,7 +8,9 @@ struct ContentView: View {
 
     var body: some View {
         WebAppView(url: connection.webDestination, connection: connection)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemBackground))
+            .ignoresSafeArea(.container, edges: .all)
             .task(id: scenePhase) {
                 if scenePhase == .active { await connection.runForegroundUpdates() }
             }
@@ -26,12 +28,36 @@ struct WebAppView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
+        configuration.userContentController.addUserScript(WKUserScript(source: """
+        (() => {
+            if (location.hostname !== "\(WidgetEnvironment.productionBaseURL.host ?? "")") return;
+            let viewport = document.querySelector('meta[name="viewport"]');
+            if (!viewport) {
+                viewport = document.createElement('meta');
+                viewport.name = 'viewport';
+                viewport.content = 'width=device-width, initial-scale=1';
+                document.head.appendChild(viewport);
+            }
+            const existing = viewport.content.replace(/,?\\s*viewport-fit=[^,]*/g, '');
+            viewport.content = existing + ', viewport-fit=cover';
+            const style = document.createElement('style');
+            style.textContent = `html { min-height: 100%; } body {
+                box-sizing: border-box; min-height: 100dvh;
+                padding-top: env(safe-area-inset-top);
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }`;
+            document.head.appendChild(style);
+        })();
+        """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         configuration.userContentController.add(context.coordinator, name: "scheduleWidget")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
-        webView.scrollView.contentInsetAdjustmentBehavior = .automatic
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        webView.scrollView.contentInset = .zero
+        webView.scrollView.scrollIndicatorInsets = .zero
         webView.isOpaque = false
         webView.backgroundColor = .systemBackground
         webView.scrollView.backgroundColor = .systemBackground

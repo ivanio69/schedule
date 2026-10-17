@@ -1,12 +1,11 @@
 import ActivityKit
 import UIKit
 
-/// All reconciliations are serialized, including disconnects during an update.
 @MainActor
 final class ClassActivityController {
     private var operation: Task<Void, Never>?
     private var retryAfter = Date.distantPast
-    private var dismissed = Set(UserDefaults.standard.stringArray(forKey: "classActivity.dismissed") ?? [])
+    private var dismissed = Set(UserDefaults.standard.stringArray(forKey: "classActivity.dismissedDays") ?? [])
     var onError: ((String) -> Void)?
 
     func synchronize(feeds: [WidgetFeed]?) async {
@@ -22,91 +21,103 @@ final class ClassActivityController {
 
     private func reconcile(feeds: [WidgetFeed]?) async {
         let now = Date()
-        // Offline cold launch: don't cancel a previously scheduled class just
-        // because today's feed hasn't loaded yet. Still clear expired cards.
         guard let feeds else {
-            for activity in Activity<ClassActivityAttributes>.activities
-                where activity.content.state.lesson.dayEnd <= now || !ActivityAuthorizationInfo().areActivitiesEnabled {
-                await finish(activity)
+            for activity in Activity<ClassActivityAttributes>.activities {
+                let dayEnd = activity.content.state.day?.dayEnd ?? activity.content.state.lesson.dayEnd
+                if dayEnd <= now || !ActivityAuthorizationInfo().areActivitiesEnabled { await finish(activity) }
             }
             return
         }
-        let lessons = ClassActivityPlan.lessons(from: feeds, now: now)
-        let validIDs = Set(lessons.map(\.id))
-        dismissed.formIntersection(validIDs)
+        let days = ClassActivityPlan.days(from: feeds, now: now)
+        dismissed.formIntersection(Set(days.map(\.id)))
         for activity in Activity<ClassActivityAttributes>.activities where activity.activityState == .dismissed {
             dismissed.insert(activity.attributes.lessonID)
         }
-        UserDefaults.standard.set(Array(dismissed), forKey: "classActivity.dismissed")
+        UserDefaults.standard.set(Array(dismissed), forKey: "classActivity.dismissedDays")
 
-        var desired: [ClassActivityLesson] = []
+        var desired: [ClassActivityDay] = []
         if ActivityAuthorizationInfo().areActivitiesEnabled {
-            let current = lessons.first(where: { $0.isCurrent(at: now) })
-            let previous = lessons.last(where: { $0.start <= now && $0.dayEnd > now })
-            if let visible = current ?? previous, !dismissed.contains(visible.id) {
-                desired.append(visible)
+            // One stable ID for today; changing class/phase never requests another card.
+            if let today = days.first(where: { ClassActivityPlan.calendar.isDate($0.start, inSameDayAs: now) }),
+               !dismissed.contains(today.id) {
+                desired.append(today)
             }
             if #available(iOS 26.0, *) {
-                // Leave room for the current class; the OS remains the final capacity authority.
-                desired += lessons.filter { $0.start > now && !dismissed.contains($0.id) }.prefix(3)
+                // At most one pending card for tomorrow, never a queue of classes.
+                if let tomorrow = days.first(where: {
+                    !ClassActivityPlan.calendar.isDate($0.start, inSameDayAs: now) && $0.start > now
+                }), !dismissed.contains(tomorrow.id) {
+                    desired.append(tomorrow)
+                }
             }
         }
 
         var retained = Set<String>()
         for activity in Activity<ClassActivityAttributes>.activities {
             let id = activity.attributes.lessonID
-            guard let lesson = desired.first(where: { $0.id == id }),
-                  !retained.contains(id),
-                  activity.activityState != .ended,
-                  activity.activityState != .dismissed else {
+            guard let day = desired.first(where: { $0.id == id }), !retained.contains(id),
+                  activity.activityState != .ended, activity.activityState != .dismissed else {
+                // Also removes cards created by older per-class versions.
                 await finish(activity)
                 continue
             }
-            // A pending request's start date is immutable. Reschedule when moved.
             if #available(iOS 26.0, *), activity.activityState == .pending,
-               activity.content.state.lesson.start != lesson.start {
+               activity.content.state.day?.start != day.start {
                 await finish(activity)
                 continue
             }
             retained.insert(id)
-            let state = ClassActivityAttributes.ContentState(lesson: lesson)
-            if activity.content.state != state {
-                await activity.update(ActivityContent(state: state, staleDate: lesson.end, relevanceScore: lesson.start.timeIntervalSince1970))
+            let state = makeState(day: day, now: now)
+            guard validate(state) else { continue }
+            let boundary = day.nextBoundary(after: now)
+            if activity.content.state != state || activity.content.staleDate != boundary {
+                await activity.update(ActivityContent(state: state, staleDate: boundary))
             }
         }
 
-        // Requests are foreground-only. A background network completion may still
-        // update/end existing activities, but must not attempt to start new ones.
         guard UIApplication.shared.applicationState == .active, Date() >= retryAfter else { return }
-        for lesson in desired where !retained.contains(lesson.id) {
-            let content = ActivityContent(
-                state: ClassActivityAttributes.ContentState(lesson: lesson),
-                staleDate: lesson.end,
-                relevanceScore: lesson.start.timeIntervalSince1970
-            )
+        for day in desired where !retained.contains(day.id) {
+            let scheduled = !ClassActivityPlan.calendar.isDate(day.start, inSameDayAs: now)
+            let effectiveNow = scheduled ? day.start : now
+            let state = makeState(day: day, now: effectiveNow)
+            guard validate(state) else { continue }
+            let content = ActivityContent(state: state, staleDate: day.nextBoundary(after: effectiveNow))
             do {
-                if lesson.start <= Date() {
-                    guard lesson.dayEnd > Date() else { continue }
+                if !scheduled {
                     _ = try Activity<ClassActivityAttributes>.request(
-                        attributes: ClassActivityAttributes(lessonID: lesson.id), content: content, pushType: nil
+                        attributes: ClassActivityAttributes(lessonID: day.id), content: content, pushType: nil
                     )
                 } else if #available(iOS 26.0, *) {
                     _ = try Activity<ClassActivityAttributes>.request(
-                        attributes: ClassActivityAttributes(lessonID: lesson.id),
+                        attributes: ClassActivityAttributes(lessonID: day.id),
                         content: content, pushType: nil, style: .standard,
                         alertConfiguration: AlertConfiguration(
-                            title: "Начинается пара", body: "Расписание — на экране блокировки.", sound: .default
-                        ),
-                        start: lesson.start
+                            title: "Учебный день начинается", body: "Расписание дня — на экране блокировки.", sound: .default
+                        ), start: day.start
                     )
                 }
             } catch {
                 retryAfter = Date().addingTimeInterval(60)
                 onError?(error.localizedDescription)
-                // Don't flood the system with requests after a capacity/authorization error.
                 break
             }
         }
+    }
+
+    private func makeState(day: ClassActivityDay, now: Date) -> ClassActivityAttributes.ContentState {
+        ClassActivityAttributes.ContentState(lesson: day.presentation(at: now), day: day)
+    }
+
+    private func validate(_ state: ClassActivityAttributes.ContentState) -> Bool {
+        // ActivityKit caps attributes + state at 4 KB. Never silently drop classes.
+        guard let data = try? JSONEncoder().encode(state), data.count <= 3600 else {
+            if Date() >= retryAfter {
+                retryAfter = Date().addingTimeInterval(60)
+                onError?("Расписание дня слишком большое для Live Activity.")
+            }
+            return false
+        }
+        return true
     }
 
     private func finish(_ activity: Activity<ClassActivityAttributes>) async {

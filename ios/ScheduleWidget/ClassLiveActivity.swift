@@ -11,8 +11,8 @@ struct ClassLiveActivity: Widget {
                 .activitySystemActionForegroundColor(palette.text)
                 .widgetURL(URL(string: "schedule214://schedule"))
         } dynamicIsland: { context in
-            let lesson = context.state.lesson
-            let phase = lesson.phase(at: context.isStale ? max(Date(), lesson.end) : Date())
+            let lesson = context.state.presentation(at: Date())
+            let phase = lesson.phase(at: Date())
             // Dynamic Island has a system black background, including in light mode.
             let palette = ClassActivityPalette(appearance: lesson.appearance, date: lesson.start, forceDark: true)
             return DynamicIsland {
@@ -50,7 +50,8 @@ private struct ClassActivityCard: View {
     let state: ClassActivityAttributes.ContentState
     let expired: Bool
     let palette: ClassActivityPalette
-    private var phase: ClassActivityLesson.Phase { state.lesson.phase(at: expired ? max(Date(), state.lesson.end) : Date()) }
+    private var lesson: ClassActivityLesson { state.presentation(at: Date()) }
+    private var phase: ClassActivityLesson.Phase { lesson.phase(at: Date()) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -61,8 +62,9 @@ private struct ClassActivityCard: View {
                 Spacer(minLength: 8)
                 ClassActivityBadge(phase: phase, palette: palette)
             }
-            ClassActivityDetails(lesson: state.lesson, phase: phase, palette: palette, compact: false)
+            ClassActivityDetails(lesson: lesson, phase: phase, palette: palette, compact: false)
         }
+        .id(expired)
         .padding(.horizontal, 20).padding(.vertical, 14)
         .background {
             // Match dashboard-focus: diagonal tinted surface + upper-right glow.
@@ -90,6 +92,7 @@ private struct ClassActivityDetails: View {
 
     private var title: String {
         switch phase {
+        case .beforeClasses: return "Первая пара скоро"
         case .lesson: return lesson.title
         case .betweenClasses: return "Перерыв"
         case .dayFinished: return "Сегодня больше пар нет"
@@ -98,6 +101,7 @@ private struct ClassActivityDetails: View {
     }
     private var subtitle: String {
         switch phase {
+        case .beforeClasses: return lesson.title
         case .lesson: return lesson.subtitle
         case .betweenClasses, .nextStarted: return lesson.nextClass.map { "Дальше · \($0.title)" } ?? "Открой расписание"
         case .dayFinished: return "Можно отдыхать"
@@ -194,6 +198,7 @@ private struct ClassActivityBadge: View {
 private extension ClassActivityLesson.Phase {
     var heading: String {
         switch self {
+        case .beforeClasses: return "СЕГОДНЯ"
         case .lesson: return "СЕЙЧАС ИДЁТ"
         case .betweenClasses: return "СЕЙЧАС ПЕРЕРЫВ"
         case .dayFinished: return "НА СЕГОДНЯ ВСЁ"
@@ -202,6 +207,7 @@ private extension ClassActivityLesson.Phase {
     }
     var badge: String {
         switch self {
+        case .beforeClasses: return "Скоро"
         case .lesson: return "Пара"
         case .betweenClasses: return "Перерыв"
         case .dayFinished, .nextStarted: return "Готово"
@@ -209,6 +215,7 @@ private extension ClassActivityLesson.Phase {
     }
     var symbol: String {
         switch self {
+        case .beforeClasses: return "clock.fill"
         case .lesson: return "graduationcap.fill"
         case .betweenClasses: return "pause.circle.fill"
         case .dayFinished, .nextStarted: return "checkmark.circle.fill"
@@ -216,6 +223,7 @@ private extension ClassActivityLesson.Phase {
     }
     var timerCaption: String {
         switch self {
+        case .beforeClasses: return "до начала"
         case .lesson: return "до конца"
         case .betweenClasses: return "до начала"
         case .dayFinished: return "на сегодня всё"
@@ -235,7 +243,7 @@ private struct ClassCountdown: View {
             Text(timerInterval: lesson.countdownInterval(for: phase), countsDown: true, showsHours: true)
                 .monospacedDigit().minimumScaleFactor(0.75).lineLimit(1)
                 .multilineTextAlignment(.trailing)
-                .accessibilityLabel(phase == .betweenClasses ? "До начала следующей пары" : "До конца пары")
+                .accessibilityLabel(phase == .betweenClasses || phase == .beforeClasses ? "До начала следующей пары" : "До конца пары")
         }
     }
 }
