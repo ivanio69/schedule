@@ -10,7 +10,6 @@ export type RehearsalDraft = {
   responsible: string;
   date: string;
   notes: string;
-  tags: string[];
   ignoredConflictKeys: string[];
   timeStart: string;
   timeEnd: string;
