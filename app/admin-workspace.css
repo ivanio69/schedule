@@ -49,3 +49,8 @@
 .admin-rehearsal-participants{display:grid;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
 .admin-rehearsal-copy small{display:block;margin-top:5px;line-height:1.45}
 @media(max-width:600px){.admin-rehearsal-schedule-link{width:100%}.admin-rehearsal-edit-link{order:2;flex:1}.admin-rehearsal-item>.admin-danger{order:2;flex:1}}
+
+/* Semester template overlap hints (administrator only). */
+.admin-unified .admin-lesson-new.has-conflict{border-color:color-mix(in srgb,#e39439 55%,var(--border))}
+.admin-unified .admin-lesson-new.has-conflict .admin-lesson-summary{background:color-mix(in srgb,#e39439 6%,var(--surface))}
+.admin-unified .admin-lesson-conflict{display:block;margin-top:5px;color:#dfa04b;font-size:10px;font-weight:700;line-height:1.45;white-space:normal;overflow-wrap:anywhere}
