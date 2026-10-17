@@ -14,7 +14,7 @@ export async function GET(request:NextRequest){
   if(!telegramOpenIdConfigured())return loginError(request,"not_configured");
   try{
     const url=new URL(request.url);
-    const flow=createTelegramOpenIdFlow(url.origin,url.searchParams.get("next"));
+    const flow=createTelegramOpenIdFlow(url.origin,url.searchParams.get("next"),url.searchParams.get("native_challenge")??undefined);
     const response=NextResponse.redirect(flow.url);
     response.cookies.set(TELEGRAM_OIDC_FLOW_COOKIE,flow.cookie,{...authCookieOptions(10*60),sameSite:"lax"});
     return response;

@@ -90,7 +90,7 @@ export async function runDigestDelivery(now=new Date()){
   const profiles=new Map(profileDocs.map(item=>[item.personId,item]));
   let dueProfiles=0,claimed=0,sent=0,failed=0;
   for(const person of people){
-    const profile=profiles.get(person.id)??{personId:person.id,preferences:{},notes:{},updatedAt:new Date(0).toISOString()};
+    const profile:ProfileSettings=profiles.get(person.id)??{personId:person.id,preferences:{},notes:{},updatedAt:new Date(0).toISOString()};
     const digest=normalizeDigestSettings(profile.digestSettings);
     for(const mode of ["morning","evening"] as DigestMode[]){
       const enabled=mode==="morning"?digest.morningEnabled:digest.eveningEnabled;
@@ -117,5 +117,11 @@ export async function runDigestDelivery(now=new Date()){
       }
     }
   }
-  return{dueProfiles,claimed,sent,failed,checked:people.length,at:now.toISOString()};
+  const result={dueProfiles,claimed,sent,failed,checked:people.length,at:now.toISOString()};
+  await db.collection("scheduler_heartbeats").updateOne(
+    {key:"digests"},
+    {$set:{key:"digests",...result,updatedAt:now.toISOString()}},
+    {upsert:true},
+  );
+  return result;
 }

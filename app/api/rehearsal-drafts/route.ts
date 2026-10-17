@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 const validId = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length < 128;
 const validDate = (value: unknown) => value === "" || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)));
-const validTime = (value: unknown) => typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+const validTime = (value: unknown): value is string => typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 const text = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) : "";
 const names = (value: unknown) => Array.isArray(value) && value.every(item => typeof item === "string")
   ? [...new Set(value.map(item => item.trim()).filter(Boolean))].slice(0, 100)
