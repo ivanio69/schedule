@@ -26,7 +26,10 @@ const shiftDate = (date: string, days: number) => {
   return value.toISOString().slice(0, 10);
 };
 
-export const DIGEST_DELIVERY_GRACE_MINUTES = 45;
+// GitHub scheduled workflows are best-effort and can start hours late.
+  // Keep enough history to deliver the latest missed summary once, while the
+  // digest_deliveries claim key still prevents duplicates for the same local day.
+export const DIGEST_DELIVERY_GRACE_MINUTES = 8 * 60;
 
 function localClock(now: Date, timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
