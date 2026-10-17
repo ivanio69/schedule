@@ -309,10 +309,10 @@ export default function ScheduleApp() {
     const end = new Date(`${date}T${details.item.timeEnd}:00`);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
     const utc = (value: Date) => value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-    const escape = (value: string) => value.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/[,;]/g, "\\  const copyDetailsLink = async () => {");
+    const escapeIcs = (value: string) => value.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
     const name = details.type === "lesson" ? details.item.class : details.item.subject;
     const location = details.type === "lesson" || details.type === "individual" ? details.item.auditorium : "";
-    const data = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Schedule//Events//RU", "BEGIN:VEVENT", `UID:${crypto.randomUUID()}@schedule`, `DTSTAMP:${utc(new Date())}`, `DTSTART:${utc(start)}`, `DTEND:${utc(end)}`, `SUMMARY:${escape(name)}`, `LOCATION:${escape(location)}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+    const data = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Schedule//Events//RU", "BEGIN:VEVENT", `UID:${crypto.randomUUID()}@schedule`, `DTSTAMP:${utc(new Date())}`, `DTSTART:${utc(start)}`, `DTEND:${utc(end)}`, `SUMMARY:${escapeIcs(name)}`, `LOCATION:${escapeIcs(location)}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n");
     const url = URL.createObjectURL(new Blob([data], { type: "text/calendar;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
