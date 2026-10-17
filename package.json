@@ -1,6 +1,6 @@
 {
   "name": "schedule",
-  "version": "5.5.2",
+  "version": "5.5.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,6 +17,7 @@
     "@heroui/react": "^3.2.2",
     "@heroui/styles": "^3.2.2",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "mongodb": "^6.18.0",
     "motion": "^12.42.2",
     "next": "16.2.10",
