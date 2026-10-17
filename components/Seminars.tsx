@@ -180,7 +180,7 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
           {admin && <button type="button" disabled={busy || listEditor !== null} onClick={() => void removeAttachment(list, file.id)} aria-label={`Удалить файл ${file.name}`}>×</button>}
         </li>)}</ul> : <p>Файлов пока нет.</p>}
         {admin && <label className="seminar-attachments__upload">＋ Прикрепить файлы<input type="file" multiple disabled={busy || listEditor !== null} accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.odt,.odp,.ods,.jpg,.jpeg,.png,.webp,.gif,.mp3,.wav,.m4a,.mp4,.mov,.zip" onChange={event => { const files = event.target.files; void uploadFiles(list, files); event.target.value = ""; }}/></label>}
-        {admin && <small>До 20 файлов по 10 МБ. Файлы доступны всем участникам.</small>}
+        {admin && <small>До 20 файлов по 4 МБ. Файлы доступны всем участникам.</small>}
       </section>}
       {admin && listEditor?.id === list.id && <form className="seminar-list-edit" onSubmit={async e => {
         e.preventDefault();
