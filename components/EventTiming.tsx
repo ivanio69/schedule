@@ -8,6 +8,7 @@ type Props = {
   start: string;
   end: string;
   cancelled?: boolean;
+  lesson?: boolean;
   blocks?: RehearsalBlock[];
 };
 
@@ -24,7 +25,7 @@ function clock(value: number) {
 }
 function timestamp(date: string, time: string) { return new Date(`${date}T${time}:00`).getTime(); }
 
-export default function EventTiming({ date, start, end, cancelled, blocks = [] }: Props) {
+export default function EventTiming({ date, start, end, cancelled, lesson = false, blocks = [] }: Props) {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     const update = () => setNow(Date.now());
@@ -36,6 +37,9 @@ export default function EventTiming({ date, start, end, cancelled, blocks = [] }
   const startAt = timestamp(date, start);
   const endAt = timestamp(date, end);
   if (!Number.isFinite(startAt) || !Number.isFinite(endAt) || endAt <= startAt) return null;
+  // Lesson countdowns are useful only in the final hour and while the lesson is underway.
+  // Keep the component mounted so the countdown appears without reopening the modal.
+  if (lesson && (cancelled || now < startAt - 60 * 60 * 1000 || now >= endAt)) return null;
   const started = now >= startAt;
   const finished = now >= endAt;
   const ongoing = started && !finished && !cancelled;
