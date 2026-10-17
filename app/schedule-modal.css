@@ -96,18 +96,17 @@
 .event-timeline__people summary{cursor:pointer;display:list-item;width:max-content;max-width:100%}
 .event-timeline__people>div{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .event-timeline__people span{padding:4px 7px;border:1px solid var(--border);border-radius:99px;color:var(--muted-strong)}
-.event-attendance{margin-top:18px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-raised)}
-.event-attendance__heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px}
-.event-attendance__heading strong{font-size:12px}.event-attendance__heading span{font-size:10px;color:var(--muted)}
-.event-attendance__buttons{display:flex;gap:8px}
-.event-attendance__buttons button,.event-attendance__marked button,.event-attendance__form button{flex:1;min-height:39px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);cursor:pointer;font-size:11px;font-weight:750}
+
+.event-timing__static-time{margin:18px 0 20px;font-size:18px;font-weight:750;letter-spacing:-.025em;font-variant-numeric:tabular-nums;color:var(--muted-strong)}
+.event-attendance__buttons{display:flex;gap:8px;margin-top:16px}
+.event-attendance__buttons button,.event-attendance__form button{flex:1;min-height:42px;padding:9px 12px;border:1px solid var(--border);border-radius:11px;background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;font-weight:750;transition:background .16s,border-color .16s}
 .event-attendance__buttons button:first-child{background:color-mix(in srgb,var(--accent) 10%,var(--surface));border-color:color-mix(in srgb,var(--accent) 32%,var(--border))}
-.event-attendance button:disabled{opacity:.5;cursor:wait}
-.event-attendance__marked{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px}
-.event-attendance__marked button{flex:0 0 auto;color:var(--muted-strong)}
+.event-attendance__buttons button:hover:not(:disabled),.event-attendance__form button:hover:not(:disabled){background:var(--surface-hover);border-color:var(--border-strong)}
+.event-attendance__buttons button:disabled,.event-attendance__form button:disabled{opacity:.5;cursor:wait}
 .event-attendance__form{display:grid;gap:10px;margin-top:11px}
 .event-attendance__form label{display:grid;gap:5px;font-size:11px;color:var(--muted)}
 .event-attendance__form select,.event-attendance__form input{width:100%;min-height:40px;padding:8px 10px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:10px}
-.event-attendance__form>div{display:flex;gap:8px}.event-attendance__notice{margin:10px 0 0;color:var(--muted-strong);font-size:11px;line-height:1.45}
+.event-attendance__form>div{display:flex;gap:8px}
+.event-attendance__notice{margin:10px 0 0;color:#ff9b9b;font-size:11px;line-height:1.45}
 .details-modal__share{flex-wrap:wrap}
 @media(max-width:600px){.event-timing{margin:17px 0}.event-timing__value{font-size:23px}.event-timeline__item{grid-template-columns:58px minmax(0,1fr)}}
