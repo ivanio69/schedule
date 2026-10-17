@@ -3,12 +3,17 @@ import UIKit
 import WebKit
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var connection: WidgetConnectionModel
 
     var body: some View {
-        WebAppView(url: WidgetEnvironment.widgetSetupURL, connection: connection)
+        WebAppView(url: connection.webDestination, connection: connection)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemBackground))
-            .task { await connection.initializeNativeIntegration() }
+            .ignoresSafeArea(.container, edges: .all)
+            .task(id: scenePhase) {
+                if scenePhase == .active { await connection.runForegroundUpdates() }
+            }
     }
 }
 
@@ -23,12 +28,36 @@ struct WebAppView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
+        configuration.userContentController.addUserScript(WKUserScript(source: """
+        (() => {
+            if (location.hostname !== "\(WidgetEnvironment.productionBaseURL.host ?? "")") return;
+            let viewport = document.querySelector('meta[name="viewport"]');
+            if (!viewport) {
+                viewport = document.createElement('meta');
+                viewport.name = 'viewport';
+                viewport.content = 'width=device-width, initial-scale=1';
+                document.head.appendChild(viewport);
+            }
+            const existing = viewport.content.replace(/,?\\s*viewport-fit=[^,]*/g, '');
+            viewport.content = existing + ', viewport-fit=cover';
+            const style = document.createElement('style');
+            style.textContent = `html { min-height: 100%; } body {
+                box-sizing: border-box; min-height: 100dvh;
+                padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }`;
+            document.head.appendChild(style);
+        })();
+        """, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         configuration.userContentController.add(context.coordinator, name: "scheduleWidget")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
-        webView.scrollView.contentInsetAdjustmentBehavior = .automatic
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        webView.scrollView.contentInset = .zero
+        webView.scrollView.scrollIndicatorInsets = .zero
         webView.isOpaque = false
         webView.backgroundColor = .systemBackground
         webView.scrollView.backgroundColor = .systemBackground
@@ -41,7 +70,11 @@ struct WebAppView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         if context.coordinator.lastReloadRevision != connection.webReloadRevision {
             context.coordinator.lastReloadRevision = connection.webReloadRevision
-            webView.reload()
+            if webView.url != url {
+                webView.load(URLRequest(url: url))
+            } else {
+                webView.reload()
+            }
         }
         if context.coordinator.lastBridgeRevision != connection.nativeBridgeRevision {
             context.coordinator.lastBridgeRevision = connection.nativeBridgeRevision
@@ -68,6 +101,9 @@ struct WebAppView: UIViewRepresentable {
             didReceive message: WKScriptMessage
         ) {
             guard message.name == "scheduleWidget",
+                  message.frameInfo.isMainFrame,
+                  message.frameInfo.securityOrigin.protocol == "https",
+                  message.frameInfo.securityOrigin.host == WidgetEnvironment.productionBaseURL.host,
                   let payload = message.body as? [String: Any] else { return }
 
             if payload["type"] as? String == "bridge-ready" {

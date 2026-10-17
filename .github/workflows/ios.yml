@@ -1,0 +1,20 @@
+name: iOS
+on:
+  pull_request:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios.yml'
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate class selection and time boundaries
+        run: |
+          swiftc ios/Shared/WidgetModels.swift ios/Shared/ClassActivityPlan.swift ios/Tests/ClassActivityPlanTests.swift -o /tmp/class-plan-tests
+          TZ=America/Los_Angeles /tmp/class-plan-tests
+      - name: Build app and embedded WidgetKit extension
+        run: |
+          xcodebuild -version
+          xcodebuild -project ios/Schedule214.xcodeproj -target Schedule214 -configuration Debug -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO build
