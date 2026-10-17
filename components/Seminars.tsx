@@ -111,6 +111,37 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
       setNotice(e instanceof Error ? e.message : "Не удалось удалить семинар. Проверь подключение к сети");
     } finally { setBusy(false); }
   }
+  async function uploadFiles(list: SeminarList, selected: FileList | null) {
+    if (!selected?.length || busy) return;
+    setBusy(true); setNotice("");
+    let uploaded = 0;
+    try {
+      for (const file of Array.from(selected)) {
+        const form = new FormData();
+        form.set("listId", list.id);
+        form.set("file", file);
+        const response = await fetch("/api/admin/seminars/files", { method: "POST", body: form });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data?.error ?? "Не удалось прикрепить файл");
+        uploaded++;
+      }
+      setNotice(uploaded === 1 ? "Файл прикреплён" : `Прикреплено файлов: ${uploaded}`);
+    } catch (error) {
+      setNotice((error instanceof Error ? error.message : "Не удалось прикрепить файлы") + (uploaded ? ` · добавлено: ${uploaded}` : ""));
+    } finally { await load(); setBusy(false); }
+  }
+  async function removeAttachment(list: SeminarList, fileId: string) {
+    if (busy || !confirm("Удалить этот файл из семинара?")) return;
+    setBusy(true); setNotice("");
+    try {
+      const query = new URLSearchParams({ listId: list.id, fileId });
+      const response = await fetch(`/api/admin/seminars/files?${query}`, { method: "DELETE" });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error ?? "Не удалось удалить файл");
+      setNotice("Файл удалён");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Не удалось удалить файл"); }
+    finally { await load(); setBusy(false); }
+  }
   return <section className={`seminars ${admin ? "seminars-admin" : "seminars-client"}`}>
     {admin ? <AdminHeading title="Семинары" description="Создавай темы и управляй участниками." actions={<button className="admin-secondary" disabled={busy} onClick={() => void load()}>Обновить</button>}/> : <header className="seminars-heading"><div><p className="eyebrow">СЕМИНАРЫ</p><h1>Семинары</h1><span>Выбирай темы по предметам. Все видят, кто записан.</span></div></header>}
     {error && <p role="alert" className="seminar-message">{error}</p>}
@@ -142,6 +173,15 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
     {!admin && lists.length > 0 && !visibleLists.length && <div className="seminar-empty"><h2>{filter === "mine" && !search ? "Пока нет твоих тем" : "Ничего не найдено"}</h2><p>Попробуй другой запрос или посмотри все темы.</p><button type="button" onClick={() => { setQuery(""); setFilter("all"); }}>Показать все темы</button></div>}
     {groups.map(group => <section key={group} className="seminar-subject"><h2>{group}</h2>{visibleLists.filter(l => l.subject === group).map(list => { const listIsMine = !admin && list.topics.some(topic => topic.studentIds.includes(personId ?? "")); return <article key={list.id} className={`seminar-list${listIsMine ? " seminar-list-mine" : ""}`}>
       <header className="seminar-list-header"><h3>{admin ? <span className="seminar-summary"><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему{list.dateMode === "all" && list.date ? ` · ${dateText(list.date)}` : ""}</small></span><button type="button" disabled={busy || listEditor !== null} onClick={() => { setEditor(null); setListEditor({ ...list, dateMode: list.dateMode ?? "none", topics: list.topics.map(topic => ({ ...topic })) }); }} aria-label={`Редактировать семинар ${list.title}`}>Изменить</button><button type="button" className="seminar-delete admin-danger" disabled={busy} onClick={() => void remove(list)} aria-label={`Удалить семинар ${list.title}`}>Удалить</button></span> : <button className="seminar-summary" disabled={filtering} aria-expanded={isOpen(list.id)} aria-controls={`seminar-topics-${list.id}`} onClick={() => setExpanded(current => { const next = new Set(current); if (next.has(list.id)) next.delete(list.id); else next.add(list.id); return next; })}><span className="seminar-summary-text"><strong>{list.title}</strong><small>Тем: {list.topics.length} · до {list.capacity} чел. на тему{list.dateMode === "all" && list.date ? ` · ${dateText(list.date)}` : ""}</small></span>{listIsMine && <span className="seminar-mine-badge">Мой семинар</span>}<span className="seminar-summary-count">{list.topics.filter(t => t.studentIds.length < list.capacity).length} свободно</span><svg className={isOpen(list.id) ? "is-open" : ""} viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></button>}</h3></header>
+      {((list.files?.length ?? 0) > 0 || admin) && <section className="seminar-attachments" aria-label="Материалы семинара">
+        <div className="seminar-attachments__heading"><strong>Материалы</strong><span>{list.files?.length ?? 0} файлов</span></div>
+        {list.files?.length ? <ul>{list.files.map(file => <li key={file.id}>
+          <a href={`/api/seminars/files/${encodeURIComponent(file.id)}`} download title={file.name}><span aria-hidden="true">↧</span><span className="seminar-attachments__name">{file.name}</span><small>{file.size >= 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(1)} МБ` : `${Math.ceil(file.size / 1024)} КБ`}</small></a>
+          {admin && <button type="button" disabled={busy || listEditor !== null} onClick={() => void removeAttachment(list, file.id)} aria-label={`Удалить файл ${file.name}`}>×</button>}
+        </li>)}</ul> : <p>Файлов пока нет.</p>}
+        {admin && <label className="seminar-attachments__upload">＋ Прикрепить файлы<input type="file" multiple disabled={busy || listEditor !== null} accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.odt,.odp,.ods,.jpg,.jpeg,.png,.webp,.gif,.mp3,.wav,.m4a,.mp4,.mov,.zip" onChange={event => { const files = event.target.files; void uploadFiles(list, files); event.target.value = ""; }}/></label>}
+        {admin && <small>До 20 файлов по 10 МБ. Файлы доступны всем участникам.</small>}
+      </section>}
       {admin && listEditor?.id === list.id && <form className="seminar-list-edit" onSubmit={async e => {
         e.preventDefault();
         if (await mutate("PATCH", { listId: listEditor.id, revision: listEditor.revision, subject: listEditor.subject, title: listEditor.title, capacity: listEditor.capacity, topics: listEditor.topics.map(topic => ({ ...(list.topics.some(existing => existing.id === topic.id) ? { id: topic.id } : {}), title: topic.title, date: listEditor.dateMode === "topics" ? topic.date ?? "" : "" })), dateMode: listEditor.dateMode ?? "none", date: listEditor.dateMode === "all" ? listEditor.date : undefined }, "Семинар обновлён")) setListEditor(null);
