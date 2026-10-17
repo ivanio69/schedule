@@ -14,6 +14,9 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("ru-RU", { weekday: "short", day: "numeric", month: "short" })
     .format(new Date(value + "T12:00:00"));
 }
+function formatDatePart(value: string, options: Intl.DateTimeFormatOptions) {
+  return new Intl.DateTimeFormat("ru-RU", options).format(new Date(value + "T12:00:00"));
+}
 
 export default function DashboardRehearsals() {
   const [items, setItems] = useState<Rehearsal[]>([]);
@@ -94,30 +97,50 @@ export default function DashboardRehearsals() {
   return <>
     {!ready ? <section className="dashboard-rehearsals"><LoadingState compact label="Загружаем репетиции" detail="Проверяем ближайшие события."/></section> : items.length > 0 ? (
       <section className="dashboard-rehearsals" aria-label="Ближайшие репетиции">
-        <div className="dashboard-rehearsals__head"><h2>Ближайшие репетиции</h2><span>{items.length}</span></div>
+        <div className="dashboard-rehearsals__head">
+          <h2>Ближайшие репетиции</h2>
+          <span className="dashboard-rehearsals__count">{items.length}</span>
+        </div>
         <div className="dashboard-rehearsals__list">
-          {items.map(item => <button
-            type="button"
-            key={item.id}
-            className={item.isGlobal ? "dashboard-rehearsal is-global" : "dashboard-rehearsal"}
-            onClick={event => { lastTrigger.current = event.currentTarget; setSelectedId(item.id); }}
-            aria-label={"Открыть репетицию «" + item.subject + "» " + formatDate(item.date) + ", " + item.timeStart}
-          >
-            <span className="dashboard-rehearsal__date">
-              <span className="dashboard-rehearsal__start">{item.timeStart}</span>
-              <span className="dashboard-rehearsal__end">{item.timeEnd}</span>
-              <time dateTime={item.date}>{formatDate(item.date)}</time>
-            </span>
-            <span className="dashboard-rehearsal__main">
-              <span className="dashboard-rehearsal__kind">{item.isGlobal ? "ОБЩАЯ РЕПЕТИЦИЯ" : "РЕПЕТИЦИЯ"}</span>
-              <strong className="dashboard-rehearsal__subject">{item.subject}</strong>
-              <span className="dashboard-rehearsal__meta">
-                <span>Ответственный: {item.responsible}</span>
-                {item.blocks?.length ? <span>{item.blocks.length} блоков</span> : null}
-                <span>{getRehearsalAudienceNames(item).length} приглаш.</span>
+          {items.map(item => {
+            const blocks = item.blocks?.length ?? 0;
+            const participants = getRehearsalAudienceNames(item).length;
+            return <button
+              type="button"
+              key={item.id}
+              className={item.isGlobal ? "dashboard-rehearsal is-global" : "dashboard-rehearsal"}
+              onClick={event => { lastTrigger.current = event.currentTarget; setSelectedId(item.id); }}
+              aria-label={"Открыть репетицию «" + item.subject + "» " + formatDate(item.date) + ", " + item.timeStart}
+            >
+              <span className="dashboard-rehearsal__date">
+                <span className="dashboard-rehearsal__start">{item.timeStart}</span>
+                <span className="dashboard-rehearsal__end">до {item.timeEnd}</span>
+                <span className="dashboard-rehearsal__date-rule" aria-hidden="true"/>
+                <time dateTime={item.date} className="dashboard-rehearsal__day">{formatDatePart(item.date, { day: "numeric", month: "short" })}</time>
+                <span className="dashboard-rehearsal__weekday">{formatDatePart(item.date, { weekday: "long" })}</span>
               </span>
-            </span>
-          </button>)}
+              <span className="dashboard-rehearsal__main">
+                <span className="dashboard-rehearsal__top">
+                  <span className="dashboard-rehearsal__kind"><span className="dashboard-rehearsal__dot" aria-hidden="true"/>{item.isGlobal ? "ОБЩАЯ РЕПЕТИЦИЯ" : "РЕПЕТИЦИЯ"}</span>
+                  <span className="dashboard-rehearsal__arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+                  </span>
+                </span>
+                <strong className="dashboard-rehearsal__subject">{item.subject}</strong>
+                {item.responsible && <span className="dashboard-rehearsal__responsible">Ответственный: {item.responsible}</span>}
+                <span className="dashboard-rehearsal__meta">
+                  {blocks > 0 && <span className="dashboard-rehearsal__chip">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 9h8M8 13h5"/></svg>
+                    {blocks} {blocks === 1 ? "блок" : blocks < 5 ? "блока" : "блоков"}
+                  </span>}
+                  <span className="dashboard-rehearsal__chip">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3"/><path d="M3.8 19v-1.2A4.8 4.8 0 0 1 8.6 13h.8a4.8 4.8 0 0 1 4.8 4.8V19M17 8a2.5 2.5 0 0 1 0 5m2.4 1.6c.7.7 1.1 1.7 1.1 2.7V19"/></svg>
+                    {participants} {participants === 1 ? "участник" : participants < 5 ? "участника" : "участников"}
+                  </span>
+                </span>
+              </span>
+            </button>;
+          })}
         </div>
       </section>
     ) : null}
