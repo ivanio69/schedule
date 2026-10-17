@@ -4,6 +4,13 @@ on:
     paths:
       - 'ios/**'
       - '.github/workflows/ios.yml'
+      - 'app/api/auth/**'
+      - 'lib/native-auth.ts'
+      - 'lib/telegram-openid.ts'
+      - 'lib/auth-next.ts'
+      - 'tests/native-auth.integration.ts'
+      - 'package*.json'
+      - 'proxy.ts'
 jobs:
   web-auth:
     runs-on: ubuntu-latest
