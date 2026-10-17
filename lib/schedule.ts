@@ -37,7 +37,6 @@ export type Rehearsal = {
   participantMode?: RehearsalParticipantMode;
   blocks?: RehearsalBlock[];
   notes?: string;
-  tags?: string[];
   ignoredConflictKeys?: string[];
   isGlobal?: boolean;
   createdAt: string;

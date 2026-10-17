@@ -8,11 +8,6 @@ function validTime(value: unknown) { return typeof value === "string" && /^([01]
 function validDate(value: unknown) { return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)); }
 function cleanText(value: unknown, max: number) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function cleanNotes(value: unknown) { return cleanText(value, 2000); }
-function cleanTags(value: unknown) {
-  if (value === undefined) return [];
-  if (!Array.isArray(value) || value.some(item => typeof item !== "string")) return null;
-  return [...new Set(value.map(item => item.trim().toLowerCase().slice(0, 24)).filter(Boolean))].slice(0, 8);
-}
 function cleanConflictKeys(value: unknown) {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.some(item => typeof item !== "string")) return null;
@@ -52,9 +47,8 @@ async function normalizeInput(body: unknown, creatorId: string) {
   const subject = cleanText(raw.subject, 120);
   const responsible = cleanText(raw.responsible, 120);
   const notes = cleanNotes(raw.notes);
-  const tags = cleanTags(raw.tags);
   const ignoredConflictKeys = cleanConflictKeys(raw.ignoredConflictKeys);
-  if (!subject || !responsible || !validDate(raw.date) || !tags || !ignoredConflictKeys) return null;
+  if (!subject || !responsible || !validDate(raw.date) || !ignoredConflictKeys) return null;
 
   const creator = (await getPeople(true)).find(person => person.id === creatorId);
   if (!creator) return null;
@@ -99,7 +93,6 @@ async function normalizeInput(body: unknown, creatorId: string) {
     participantMode,
     blocks,
     notes,
-    tags,
     ignoredConflictKeys,
   };
 }

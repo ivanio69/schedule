@@ -16,11 +16,6 @@ const unauthorized = () => NextResponse.json({ error: "Войди в панел�
 const validDate = (value: unknown) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
 const validTime = (value: unknown) => typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 const cleanText = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) : "";
-const cleanTags = (value: unknown) => {
-  if (value === undefined) return [];
-  if (!Array.isArray(value) || value.some(item => typeof item !== "string")) return null;
-  return [...new Set(value.map(item => item.trim().toLowerCase().slice(0, 24)).filter(Boolean))].slice(0, 8);
-};
 const cleanConflictKeys = (value: unknown) => {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.some(item => typeof item !== "string")) return null;
@@ -66,9 +61,8 @@ async function normalizeInput(body: unknown) {
   const subject = cleanText(raw.subject, 120);
   const responsible = cleanText(raw.responsible, 120);
   const notes = cleanText(raw.notes, 2000);
-  const tags = cleanTags(raw.tags);
   const ignoredConflictKeys = cleanConflictKeys(raw.ignoredConflictKeys);
-  if (!subject || !responsible || !validDate(raw.date) || !tags || !ignoredConflictKeys) return null;
+  if (!subject || !responsible || !validDate(raw.date) || !ignoredConflictKeys) return null;
   const participantMode: RehearsalParticipantMode = raw.participantMode === "blocks" ? "blocks" : "rehearsal";
   const hasSchedule = Array.isArray(raw.blocks) && raw.blocks.length > 0;
   const blocks = hasSchedule ? await normalizeBlocks(raw.blocks) : [];
@@ -99,7 +93,6 @@ async function normalizeInput(body: unknown) {
     participantMode,
     blocks: blocks ?? [],
     notes,
-    tags,
     ignoredConflictKeys,
     isGlobal: true,
   };

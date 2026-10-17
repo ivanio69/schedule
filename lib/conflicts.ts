@@ -1,3 +1,5 @@
+import type { Lesson } from "@/lib/schedule";
+
 export type ConflictInterval = {
   key: string;
   label: string;
@@ -56,4 +58,28 @@ export function buildConflictMap(intervals: ConflictInterval[]) {
   }
 
   return result;
+}
+
+/** Mark overlapping lessons that are taught to at least one shared subgroup. */
+export function buildLessonConflictMap(lessons: readonly Lesson[], checkWeeks = false) {
+  const conflicts = new Map<number, string[]>();
+  const add = (index: number, other: Lesson) => {
+    const label = `${other.timeStart}–${other.timeEnd} · ${other.class || "Без названия"}`;
+    conflicts.set(index, [...(conflicts.get(index) ?? []), label]);
+  };
+  for (let i = 0; i < lessons.length; i++) {
+    const first = lessons[i];
+    if (!first.class.trim() || first.occurrence?.status === "cancelled" || first.timeStart >= first.timeEnd) continue;
+    for (let j = i + 1; j < lessons.length; j++) {
+      const second = lessons[j];
+      if (!second.class.trim() || second.occurrence?.status === "cancelled" || second.timeStart >= second.timeEnd) continue;
+      if (!timesOverlap(first.timeStart, first.timeEnd, second.timeStart, second.timeEnd)) continue;
+      // Empty group/week lists mean the lesson applies to everyone/every week.
+      if (first.group.length && second.group.length && !first.group.some(group => second.group.includes(group))) continue;
+      if (checkWeeks && first.weeks.length && second.weeks.length && !first.weeks.some(week => second.weeks.includes(week))) continue;
+      add(i, second);
+      add(j, first);
+    }
+  }
+  return conflicts;
 }

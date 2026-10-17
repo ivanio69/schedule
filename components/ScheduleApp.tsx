@@ -9,9 +9,8 @@ import { RehearsalCard } from "@/components/RehearsalCard";
 import { ScheduleCard } from "@/components/ScheduleCard";
 import { IndividualLessonCard, type ScheduleIndividualLesson } from "@/components/IndividualLessonCard";
 import type { Person } from "@/lib/people";
-import { getRehearsalAudienceNames } from "@/lib/rehearsals";
+import EventDetailsContent from "@/components/EventDetailsContent";
 import LoadingState from "@/components/LoadingState";
-import PersonalEventNote from "@/components/PersonalEventNote";
 import { buildConflictMap, type ConflictRecord, type ConflictInterval } from "@/lib/conflicts";
 import type { RehearsalDraft } from "@/lib/rehearsal-drafts";
 
@@ -41,10 +40,6 @@ function getDateForSelection(schedule: ScheduleData, week: number, day: number) 
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function formatDate(date: string) { return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${date}T12:00:00`)); }
-function parseRehearsalTags(value: string) {
-  return [...new Set(value.split(/[,\n]/).map(tag => tag.trim().replace(/^#/, "").toLowerCase().slice(0, 24)).filter(Boolean))].slice(0, 8);
-}
 
 function getSelectionForDate(schedule: ScheduleData, value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -73,12 +68,6 @@ function lessonPersonalNoteKey(lesson: Lesson) {
     : `${lesson.class}|${lesson.timeStart}|${lesson.timeEnd}|${lesson.auditorium}|${lesson.group.join(",")}`;
 }
 
-function detailsPersonalNoteKey(details: Details) {
-  if (details.type === "lesson") return lessonPersonalNoteKey(details.item);
-  if (details.type === "individual") return `individual:${details.item.id}`;
-  return `rehearsal:${details.item.id}`;
-}
-
 export default function ScheduleApp() {
   const [schedule, setSchedule] = useState<ScheduleData | null>(null);
   const [rehearsals, setRehearsals] = useState<Rehearsal[]>([]);
@@ -99,7 +88,6 @@ export default function ScheduleApp() {
   const [rehearsalResponsible, setRehearsalResponsible] = useState("");
   const [rehearsalParticipants, setRehearsalParticipants] = useState<string[]>([]);
   const [rehearsalNotes, setRehearsalNotes] = useState("");
-  const [rehearsalTags, setRehearsalTags] = useState("");
   const [rehearsalStart, setRehearsalStart] = useState("18:00");
   const [rehearsalEnd, setRehearsalEnd] = useState("20:00");
   const [rehearsalSaving, setRehearsalSaving] = useState(false);
@@ -113,7 +101,6 @@ export default function ScheduleApp() {
   const [activeDraftId, setActiveDraftId] = useState("");
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftNotice, setDraftNotice] = useState("");
-  const [deepLinkNotice, setDeepLinkNotice] = useState("");
   const didInitializeSelection = useRef(false);
   const didOpenDeepLink = useRef(false);
 
@@ -122,9 +109,10 @@ export default function ScheduleApp() {
   const subgroupSubjects = useMemo(() => schedule ? getSubgroupSubjects(schedule) : [], [schedule]);
   const lessons = useMemo(() => schedule ? getLessonsForWeek(schedule, day, week, preferences, chinaMode) : [], [schedule, day, week, preferences, chinaMode]);
   const selectedDate = useMemo(() => schedule ? getDateForSelection(schedule, week, day) : "", [schedule, week, day]);
+  const creatorName = useMemo(() => people.find(person => person.id === creatorId)?.name ?? "", [people, creatorId]);
+  const isAdmin = people.some(person => person.id === creatorId && person.role === "admin");
   const dayRehearsals = useMemo(() => rehearsals.filter(item => item.date === selectedDate), [rehearsals, selectedDate]);
   const dayIndividualLessons = useMemo(() => individualLessons.filter(item => item.date === selectedDate), [individualLessons, selectedDate]);
-  const creatorName = useMemo(() => people.find(person => person.id === creatorId)?.name ?? "", [people, creatorId]);
   const visibleRehearsalConflicts = useMemo(() => rehearsalConflicts.filter(conflict => !rehearsalIgnoredConflictKeys.includes(conflict.key)), [rehearsalConflicts, rehearsalIgnoredConflictKeys]);
   const ignoredRehearsalConflicts = useMemo(() => rehearsalConflicts.filter(conflict => rehearsalIgnoredConflictKeys.includes(conflict.key)), [rehearsalConflicts, rehearsalIgnoredConflictKeys]);
   const ignoreRehearsalConflict = (key: string) => setRehearsalIgnoredConflictKeys(current => current.includes(key) ? current : [...current, key]);
@@ -140,8 +128,7 @@ export default function ScheduleApp() {
         const response = await fetch(`/api/schedule?date=${selectedDate}&personId=${encodeURIComponent(creatorId)}`, { cache: "no-store", signal: controller.signal });
         if (!response.ok) throw new Error();
         const data = await response.json() as { schedule: ScheduleData; rehearsals: Rehearsal[] };
-        // A previous date/profile can finish after the current day's request.
-        // Ignore it even if the response body completed while being aborted.
+        // Ignore a response from a previous date/profile after it has been replaced.
         if (cancelled) return;
         setSchedule(data.schedule);
         setRehearsals(data.rehearsals ?? []);
@@ -161,14 +148,10 @@ export default function ScheduleApp() {
           }
         }
         setPreferences(readPreferences(getSubgroupSubjects(data.schedule)));
-      } catch {
-        if (!cancelled) setRehearsals([]);
-      } finally { if (!cancelled) setLoading(false); }
+      } catch { if (!cancelled) setRehearsals([]); }
+      finally { if (!cancelled) setLoading(false); }
     })();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
+    return () => { cancelled = true; controller.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, creatorId]);
 
@@ -312,31 +295,6 @@ export default function ScheduleApp() {
     };
   }, [detailsModalActive]);
 
-  const copyDetailsLink = async () => {
-    if (!details || !selectedDate) return;
-    const url = new URL("/schedule", window.location.origin);
-    url.searchParams.set("date", selectedDate);
-    if (details.type === "rehearsal") url.searchParams.set("rehearsal", details.item.id);
-    if (details.type === "individual") url.searchParams.set("individual", details.item.id);
-    if (details.type === "lesson") url.searchParams.set("lesson", lessonDeepLinkId(details.item));
-    const value = url.toString();
-    try {
-      await navigator.clipboard.writeText(value);
-      setDeepLinkNotice("Ссылка скопирована");
-    } catch {
-      const input = document.createElement("textarea");
-      input.value = value;
-      input.style.position = "fixed";
-      input.style.opacity = "0";
-      document.body.appendChild(input);
-      input.select();
-      const copied = document.execCommand("copy");
-      input.remove();
-      setDeepLinkNotice(copied ? "Ссылка скопирована" : "Не удалось скопировать ссылку");
-    }
-    window.setTimeout(() => setDeepLinkNotice(""), 1800);
-  };
-
   const refreshRehearsals = async () => {
     const response = await fetch(`/api/rehearsals?date=${selectedDate}&personId=${encodeURIComponent(creatorId)}`, { cache: "no-store" });
     if (!response.ok) return;
@@ -357,7 +315,6 @@ export default function ScheduleApp() {
     setRehearsalResponsible(draft.responsible);
     setRehearsalParticipants(creatorName ? [...new Set([creatorName, ...draft.participants])] : draft.participants);
     setRehearsalNotes(draft.notes);
-    setRehearsalTags((draft.tags ?? []).join(", "));
     setRehearsalIgnoredConflictKeys(draft.ignoredConflictKeys ?? []);
     setRehearsalStart(draft.timeStart);
     setRehearsalEnd(draft.timeEnd);
@@ -369,7 +326,7 @@ export default function ScheduleApp() {
     try {
       const response = await fetch("/api/rehearsal-drafts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         id: activeDraftId || undefined, ownerId: creatorId, kind: "simple", subject: rehearsalSubject, responsible: rehearsalResponsible,
-        date: selectedDate, notes: rehearsalNotes, tags: parseRehearsalTags(rehearsalTags), ignoredConflictKeys: rehearsalIgnoredConflictKeys, timeStart: rehearsalStart, timeEnd: rehearsalEnd, participantMode: "rehearsal",
+        date: selectedDate, notes: rehearsalNotes, ignoredConflictKeys: rehearsalIgnoredConflictKeys, timeStart: rehearsalStart, timeEnd: rehearsalEnd, participantMode: "rehearsal",
         participants: rehearsalParticipants, blocks: [],
       }) });
       const data = await response.json();
@@ -405,11 +362,11 @@ export default function ScheduleApp() {
     if (!rehearsalSubject.trim() || !rehearsalResponsible.trim()) { setRehearsalError("Укажите предмет и ответственного"); return; }
     setRehearsalSaving(true);
     try {
-      const response = await fetch("/api/rehearsals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ creatorId, subject: rehearsalSubject, date: selectedDate, timeStart: rehearsalStart, timeEnd: rehearsalEnd, responsible: rehearsalResponsible, participants, participantMode: "rehearsal", blocks: [], notes: rehearsalNotes, tags: parseRehearsalTags(rehearsalTags), ignoredConflictKeys: rehearsalIgnoredConflictKeys }) });
+      const response = await fetch("/api/rehearsals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ creatorId, subject: rehearsalSubject, date: selectedDate, timeStart: rehearsalStart, timeEnd: rehearsalEnd, responsible: rehearsalResponsible, participants, participantMode: "rehearsal", blocks: [], notes: rehearsalNotes, ignoredConflictKeys: rehearsalIgnoredConflictKeys }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Не удалось создать репетицию");
       if (activeDraftId) await deleteActiveDraft();
-      setRehearsalSubject(""); setRehearsalResponsible(""); setRehearsalParticipants([]); setRehearsalNotes(""); setRehearsalTags(""); setRehearsalOpen(false); await refreshRehearsals();
+      setRehearsalSubject(""); setRehearsalResponsible(""); setRehearsalParticipants([]); setRehearsalNotes(""); setRehearsalOpen(false); await refreshRehearsals();
     } catch (error) { setRehearsalError(error instanceof Error ? error.message : "Не удалось создать репетицию"); }
     finally { setRehearsalSaving(false); }
   };
@@ -419,7 +376,6 @@ export default function ScheduleApp() {
     setRehearsalResponsible("");
     setRehearsalParticipants(creatorName ? [creatorName] : []);
     setRehearsalNotes("");
-    setRehearsalTags("");
     setRehearsalStart("18:00");
     setRehearsalEnd("20:00");
     setRehearsalDate(selectedDate);
@@ -436,7 +392,6 @@ export default function ScheduleApp() {
     setRehearsalResponsible(item.responsible);
     setRehearsalParticipants(creatorName ? [...new Set([creatorName, ...item.participants])] : item.participants);
     setRehearsalNotes(item.notes ?? "");
-    setRehearsalTags((item.tags ?? []).join(", "));
     setRehearsalStart(item.timeStart);
     setRehearsalEnd(item.timeEnd);
     setRehearsalDate(item.date);
@@ -469,7 +424,6 @@ export default function ScheduleApp() {
           participantMode: "rehearsal",
           blocks: [],
           notes: rehearsalNotes,
-          tags: parseRehearsalTags(rehearsalTags),
           ignoredConflictKeys: rehearsalIgnoredConflictKeys,
         }),
       });
@@ -500,7 +454,8 @@ export default function ScheduleApp() {
     ...dayRehearsals.map(item => ({ key: `rehearsal-${item.id}`, type: "rehearsal" as const, time: item.timeStart, item })),
   ].sort((a, b) => a.time.localeCompare(b.time));
 
-  const personalIntervals: ConflictInterval[] = entries.flatMap(entry => {
+  // Conflict badges on event cards are for administrators only.
+  const personalIntervals: ConflictInterval[] = isAdmin ? entries.flatMap(entry => {
     if (entry.type === "lesson") {
       if (entry.item.occurrence?.status === "cancelled") return [];
       return [{ key: entry.key, label: `Пара: ${entry.item.class}`, timeStart: entry.item.timeStart, timeEnd: entry.item.timeEnd }];
@@ -515,8 +470,8 @@ export default function ScheduleApp() {
         .map(block => ({ key: entry.key, label: `Репетиция: ${entry.item.subject} · ${block.title}`, timeStart: block.timeStart, timeEnd: block.timeEnd }));
     }
     return [{ key: entry.key, label: `Репетиция: ${entry.item.subject}`, timeStart: entry.item.timeStart, timeEnd: entry.item.timeEnd }];
-  });
-  const conflictMap = buildConflictMap(personalIntervals);
+  }) : [];
+  const conflictMap = isAdmin ? buildConflictMap(personalIntervals) : new Map<string, string[]>();
 
   return <MotionConfig reducedMotion="user"><main className="schedule-shell">
     <header className="schedule-header"><div><p className="eyebrow">214Р · расписание</p><h1>{view === "schedule" ? "Учебная неделя" : "Настройки"}</h1>{view === "schedule" && <p className="week-caption">{formatWeekRange(schedule, week)}</p>}</div></header>
@@ -524,11 +479,11 @@ export default function ScheduleApp() {
       <div className="week-toolbar"><button type="button" className="icon-button" onClick={()=>setWeek(v=>Math.max(1,v-1))} disabled={week===1} aria-label="Предыдущая неделя">←</button><button type="button" className="week-number" onClick={()=>setWeek(currentWeek)} aria-label="Перейти к текущей неделе"><span>Неделя</span><strong>{week}</strong>{week===currentWeek&&<em>сейчас</em>}</button><button type="button" className="icon-button" onClick={()=>setWeek(v=>Math.min(totalWeeks,v+1))} disabled={week===totalWeeks} aria-label="Следующая неделя">→</button></div>
       <nav className="day-tabs" aria-label="Дни недели">{DAY_NAMES.map((name,index)=><button type="button" key={name} className={day===index?"is-active":""} aria-current={day===index?"page":undefined} onClick={()=>setDay(index)}><span>{name}</span><small>{index+1}</small></button>)}</nav>
       <section className="schedule-panel" {...handlers} aria-live="polite">
-        {rehearsalOpen ? <section className="rehearsal-form"><div className="rehearsal-form__head"><div><p className="rehearsal-label">Новая репетиция</p><h2>{selectedDate}</h2></div><a className="rehearsal-schedule-link" href={`/schedule/rehearsals/new?date=${encodeURIComponent(selectedDate)}`}>Создать с графиком →</a></div>{rehearsalDrafts.length>0&&<div className="rehearsal-drafts-strip"><span>Черновики</span>{rehearsalDrafts.map(draft=><button type="button" key={draft.id} className={activeDraftId===draft.id?"is-active":""} onClick={()=>loadSimpleDraft(draft)}>{draft.subject||"Без названия"} · {new Intl.DateTimeFormat("ru-RU",{hour:"2-digit",minute:"2-digit"}).format(new Date(draft.updatedAt))}</button>)}</div>}<div className="rehearsal-grid"><label>Предмет<input className="admin-input" value={rehearsalSubject} onChange={e=>setRehearsalSubject(e.target.value)} placeholder="Например, сценическое движение" autoFocus /></label><label>Ответственный<input className="admin-input" value={rehearsalResponsible} onChange={e=>setRehearsalResponsible(e.target.value)} placeholder="ФИО" /></label><label>Теги<input className="admin-input" value={rehearsalTags} onChange={e=>setRehearsalTags(e.target.value)} placeholder="прогон, сцена, костюмы" /></label><label>Начало<input className="admin-input" type="time" value={rehearsalStart} onChange={e=>setRehearsalStart(e.target.value)} /></label><label>Конец<input className="admin-input" type="time" value={rehearsalEnd} onChange={e=>setRehearsalEnd(e.target.value)} /></label><div className="rehearsal-participants"><span>Участники</span><div className="rehearsal-people-picker" role="group" aria-label="Участники репетиции">{people.map(person=><button type="button" key={person.id} className={`${rehearsalParticipants.includes(person.name)?"is-active":""}${person.name===creatorName?" is-locked":""}`} aria-pressed={rehearsalParticipants.includes(person.name)} disabled={person.name===creatorName} title={person.name===creatorName?"Автор участвует автоматически":undefined} onClick={()=>toggleRehearsalParticipant(person.name)}>{person.name}{person.name===creatorName?" · автор":""}</button>)}</div><small>{rehearsalParticipants.length?`Выбрано: ${rehearsalParticipants.length}`:"Выберите приглашённых"}</small></div><label className="rehearsal-notes-field">Заметки<textarea className="admin-input" value={rehearsalNotes} onChange={e=>setRehearsalNotes(e.target.value)} placeholder="Что взять, подготовить или не забыть…" /></label></div>{rehearsalConflictsLoading&&<p className="rehearsal-conflict-status">Проверяем пересечения…</p>}{visibleRehearsalConflicts.length>0&&<div className="rehearsal-conflict-notice"><div className="rehearsal-conflict-notice-head"><strong>Есть конфликты · {visibleRehearsalConflicts.length}</strong><button type="button" onClick={()=>setRehearsalIgnoredConflictKeys(current=>[...new Set([...current,...visibleRehearsalConflicts.map(conflict=>conflict.key)])])}>Игнорировать все</button></div>{visibleRehearsalConflicts.slice(0,6).map(conflict=><span className="rehearsal-conflict-row" key={conflict.key}><span><b>{conflict.personName}</b> · {conflict.existing.timeStart}–{conflict.existing.timeEnd} · {conflict.existing.title}</span><button type="button" onClick={()=>ignoreRehearsalConflict(conflict.key)}>Игнорировать</button></span>)}{visibleRehearsalConflicts.length>6&&<small>И ещё {visibleRehearsalConflicts.length-6}</small>}</div>}{ignoredRehearsalConflicts.length>0&&<div className="rehearsal-conflict-ignored"><div><strong>Игнорируется · {ignoredRehearsalConflicts.length}</strong><button type="button" onClick={()=>setRehearsalIgnoredConflictKeys(current=>current.filter(key=>!ignoredRehearsalConflicts.some(conflict=>conflict.key===key)))}>Вернуть все</button></div>{ignoredRehearsalConflicts.slice(0,6).map(conflict=><span key={conflict.key}><span><b>{conflict.personName}</b> · {conflict.existing.title}</span><button type="button" onClick={()=>restoreRehearsalConflict(conflict.key)}>Вернуть</button></span>)}</div>}{rehearsalError&&<p className="admin-error">{rehearsalError}</p>}{draftNotice&&<p className="rehearsal-draft-notice" role="status">{draftNotice}</p>}<div className="rehearsal-form__actions"><button type="button" className="admin-secondary" disabled={draftSaving} onClick={()=>void saveSimpleDraft()}>{draftSaving?"Сохраняю…":activeDraftId?"Обновить черновик":"Сохранить черновик"}</button><button type="button" className="admin-secondary" onClick={()=>setRehearsalOpen(false)}>Отмена</button><button type="button" className="admin-primary" disabled={rehearsalSaving} onClick={()=>void createRehearsal()}>{rehearsalSaving?"Создаю…":"Создать репетицию"}</button></div></section> : <><button type="button" className="add-rehearsal-button" onClick={openCreateRehearsal}>＋ Добавить репетицию</button><div className="schedule-scholarship-slot" /></>}
+        {rehearsalOpen ? <section className="rehearsal-form"><div className="rehearsal-form__head"><div><p className="rehearsal-label">Новая репетиция</p><h2>{selectedDate}</h2></div><a className="rehearsal-schedule-link" href={`/schedule/rehearsals/new?date=${encodeURIComponent(selectedDate)}`}>Создать с графиком →</a></div>{rehearsalDrafts.length>0&&<div className="rehearsal-drafts-strip"><span>Черновики</span>{rehearsalDrafts.map(draft=><button type="button" key={draft.id} className={activeDraftId===draft.id?"is-active":""} onClick={()=>loadSimpleDraft(draft)}>{draft.subject||"Без названия"} · {new Intl.DateTimeFormat("ru-RU",{hour:"2-digit",minute:"2-digit"}).format(new Date(draft.updatedAt))}</button>)}</div>}<div className="rehearsal-grid"><label>Предмет<input className="admin-input" value={rehearsalSubject} onChange={e=>setRehearsalSubject(e.target.value)} placeholder="Например, сценическое движение" autoFocus /></label><label>Ответственный<input className="admin-input" value={rehearsalResponsible} onChange={e=>setRehearsalResponsible(e.target.value)} placeholder="ФИО" /></label><label>Начало<input className="admin-input" type="time" value={rehearsalStart} onChange={e=>setRehearsalStart(e.target.value)} /></label><label>Конец<input className="admin-input" type="time" value={rehearsalEnd} onChange={e=>setRehearsalEnd(e.target.value)} /></label><div className="rehearsal-participants"><span>Участники</span><div className="rehearsal-people-picker" role="group" aria-label="Участники репетиции">{people.map(person=><button type="button" key={person.id} className={`${rehearsalParticipants.includes(person.name)?"is-active":""}${person.name===creatorName?" is-locked":""}`} aria-pressed={rehearsalParticipants.includes(person.name)} disabled={person.name===creatorName} title={person.name===creatorName?"Автор участвует автоматически":undefined} onClick={()=>toggleRehearsalParticipant(person.name)}>{person.name}{person.name===creatorName?" · автор":""}</button>)}</div><small>{rehearsalParticipants.length?`Выбрано: ${rehearsalParticipants.length}`:"Выберите приглашённых"}</small></div><label className="rehearsal-notes-field">Заметки<textarea className="admin-input" value={rehearsalNotes} onChange={e=>setRehearsalNotes(e.target.value)} placeholder="Что взять, подготовить или не забыть…" /></label></div>{rehearsalConflictsLoading&&<p className="rehearsal-conflict-status">Проверяем пересечения…</p>}{visibleRehearsalConflicts.length>0&&<div className="rehearsal-conflict-notice"><div className="rehearsal-conflict-notice-head"><strong>Есть конфликты · {visibleRehearsalConflicts.length}</strong><button type="button" onClick={()=>setRehearsalIgnoredConflictKeys(current=>[...new Set([...current,...visibleRehearsalConflicts.map(conflict=>conflict.key)])])}>Игнорировать все</button></div>{visibleRehearsalConflicts.slice(0,6).map(conflict=><span className="rehearsal-conflict-row" key={conflict.key}><span><b>{conflict.personName}</b> · {conflict.existing.timeStart}–{conflict.existing.timeEnd} · {conflict.existing.title}</span><button type="button" onClick={()=>ignoreRehearsalConflict(conflict.key)}>Игнорировать</button></span>)}{visibleRehearsalConflicts.length>6&&<small>И ещё {visibleRehearsalConflicts.length-6}</small>}</div>}{ignoredRehearsalConflicts.length>0&&<div className="rehearsal-conflict-ignored"><div><strong>Игнорируется · {ignoredRehearsalConflicts.length}</strong><button type="button" onClick={()=>setRehearsalIgnoredConflictKeys(current=>current.filter(key=>!ignoredRehearsalConflicts.some(conflict=>conflict.key===key)))}>Вернуть все</button></div>{ignoredRehearsalConflicts.slice(0,6).map(conflict=><span key={conflict.key}><span><b>{conflict.personName}</b> · {conflict.existing.title}</span><button type="button" onClick={()=>restoreRehearsalConflict(conflict.key)}>Вернуть</button></span>)}</div>}{rehearsalError&&<p className="admin-error">{rehearsalError}</p>}{draftNotice&&<p className="rehearsal-draft-notice" role="status">{draftNotice}</p>}<div className="rehearsal-form__actions"><button type="button" className="admin-secondary" disabled={draftSaving} onClick={()=>void saveSimpleDraft()}>{draftSaving?"Сохраняю…":activeDraftId?"Обновить черновик":"Сохранить черновик"}</button><button type="button" className="admin-secondary" onClick={()=>setRehearsalOpen(false)}>Отмена</button><button type="button" className="admin-primary" disabled={rehearsalSaving} onClick={()=>void createRehearsal()}>{rehearsalSaving?"Создаю…":"Создать репетицию"}</button></div></section> : <><button type="button" className="add-rehearsal-button" onClick={openCreateRehearsal}>＋ Добавить репетицию</button><div className="schedule-scholarship-slot" /></>}
         <AnimatePresence mode="wait" initial={false}><motion.div key={`${week}-${day}-${chinaMode}-${JSON.stringify(preferences)}-${dayIndividualLessons.map(item=>item.id).join(",")}`} className="lesson-list" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.18}}>{entries.map(entry=>entry.type==="lesson"?<ScheduleCard key={entry.key} lesson={entry.item} conflictWith={conflictMap.get(entry.key)} onClick={()=>setDetails({type:"lesson",item:entry.item})}/>:entry.type==="individual"?<IndividualLessonCard key={entry.key} lesson={entry.item} conflictWith={conflictMap.get(entry.key)} onClick={()=>setDetails({type:"individual",item:entry.item})}/>:<RehearsalCard key={entry.key} rehearsal={entry.item} conflictWith={conflictMap.get(entry.key)} own={entry.item.creatorId===creatorId} onDelete={entry.item.creatorId===creatorId?()=>void removeRehearsal(entry.item.id):undefined} onClick={()=>setDetails({type:"rehearsal",item:entry.item})}/>) }{entries.length===0&&<div className="empty-state"><span className="empty-state__icon">—</span><h2>Ничего нет</h2><p>В этот день ничего не запланировано.</p></div>}</motion.div></AnimatePresence>
       </section>
     </> : <section className="settings-panel" aria-label="Настройки расписания"><div className="settings-section"><div><p className="settings-section__eyebrow">Подгруппы</p><h2>Настройки предметов</h2><p>Для каждого предмета с подгруппами выберите, какую группу показывать.</p></div><div className="settings-list">{subgroupSubjects.map(({name,groups})=>{const value=preferences[name]??"both";return <div className="setting-row setting-row--subject" key={name}><span><strong>{name}</strong><small>Подгруппы: {groups.join(" и ")}</small></span><div className="preference-switch" role="group" aria-label={`Подгруппа для предмета ${name}`}>{(["1","2","both"] as GroupPreference[]).map(option=><button type="button" key={option} className={value===option?"is-active":""} aria-pressed={value===option} onClick={()=>setPreference(name,option)}>{option==="both"?"Обе":option}</button>)}</div></div>})}</div></div></section>}
     <nav className="bottom-nav" aria-label="Разделы"><button type="button" className={view==="schedule"?"is-active":""} onClick={()=>setView("schedule")}>Расписание</button><button type="button" className={view==="settings"?"is-active":""} onClick={()=>setView("settings")}>Настройки</button></nav>
-    {modalPortalReady && createPortal(<AnimatePresence initial={false} onExitComplete={() => setDetailsExiting(false)}>{details&&<motion.div className="details-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)closeDetails()}} initial={{opacity:0}} animate={{opacity:1,transition:{duration:.14,ease:[.22,1,.36,1]}}} exit={{opacity:0,transition:{duration:.12,ease:[.4,0,1,1]}}}><motion.section className={`details-modal${details.type==="rehearsal"?" details-modal--rehearsal":""}`} role="dialog" aria-modal="true" aria-labelledby="details-title" initial={{opacity:0,y:14,scale:.985}} animate={{opacity:1,y:0,scale:1,transition:{duration:.18,ease:[.22,1,.36,1]}}} exit={{opacity:0,y:8,scale:.992,transition:{duration:.12,ease:[.4,0,1,1]}}}><div className="details-modal__header"><div><span className="details-modal__eyebrow">{details.type==="lesson"?"Занятие":details.type==="individual"?"Индивидуальное занятие":rehearsalEditing?"Редактирование репетиции":"Репетиция"}</span><h2 id="details-title">{details.type==="lesson"?details.item.class:details.type==="rehearsal"&&rehearsalEditing?rehearsalSubject:details.item.subject}</h2></div><button type="button" className="details-modal__close" onClick={closeDetails} aria-label="Закрыть">×</button></div>{details.type==="rehearsal"&&rehearsalEditing?<div className="details-modal__edit-form"><div className="details-modal__edit-grid"><label>Название<input className="admin-input" value={rehearsalSubject} onChange={e=>setRehearsalSubject(e.target.value)} autoFocus /></label><label>Дата<input className="admin-input" type="date" value={rehearsalDate} onChange={e=>setRehearsalDate(e.target.value)} /></label><label>Ответственный<input className="admin-input" value={rehearsalResponsible} onChange={e=>setRehearsalResponsible(e.target.value)} /></label><label>Теги<input className="admin-input" value={rehearsalTags} onChange={e=>setRehearsalTags(e.target.value)} placeholder="прогон, сцена, костюмы" /></label><label>Начало<input className="admin-input" type="time" value={rehearsalStart} onChange={e=>setRehearsalStart(e.target.value)} /></label><label>Конец<input className="admin-input" type="time" value={rehearsalEnd} onChange={e=>setRehearsalEnd(e.target.value)} /></label><label className="details-modal__edit-notes">Заметки<textarea className="admin-input" value={rehearsalNotes} onChange={e=>setRehearsalNotes(e.target.value)} placeholder="Заметки к репетиции" /></label><div className="details-modal__edit-participants"><span>Участники</span><div className="rehearsal-people-picker" role="group" aria-label="Участники репетиции">{people.map(person=><button type="button" key={person.id} className={`${rehearsalParticipants.includes(person.name)?"is-active":""}${person.name===creatorName?" is-locked":""}`} aria-pressed={rehearsalParticipants.includes(person.name)} disabled={person.name===creatorName} title={person.name===creatorName?"Автор участвует автоматически":undefined} onClick={()=>toggleRehearsalParticipant(person.name)}>{person.name}{person.name===creatorName?" · автор":""}</button>)}</div><small>{rehearsalParticipants.length?`Выбрано: ${rehearsalParticipants.length}`:"Выберите приглашённых"}</small></div></div>{rehearsalConflictsLoading&&<p className="rehearsal-conflict-status">Проверяем пересечения…</p>}{visibleRehearsalConflicts.length>0&&<div className="rehearsal-conflict-notice"><div className="rehearsal-conflict-notice-head"><strong>Есть конфликты · {visibleRehearsalConflicts.length}</strong><button type="button" onClick={()=>setRehearsalIgnoredConflictKeys(current=>[...new Set([...current,...visibleRehearsalConflicts.map(conflict=>conflict.key)])])}>Игнорировать все</button></div>{visibleRehearsalConflicts.slice(0,6).map(conflict=><span className="rehearsal-conflict-row" key={conflict.key}><span><b>{conflict.personName}</b> · {conflict.existing.timeStart}–{conflict.existing.timeEnd} · {conflict.existing.title}</span><button type="button" onClick={()=>ignoreRehearsalConflict(conflict.key)}>Игнорировать</button></span>)}</div>}{ignoredRehearsalConflicts.length>0&&<div className="rehearsal-conflict-ignored"><div><strong>Игнорируется · {ignoredRehearsalConflicts.length}</strong><button type="button" onClick={()=>setRehearsalIgnoredConflictKeys(current=>current.filter(key=>!ignoredRehearsalConflicts.some(conflict=>conflict.key===key)))}>Вернуть все</button></div>{ignoredRehearsalConflicts.slice(0,6).map(conflict=><span key={conflict.key}><span><b>{conflict.personName}</b> · {conflict.existing.title}</span><button type="button" onClick={()=>restoreRehearsalConflict(conflict.key)}>Вернуть</button></span>)}</div>}{rehearsalError&&<p className="admin-error">{rehearsalError}</p>}<div className="details-modal__actions"><button type="button" className="admin-secondary" disabled={rehearsalSaving} onClick={()=>{setRehearsalEditing(false);setRehearsalError("")}}>Отмена</button><button type="button" className="details-modal__save" disabled={rehearsalSaving} onClick={()=>void saveRehearsalEdit(details.item)}>{rehearsalSaving?"Сохраняю…":"Сохранить изменения"}</button></div></div>:<><div className="details-modal__time"><strong>{details.item.timeStart}</strong><span>—</span><span>{details.item.timeEnd}</span></div><dl className="details-modal__list"><div><dt>Дата</dt><dd>{formatDate(details.type==="lesson"?selectedDate:details.item.date)}</dd></div>{details.type==="lesson"?<><div><dt>Преподаватель</dt><dd>{details.item.professor}</dd></div><div><dt>Аудитория</dt><dd>{details.item.auditorium}</dd></div><div><dt>Подгруппа</dt><dd>{details.item.group.filter(group=>typeof group==="number").length===2?"Обе группы":`${details.item.group[0]} подгруппа`}</dd></div>{details.item.occurrence?.status&&<div><dt>Статус</dt><dd>{details.item.occurrence.status==="cancelled"?"Пара отменена":"Пара перенесена"}</dd></div>}{details.item.occurrence?.reason&&<div><dt>Причина</dt><dd>{details.item.occurrence.reason}</dd></div>}{details.item.occurrence?.status==="moved"&&details.item.occurrence.originalDate&&<div><dt>Изначально</dt><dd>{formatDate(details.item.occurrence.originalDate)}</dd></div>}</>:details.type==="individual"?<><div><dt>Студент</dt><dd>{details.item.personName}</dd></div><div><dt>Преподаватель</dt><dd>{details.item.professor}</dd></div><div><dt>Аудитория</dt><dd>{details.item.auditorium}</dd></div>{details.item.note&&<div><dt>Примечание</dt><dd>{details.item.note}</dd></div>}</>:<><div><dt>Автор</dt><dd>{details.item.creatorName??"Автор не указан"}</dd></div><div><dt>Ответственный</dt><dd>{details.item.responsible}</dd></div>{details.item.tags?.length?<div><dt>Теги</dt><dd>{details.item.tags.map(tag=>`#${tag}`).join(" ")}</dd></div>:null}<div><dt>Участники</dt><dd className="details-modal__participants">{getRehearsalAudienceNames(details.item).length?getRehearsalAudienceNames(details.item).map(p=><span key={p}>{p}</span>):<span>Не указаны</span>}</dd></div><div><dt>Заметки</dt><dd>{details.item.notes?.trim()||"Нет заметок"}</dd></div></>}</dl><div className="details-modal__personal-note"><PersonalEventNote noteKey={detailsPersonalNoteKey(details)} /></div><div className="details-modal__share"><button type="button" onClick={()=>void copyDetailsLink()}>↗ Скопировать ссылку</button>{deepLinkNotice&&<span role="status">{deepLinkNotice}</span>}</div>{details.type==="rehearsal"&&details.item.blocks?.length?<section className="details-modal__schedule"><div className="details-modal__schedule-head"><span>ГРАФИК</span><strong>{details.item.blocks.length} {details.item.blocks.length===1?"блок":"блоков"}</strong></div>{details.item.blocks.map((block,index)=><article key={block.id} className="details-modal__block"><div className="details-modal__block-time"><strong>{block.timeStart}</strong><small>{block.timeEnd}</small></div><div><span>{String(index+1).padStart(2,"0")}</span><h3>{block.title}</h3>{block.notes&&<p>{block.notes}</p>}{details.item.participantMode==="blocks"&&<div className="details-modal__block-people">{block.participants.length?block.participants.map(name=><b key={name}>{name}</b>):<b>Без участников</b>}</div>}</div></article>)}</section>:null}{details.type==="rehearsal"&&details.item.creatorId===creatorId&&<div className="details-modal__actions">{details.item.blocks?.length?<a className="details-modal__edit-button" href={`/schedule/rehearsals/new?edit=${encodeURIComponent(details.item.id)}`}>Редактировать график</a>:<button type="button" className="details-modal__edit-button" onClick={()=>beginRehearsalEdit(details.item)}>Редактировать</button>}<button type="button" className="details-modal__delete" onClick={()=>void removeRehearsal(details.item.id)}>Удалить репетицию</button></div>}</>}</motion.section></motion.div>}</AnimatePresence>, document.body)}
+    {modalPortalReady && createPortal(<AnimatePresence initial={false} onExitComplete={() => setDetailsExiting(false)}>{details&&<motion.div className="details-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)closeDetails()}} initial={{opacity:0}} animate={{opacity:1,transition:{duration:.14,ease:[.22,1,.36,1]}}} exit={{opacity:0,transition:{duration:.12,ease:[.4,0,1,1]}}}><motion.section className={`details-modal${details.type==="rehearsal"?" details-modal--rehearsal":""}`} role="dialog" aria-modal="true" aria-labelledby="details-title" initial={{opacity:0,y:14,scale:.985}} animate={{opacity:1,y:0,scale:1,transition:{duration:.18,ease:[.22,1,.36,1]}}} exit={{opacity:0,y:8,scale:.992,transition:{duration:.12,ease:[.4,0,1,1]}}}><div className="details-modal__header"><div><span className="details-modal__eyebrow">{details.type==="lesson"?"Занятие":details.type==="individual"?"Индивидуальное занятие":rehearsalEditing?"Редактирование репетиции":"Репетиция"}</span><h2 id="details-title">{details.type==="lesson"?details.item.class:details.type==="rehearsal"&&rehearsalEditing?rehearsalSubject:details.item.subject}</h2></div><button type="button" className="details-modal__close" onClick={closeDetails} aria-label="Закрыть">×</button></div>{details.type==="rehearsal"&&rehearsalEditing?<div className="details-modal__edit-form"><div className="details-modal__edit-grid"><label>Название<input className="admin-input" value={rehearsalSubject} onChange={e=>setRehearsalSubject(e.target.value)} autoFocus /></label><label>Дата<input className="admin-input" type="date" value={rehearsalDate} onChange={e=>setRehearsalDate(e.target.value)} /></label><label>Ответственный<input className="admin-input" value={rehearsalResponsible} onChange={e=>setRehearsalResponsible(e.target.value)} /></label><label>Начало<input className="admin-input" type="time" value={rehearsalStart} onChange={e=>setRehearsalStart(e.target.value)} /></label><label>Конец<input className="admin-input" type="time" value={rehearsalEnd} onChange={e=>setRehearsalEnd(e.target.value)} /></label><label className="details-modal__edit-notes">Заметки<textarea className="admin-input" value={rehearsalNotes} onChange={e=>setRehearsalNotes(e.target.value)} placeholder="Заметки к репетиции" /></label><div className="details-modal__edit-participants"><span>Участники</span><div className="rehearsal-people-picker" role="group" aria-label="Участники репетиции">{people.map(person=><button type="button" key={person.id} className={`${rehearsalParticipants.includes(person.name)?"is-active":""}${person.name===creatorName?" is-locked":""}`} aria-pressed={rehearsalParticipants.includes(person.name)} disabled={person.name===creatorName} title={person.name===creatorName?"Автор участвует автоматически":undefined} onClick={()=>toggleRehearsalParticipant(person.name)}>{person.name}{person.name===creatorName?" · автор":""}</button>)}</div><small>{rehearsalParticipants.length?`Выбрано: ${rehearsalParticipants.length}`:"Выберите приглашённых"}</small></div></div>{rehearsalConflictsLoading&&<p className="rehearsal-conflict-status">Проверяем пересечения…</p>}{visibleRehearsalConflicts.length>0&&<div className="rehearsal-conflict-notice"><div className="rehearsal-conflict-notice-head"><strong>Есть конфликты · {visibleRehearsalConflicts.length}</strong><button type="button" onClick={()=>setRehearsalIgnoredConflictKeys(current=>[...new Set([...current,...visibleRehearsalConflicts.map(conflict=>conflict.key)])])}>Игнорировать все</button></div>{visibleRehearsalConflicts.slice(0,6).map(conflict=><span className="rehearsal-conflict-row" key={conflict.key}><span><b>{conflict.personName}</b> · {conflict.existing.timeStart}–{conflict.existing.timeEnd} · {conflict.existing.title}</span><button type="button" onClick={()=>ignoreRehearsalConflict(conflict.key)}>Игнорировать</button></span>)}</div>}{ignoredRehearsalConflicts.length>0&&<div className="rehearsal-conflict-ignored"><div><strong>Игнорируется · {ignoredRehearsalConflicts.length}</strong><button type="button" onClick={()=>setRehearsalIgnoredConflictKeys(current=>current.filter(key=>!ignoredRehearsalConflicts.some(conflict=>conflict.key===key)))}>Вернуть все</button></div>{ignoredRehearsalConflicts.slice(0,6).map(conflict=><span key={conflict.key}><span><b>{conflict.personName}</b> · {conflict.existing.title}</span><button type="button" onClick={()=>restoreRehearsalConflict(conflict.key)}>Вернуть</button></span>)}</div>}{rehearsalError&&<p className="admin-error">{rehearsalError}</p>}<div className="details-modal__actions"><button type="button" className="admin-secondary" disabled={rehearsalSaving} onClick={()=>{setRehearsalEditing(false);setRehearsalError("")}}>Отмена</button><button type="button" className="details-modal__save" disabled={rehearsalSaving} onClick={()=>void saveRehearsalEdit(details.item)}>{rehearsalSaving?"Сохраняю…":"Сохранить изменения"}</button></div></div>:<EventDetailsContent details={details} lessonDate={selectedDate} creatorId={creatorId} personName={creatorName} onEditRehearsal={beginRehearsalEdit} onDeleteRehearsal={item=>void removeRehearsal(item.id)}/>}</motion.section></motion.div>}</AnimatePresence>, document.body)}
   </main></MotionConfig>;
 }

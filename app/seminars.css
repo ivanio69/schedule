@@ -115,3 +115,32 @@
 .seminar-tools > p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 12px; }
 .seminars .seminar-summary:disabled { opacity: 1; cursor: default; }
 .seminar-tools :focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+
+/* Seminar dates and resources */
+.seminar-date-settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:16px 0;padding:15px;border:1px solid color-mix(in srgb,var(--seminar) 25%,var(--border));border-radius:13px;background:color-mix(in srgb,var(--seminar) 5%,transparent)}
+.seminar-date-settings>label,.seminar-topic-dates label,.seminar-edit-topic-date{display:grid;gap:7px;align-content:start;font-size:11px;font-weight:680;color:var(--muted-strong)}
+.seminar-date-settings input,.seminar-date-settings select,.seminar-edit-topic-date input{width:100%;min-height:41px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;color:var(--text);background:var(--surface-raised);color-scheme:dark}
+.seminar-topic-dates{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;max-height:290px;overflow:auto}
+.seminar-topic-dates label{padding:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.seminar-topic-dates label>span{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.seminar-topic-date{margin-top:5px;font-size:11px;font-weight:680;color:var(--seminar)}
+.seminar-edit-topic-date{min-width:150px}
+.seminar-attachments{display:grid;gap:10px;padding:13px 18px 16px;border-top:1px solid var(--border);background:color-mix(in srgb,var(--seminar) 3%,transparent)}
+.seminar-attachments__heading{display:flex;align-items:baseline;gap:8px}
+.seminar-attachments__heading strong{font-size:12px;color:var(--text)}
+.seminar-attachments__heading span,.seminar-attachments>small{font-size:10px;color:var(--muted)}
+.seminar-attachments>p{margin:0;font-size:11px;color:var(--muted)}
+.seminar-attachments ul{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.seminar-attachments li{display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.seminar-attachments li:hover{background:var(--surface-hover)}
+.seminar-attachments li a{display:flex;align-items:center;gap:9px;min-width:0;flex:1;padding:10px 12px;text-decoration:none;color:var(--muted-strong);font-size:11px}
+.seminar-attachments li a>span:first-child{font-size:18px;color:var(--seminar)}
+.seminar-attachments__name{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seminar-attachments li a small{flex:0 0 auto;font-size:9px;color:var(--muted)}
+.seminars .seminar-attachments li>button{flex:0 0 auto;min-width:34px;min-height:34px;padding:0 8px;margin-right:5px;font-size:17px}
+.seminar-attachments__upload{position:relative;display:inline-flex;align-items:center;justify-content:center;justify-self:start;min-height:40px;padding:9px 12px;border:1px solid color-mix(in srgb,var(--seminar) 45%,var(--border));border-radius:10px;background:color-mix(in srgb,var(--seminar) 9%,transparent);color:var(--seminar);font-size:11px;font-weight:800;cursor:pointer;overflow:hidden}
+.seminar-attachments__upload:hover{background:color-mix(in srgb,var(--seminar) 15%,transparent)}
+.seminar-attachments__upload:focus-within{outline:2px solid var(--seminar);outline-offset:2px}
+.seminar-attachments__upload input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.seminar-attachments__upload input:disabled{cursor:not-allowed}
+@media(max-width:650px){.seminar-date-settings{grid-template-columns:1fr}.seminar-topic-dates{grid-template-columns:1fr}.seminar-attachments{padding:12px 14px 15px}.seminar-attachments li a{padding:10px;gap:6px}}
