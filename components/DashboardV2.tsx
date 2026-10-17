@@ -397,7 +397,7 @@ export default function DashboardV2() {
         .dashboard-v2 {
           width: min(calc(100% - 28px), 980px);
           margin: 0 auto;
-          padding: 34px 0 64px;
+          padding: 34px 0 24px;
           color: var(--text);
         }
         .dashboard-v2-head {
@@ -858,9 +858,6 @@ export default function DashboardV2() {
         .dashboard-note-modal footer button:last-child {
           color: var(--accent-text);
           background: var(--accent);
-        }
-        body:has(.dashboard-v2[data-no-pairs="true"]) .dashboard-rehearsals {
-          display: none !important;
         }
         @media (max-width: 650px) {
           .dashboard-v2 {
