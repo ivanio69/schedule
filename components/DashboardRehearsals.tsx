@@ -17,6 +17,12 @@ function formatDate(value: string) {
 function formatDatePart(value: string, options: Intl.DateTimeFormatOptions) {
   return new Intl.DateTimeFormat("ru-RU", options).format(new Date(value + "T12:00:00"));
 }
+function plural(count: number, one: string, few: string, many: string) {
+  const tens = count % 100;
+  if (tens >= 11 && tens <= 14) return many;
+  const unit = count % 10;
+  return unit === 1 ? one : unit >= 2 && unit <= 4 ? few : many;
+}
 
 export default function DashboardRehearsals() {
   const [items, setItems] = useState<Rehearsal[]>([]);
@@ -131,11 +137,11 @@ export default function DashboardRehearsals() {
                 <span className="dashboard-rehearsal__meta">
                   {blocks > 0 && <span className="dashboard-rehearsal__chip">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 9h8M8 13h5"/></svg>
-                    {blocks} {blocks === 1 ? "блок" : blocks < 5 ? "блока" : "блоков"}
+                    {blocks} {plural(blocks, "блок", "блока", "блоков")}
                   </span>}
                   <span className="dashboard-rehearsal__chip">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3"/><path d="M3.8 19v-1.2A4.8 4.8 0 0 1 8.6 13h.8a4.8 4.8 0 0 1 4.8 4.8V19M17 8a2.5 2.5 0 0 1 0 5m2.4 1.6c.7.7 1.1 1.7 1.1 2.7V19"/></svg>
-                    {participants} {participants === 1 ? "участник" : participants < 5 ? "участника" : "участников"}
+                    {participants} {plural(participants, "участник", "участника", "участников")}
                   </span>
                 </span>
               </span>
