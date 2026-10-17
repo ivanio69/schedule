@@ -131,11 +131,16 @@ export default function ScheduleApp() {
   useEffect(() => { setModalPortalReady(true); }, []);
   useEffect(() => { const id=getCreatorId(); setCreatorId(id); void fetch("/api/people",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>setPeople(data?.people??[])).catch(()=>{}); if(id) void fetch(`/api/profile/settings?personId=${encodeURIComponent(id)}`,{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>setChinaMode(data?.chinaMode===true)).catch(()=>{}); }, []);
   useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
     void (async () => {
       try {
-        const response = await fetch(`/api/schedule?date=${selectedDate}&personId=${encodeURIComponent(creatorId)}`, { cache: "no-store" });
+        const response = await fetch(`/api/schedule?date=${selectedDate}&personId=${encodeURIComponent(creatorId)}`, { cache: "no-store", signal: controller.signal });
         if (!response.ok) throw new Error();
         const data = await response.json() as { schedule: ScheduleData; rehearsals: Rehearsal[] };
+        // A previous date/profile can finish after the current day's request.
+        // Ignore it even if the response body completed while being aborted.
+        if (cancelled) return;
         setSchedule(data.schedule);
         setRehearsals(data.rehearsals ?? []);
         if (!didInitializeSelection.current) {
@@ -154,8 +159,14 @@ export default function ScheduleApp() {
           }
         }
         setPreferences(readPreferences(getSubgroupSubjects(data.schedule)));
-      } catch { setRehearsals([]); } finally { setLoading(false); }
+      } catch {
+        if (!cancelled) setRehearsals([]);
+      } finally { if (!cancelled) setLoading(false); }
     })();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, creatorId]);
 
