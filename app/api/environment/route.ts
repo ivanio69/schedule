@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import versionInfo from "@/version.json";
+import { AUTH_COOKIE, verifyAuthSessionToken } from "@/lib/auth-session";
 
 const GITHUB_REPO = "ivanio69/schedule";
 const VERCEL_PROJECT = "schedule";
@@ -44,7 +45,7 @@ function githubHeaders() {
 async function latestOpenDevelopmentPull() {
   const response = await fetch(
     `https://api.github.com/repos/${GITHUB_REPO}/pulls?state=open&sort=created&direction=desc&per_page=30`,
-    { headers: githubHeaders(), next: { revalidate: 8 } },
+    { headers: githubHeaders(), next: { revalidate: 8 }, signal: AbortSignal.timeout(3000) },
   );
   if (!response.ok) return null;
 
@@ -64,7 +65,7 @@ async function developmentPullByNumber(number: number) {
   try {
     const response = await fetch(
       `https://api.github.com/repos/${GITHUB_REPO}/pulls/${number}`,
-      { headers: githubHeaders(), next: { revalidate: 5 } },
+      { headers: githubHeaders(), next: { revalidate: 5 }, signal: AbortSignal.timeout(3000) },
     );
     if (!response.ok) return null;
     return await response.json() as GitHubPull;
@@ -77,7 +78,7 @@ async function versionForBranch(branch: string) {
   try {
     const response = await fetch(
       `https://api.github.com/repos/${GITHUB_REPO}/contents/version.json?ref=${encodeURIComponent(branch)}`,
-      { headers: githubHeaders(), next: { revalidate: 5 } },
+      { headers: githubHeaders(), next: { revalidate: 5 }, signal: AbortSignal.timeout(3000) },
     );
     if (!response.ok) return null;
     const payload = await response.json() as { content?: string; encoding?: string };
@@ -90,17 +91,55 @@ async function versionForBranch(branch: string) {
   }
 }
 
-async function previewExists(url: string) {
+async function previewExists(url: string, expectedVersion: string) {
   try {
-    const response = await fetch(url, {
-      method: "HEAD",
+    const response = await fetch(new URL("/api/build-version", url), {
       redirect: "manual",
       cache: "no-store",
-      signal: AbortSignal.timeout(2500),
+      signal: AbortSignal.timeout(4000),
     });
-    return response.status !== 404;
+    if (!response.ok) return false;
+    const build = await response.json();
+    return build.channel === "preview" && build.version === expectedVersion;
   } catch {
     return false;
+  }
+}
+
+// Validate the selected build and this user's session before changing environments.
+// Never relay a preview's Set-Cookie headers: a rejected preview session must not
+// erase the working production session.
+export async function POST(request: Request) {
+  const token = cookieValue(request, AUTH_COOKIE);
+  if (!verifyAuthSessionToken(token)) {
+    return NextResponse.json({ error: "Войди в приложение заново" }, { status: 401 });
+  }
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
+    return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
+  }
+  try {
+    const { pr } = await request.json();
+    const pull = await latestOpenDevelopmentPull();
+    if (!pull?.head?.ref || pull.number !== pr) {
+      return NextResponse.json({ error: "DEV-сборка изменилась. Обнови настройки." }, { status: 409 });
+    }
+    const url = branchPreviewUrl(pull.head.ref);
+    const version = await versionForBranch(pull.head.ref);
+    if (!version || !await previewExists(url, version)) {
+      return NextResponse.json({ error: "DEV-сборка пока недоступна или защищена от доступа. Остаёмся в STABLE." }, { status: 503 });
+    }
+    const response = await fetch(new URL("/api/auth/session", url), {
+      headers: { Cookie: `${AUTH_COOKIE}=${token}` },
+      redirect: "manual",
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok || (await response.json()).authenticated !== true) {
+      return NextResponse.json({ error: "DEV не принимает текущую сессию. Проверь настройки авторизации и базы DEV. Остаёмся в STABLE." }, { status: 503 });
+    }
+    return NextResponse.json({ ok: true, url, pr, version }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ error: "Не удалось проверить DEV. Остаёмся в STABLE." }, { status: 503 });
   }
 }
 
@@ -150,7 +189,7 @@ export async function GET(request: Request) {
 
     if (pull && branch && latestVersion) {
       const url = branchPreviewUrl(branch);
-      if (await previewExists(url)) {
+      if (await previewExists(url, latestVersion)) {
         dev = { pr: pull.number, branch, url, version: latestVersion };
       }
     }

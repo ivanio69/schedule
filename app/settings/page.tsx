@@ -206,7 +206,7 @@ export default function SettingsPage() {
     });
   };
 
-  const switchEnvironment = (target: "stable" | "dev") => {
+  const switchEnvironment = async (target: "stable" | "dev") => {
     if (!environmentInfo || environmentSwitching || environmentInfo.current === target) return;
     setEnvironmentSwitching(true);
 
@@ -230,7 +230,24 @@ export default function SettingsPage() {
       return;
     }
 
-    const preview = new URL(destination);
+    let checked: { url: string; pr: number };
+    try {
+      const response = await fetch("/api/environment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pr: environmentInfo.dev!.pr }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "DEV недоступен");
+      checked = result;
+    } catch (error) {
+      setEnvironmentSwitching(false);
+      setStatus(error instanceof Error ? error.message : "Не удалось проверить DEV");
+      return;
+    }
+
+    const preview = new URL(checked.url);
     if (!preview.hostname.startsWith("schedule-git-") || !preview.hostname.endsWith("-ivanio.vercel.app")) {
       setEnvironmentSwitching(false);
       setStatus("Не удалось определить DEV-сборку");
@@ -240,7 +257,13 @@ export default function SettingsPage() {
     const maxAge = 60 * 60 * 24 * 7;
     document.cookie = `schedule_environment=dev; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
     document.cookie = `schedule_dev_host=${preview.hostname}; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
-    document.cookie = `schedule_dev_pr=${environmentInfo.dev.pr}; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+    document.cookie = `schedule_dev_pr=${checked.pr}; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+    if ("caches" in window) {
+      try {
+        const names = await caches.keys();
+        await Promise.all(names.filter(name => name.startsWith("schedule-offline-")).map(name => caches.delete(name)));
+      } catch {}
+    }
     window.location.reload();
   };
 
