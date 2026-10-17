@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { GridFSBucket, ObjectId } from "mongodb";
 import { getDatabase, getPeople } from "@/lib/database";
 import type { SeminarEditInput, SeminarInput, SeminarList } from "@/lib/seminars";
 import { sendPush } from "@/lib/push";
@@ -25,8 +26,18 @@ export async function createSeminar(input: SeminarInput) {
 }
 
 export async function deleteSeminar(id: string) {
-  const result = await (await getDatabase()).collection<SeminarList>("seminars").deleteOne({ id });
-  return result.deletedCount === 1;
+  const db = await getDatabase();
+  const collection = db.collection<SeminarList>("seminars");
+  const list = await collection.findOne({ id });
+  if (!list) return false;
+  const result = await collection.deleteOne({ id });
+  if (result.deletedCount !== 1) return false;
+  if (list.files?.length) {
+    const bucket = new GridFSBucket(db, { bucketName: "seminar_attachments" });
+    const cleanup = await Promise.allSettled(list.files.map(file => bucket.delete(new ObjectId(file.id))));
+    cleanup.forEach(item => { if (item.status === "rejected") console.error("Failed to clean seminar file", item.reason); });
+  }
+  return true;
 }
 
 // Compare-and-swap protects both capacity and administrator overrides from concurrent writes.
