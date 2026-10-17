@@ -1,7 +1,7 @@
 {
-  "release": "5.5.2",
+  "release": "5.5.3",
   "dev": 1,
-  "pr": 87,
+  "pr": 89,
   "majorBasePr": 68,
   "channel": "hotfix"
 }

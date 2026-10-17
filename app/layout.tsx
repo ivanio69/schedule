@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import "./daily-quotes.css";
 import "./admin/admin-polish.css";
@@ -62,5 +63,5 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#09090b" };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent-mode="manual" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: environmentTransferBootScript }} /><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><ProfileSessionSync /><AmbientBackground /><AppearanceProvider /><OfflineBanner /><DevEnvironmentBanner /><VersionUpdateNotice /><SelectedUserGuard><UsageAnalyticsTracker /><PushPrompt /><AppNavigation /><AppPageTransition>{children}</AppPageTransition></SelectedUserGuard><Analytics /></body></html>;
+  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent-mode="manual" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: environmentTransferBootScript }} /><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><ProfileSessionSync /><AmbientBackground /><AppearanceProvider /><OfflineBanner /><DevEnvironmentBanner /><VersionUpdateNotice /><SelectedUserGuard><UsageAnalyticsTracker /><PushPrompt /><AppNavigation /><AppPageTransition>{children}</AppPageTransition></SelectedUserGuard><Analytics /><SpeedInsights /></body></html>;
 }
