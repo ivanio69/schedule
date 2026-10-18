@@ -8,3 +8,6 @@ body:has(.offline-banner) .dev-environment-banner{top:54px}
 @media(max-width:600px){.dev-environment-banner{top:8px;gap:6px;padding:8px 11px;font-size:11px}.dev-environment-banner strong{font-size:11px}.dev-environment-banner span{font-size:10px}body:has(.offline-banner) .dev-environment-banner{top:47px}}
 @media(max-width:430px){.dev-environment-banner span{white-space:normal}}
 @media(prefers-reduced-motion:reduce){.dev-environment-banner{animation:none}}
+button.dev-environment-banner{font-family:inherit;cursor:pointer;text-align:left;transition:border-color .18s,background .18s}
+button.dev-environment-banner:hover{border-color:var(--accent)}
+button.dev-environment-banner:focus-visible{outline:2px solid var(--accent);outline-offset:3px}

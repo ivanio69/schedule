@@ -1,4 +1,5 @@
 "use client";
+import { fetchAuthSession } from "@/lib/auth-client";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
@@ -120,9 +121,12 @@ export default function DashboardV2() {
     // Public quote data does not depend on the session. Start it immediately,
     // while keeping the quote inside the dashboard loading boundary.
     const quoteRequest=loadDashboardDailyQuote(today);
+    const seminarRequest=fetch("/api/seminars",{cache:"no-store"})
+      .then(response=>response.ok?response.json():{lists:[]})
+      .catch(()=>({lists:[]}));
     void (async()=>{
       try{
-        const authResponse=await fetch("/api/auth/session",{cache:"no-store"});
+        const authResponse=await fetchAuthSession();
         if(!authResponse.ok){window.location.replace("/login");return;}
         const auth=await authResponse.json();
         const current=auth.person as {id:string;name:string;role?:Person["role"]};
@@ -130,7 +134,7 @@ export default function DashboardV2() {
         localStorage.setItem(PERSON_KEY,current.id);
         const [s,seminarData,quote]=await Promise.all([
           fetch(`/api/schedule?date=${today}&personId=${encodeURIComponent(current.id)}`,{cache:"no-store"}).then(r=>r.json()),
-          fetch("/api/seminars",{cache:"no-store"}).then(r=>r.json()),
+          seminarRequest,
           quoteRequest,
         ]);
         if(cancelled)return;
@@ -1226,4 +1230,5 @@ export default function DashboardV2() {
     </main>
   );
 }
+
 

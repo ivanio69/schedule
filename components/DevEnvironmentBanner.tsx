@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+
+const TechnicalChangelogDialog = dynamic(() => import("./TechnicalChangelogDialog"), { ssr: false });
 
 type EnvironmentInfo = {
   current: "stable" | "dev";
@@ -10,6 +13,7 @@ type EnvironmentInfo = {
 
 export default function DevEnvironmentBanner() {
   const [version, setVersion] = useState<string | null>(null);
+  const [changelogOpen, setChangelogOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,9 +42,10 @@ export default function DevEnvironmentBanner() {
   if (!version) return null;
 
   return (
-    <div className="dev-environment-banner" role="status" aria-live="polite">
+    <><button type="button" className="dev-environment-banner" onClick={() => setChangelogOpen(true)} aria-haspopup="dialog" aria-expanded={changelogOpen} aria-label={`DEV ${version}. Открыть технический чейнджлог`}>
       <strong>DEV {version}</strong>
       <span>Версия в разработке · возможны ошибки</span>
-    </div>
+    </button>
+    {changelogOpen && <TechnicalChangelogDialog onClose={() => setChangelogOpen(false)} />}</>
   );
 }
