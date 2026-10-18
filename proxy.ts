@@ -16,7 +16,7 @@ function clearDevCookies(response: NextResponse) {
   return response;
 }
 function staticPath(pathname:string){
-  return pathname.startsWith("/_next/")||pathname==="/sw.js"||pathname==="/manifest.webmanifest"||pathname==="/favicon.ico"||pathname==="/apple-touch-icon.png"||pathname.startsWith("/icons/");
+  return pathname.startsWith("/_next/")||pathname==="/sw.js"||pathname==="/offline.html"||pathname==="/manifest.webmanifest"||pathname==="/favicon.ico"||pathname==="/apple-touch-icon.png"||pathname.startsWith("/icons/");
 }
 function publicApi(request:NextRequest){
   const pathname=request.nextUrl.pathname;

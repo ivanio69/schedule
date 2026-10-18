@@ -1,4 +1,5 @@
 "use client";
+import { fetchAuthSession } from "@/lib/auth-client";
 
 import { useEffect } from "react";
 
@@ -9,7 +10,7 @@ export default function ProfileSessionSync() {
     let alive = true;
     const sync = async () => {
       try {
-        const response = await fetch("/api/auth/session", { cache:"no-store" });
+        const response = await fetchAuthSession();
         if (!alive) return;
         if (!response.ok) {
           if (localStorage.getItem(PERSON_KEY)) {
