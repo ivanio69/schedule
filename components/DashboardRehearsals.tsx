@@ -126,8 +126,8 @@ export default function DashboardRehearsals() {
                 <small>{formatDatePart(item.date, { weekday: "short" })}</small>
               </span>
               <span className="dashboard-event-content dashboard-rehearsal__content">
-                <span className="dashboard-rehearsal__kind">{item.isGlobal ? "ОБЩАЯ РЕПЕТИЦИЯ" : "РЕПЕТИЦИЯ"}</span>
-                {!participating && <span className="rehearsal-participation-badge">Вы не участвуете</span>}
+                <span className="dashboard-rehearsal__labels"><span className="dashboard-rehearsal__kind">{item.isGlobal ? "ОБЩАЯ РЕПЕТИЦИЯ" : "РЕПЕТИЦИЯ"}</span>
+                {!participating && <span className="rehearsal-participation-badge">Вы не участвуете</span>}</span>
                 <strong className="dashboard-rehearsal__subject">{item.subject}</strong>
                 <span className="dashboard-rehearsal__details">
                   {item.responsible && <span>Ответственный: {item.responsible}</span>}
@@ -181,6 +181,7 @@ export default function DashboardRehearsals() {
       .dashboard-rehearsal__date small{color:var(--muted);font-size:11px;font-weight:400}
       .dashboard-rehearsal__date time{display:block;margin-top:6px;color:var(--muted-strong);font-size:10px;font-weight:600;line-height:1.3}
       .dashboard-rehearsal__content{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+      .dashboard-rehearsal__labels{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
       .dashboard-rehearsal__kind{color:var(--event-color,var(--rehearsal));font-size:9px;font-weight:800;letter-spacing:.09em;line-height:1.35}
       .dashboard-rehearsal__subject{color:var(--text);font-size:16px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
       .dashboard-rehearsal__details{display:flex;flex-wrap:wrap;gap:3px 12px;color:var(--muted);font-size:12px;font-weight:400;letter-spacing:normal;line-height:1.5}

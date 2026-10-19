@@ -282,3 +282,51 @@ body .dashboard-event-v2.dashboard-rehearsal.is-non-participant {
   background: var(--surface) !important;
   box-shadow: inset 3px 0 0 var(--border) !important;
 }
+
+body .schedule-shell .rehearsal-card.is-non-participant {
+  grid-template-columns: 64px minmax(0, 1fr);
+}
+body .schedule-shell .rehearsal-card.is-non-participant .schedule-card__body {
+  padding: 11px 13px;
+}
+body .schedule-shell .rehearsal-card.is-non-participant .schedule-card__time {
+  padding: 11px 8px;
+}
+body .schedule-shell .rehearsal-card.is-non-participant .schedule-card__time span,
+body .schedule-shell .rehearsal-card.is-non-participant .schedule-card__title h2,
+body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__subject,
+body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__date strong {
+  color: var(--muted-strong);
+  font-size: 14px;
+  font-weight: 500;
+}
+body .schedule-shell .rehearsal-card.is-non-participant .schedule-card__time span:last-child {
+  color: var(--muted);
+  font-size: 11px;
+}
+body .schedule-shell .rehearsal-card.is-non-participant .schedule-card__meta {
+  margin-top: 5px;
+  font-size: 11px;
+}
+body .is-non-participant .rehearsal-participation-badge {
+  margin: 0;
+  padding: 2px 6px;
+  font-size: 9px;
+}
+body .dashboard-event-v2.dashboard-rehearsal.is-non-participant {
+  padding: 11px 13px;
+  margin-bottom: 0;
+}
+body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__content {
+  gap: 3px;
+}
+body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__date {
+  padding: 0;
+}
+body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__date time {
+  margin-top: 3px;
+  color: var(--muted);
+}
+body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__details {
+  font-size: 11px;
+}

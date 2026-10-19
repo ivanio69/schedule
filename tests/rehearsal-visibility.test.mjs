@@ -93,3 +93,22 @@ test('nonparticipant cards show an explicit label and retain keyboard access to 
   assert.doesNotMatch(card(people[0]), /Вы не участвуете/);
   assert.doesNotMatch(card(people[1]), /Вы не участвуете/);
 });
+
+test('nonparticipant modal shows static time without mounting the live timer', () => {
+  const empty = { __esModule: true, default: () => null };
+  const { default: EventDetailsContent } = load('components/EventDetailsContent.tsx', {
+    '@/lib/rehearsals': helpers,
+    '@/components/EventTiming': { __esModule: true, default: () => createElement('div', { 'data-live-timer': true }) },
+    '@/components/LessonAttendanceQuickActions': empty,
+    '@/components/PersonalEventNote': empty,
+    '@/components/RehearsalTimeline': empty,
+  });
+  const modal = person => renderToStaticMarkup(createElement(EventDetailsContent, {
+    details: { type: 'rehearsal', item: simple }, lessonDate: simple.date,
+    creatorId: person.id, personName: person.name,
+  }));
+  const spectator = modal(people[2]);
+  assert.doesNotMatch(spectator, /data-live-timer/);
+  assert.match(spectator, /18:00–20:00/);
+  assert.match(modal(people[1]), /data-live-timer/);
+});
