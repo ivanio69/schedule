@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { filterRehearsalsForPerson, getIndividualLessons, getPeople, getProfileSettings, getRehearsals, getSchedule } from "@/lib/database";
+import { getIndividualLessons, getPeople, getProfileSettings, getRehearsals, getSchedule } from "@/lib/database";
 import { filterScheduleByChinaMode } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
@@ -9,17 +9,14 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const date = url.searchParams.get("date");
     const personId = url.searchParams.get("personId");
-    const [schedule, profile, rawRehearsals, individualLessons] = await Promise.all([
+    const [schedule, profile, rehearsals, individualLessons] = await Promise.all([
       getSchedule(),
       personId ? getProfileSettings(personId) : null,
       date ? getRehearsals(date) : [],
       date ? getIndividualLessons(undefined, date) : [],
     ]);
     const visibleSchedule = filterScheduleByChinaMode(schedule, profile?.chinaMode === true);
-    const [rehearsals, people] = await Promise.all([
-      filterRehearsalsForPerson(rawRehearsals, personId),
-      individualLessons.length ? getPeople() : [],
-    ]);
+    const people = individualLessons.length ? await getPeople() : [];
     const names = new Map(people.map((person) => [person.id, person.name]));
     const individual = individualLessons.map((lesson) => ({
       ...lesson,

@@ -12,8 +12,11 @@ struct ContentView: View {
     var body: some View {
         WebAppView(url: connection.webDestination, connection: connection)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Inset the viewport itself so fixed web headers and menus also
+            // stay below the status bar / Dynamic Island.
+            .padding(.top, 24)
             .background(Color("LaunchBackground"))
-            .ignoresSafeArea(.container, edges: .all)
+            .ignoresSafeArea(.container, edges: [.horizontal, .bottom])
             .task(id: scenePhase) {
                 if scenePhase == .active { await connection.runForegroundUpdates() }
             }
@@ -46,7 +49,6 @@ struct WebAppView: UIViewRepresentable {
             const style = document.createElement('style');
             style.textContent = `html { min-height: 100%; } body {
                 box-sizing: border-box; min-height: 100dvh;
-                padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
                 padding-left: env(safe-area-inset-left);
                 padding-right: env(safe-area-inset-right);
             }`;

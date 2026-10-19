@@ -7,7 +7,7 @@ import EventTiming from "@/components/EventTiming";
 import LessonAttendanceQuickActions from "@/components/LessonAttendanceQuickActions";
 import PersonalEventNote from "@/components/PersonalEventNote";
 import RehearsalTimeline from "@/components/RehearsalTimeline";
-import { getRehearsalAudienceNames } from "@/lib/rehearsals";
+import { getRehearsalAudienceNames, isRehearsalParticipant } from "@/lib/rehearsals";
 
 export type EventDetails =
   | { type: "lesson"; item: Lesson }
@@ -39,6 +39,7 @@ function noteKey(details: EventDetails) {
 
 export default function EventDetailsContent({ details, lessonDate, creatorId, personName, onEditRehearsal, onDeleteRehearsal }: Props) {
   const [notice, setNotice] = useState("");
+  const spectator = details.type === "rehearsal" && !isRehearsalParticipant(details.item, creatorId, personName);
   const date = details.type === "lesson" ? lessonDate : details.item.date;
 
   const downloadCalendar = () => {
@@ -89,14 +90,14 @@ export default function EventDetailsContent({ details, lessonDate, creatorId, pe
   };
 
   return <>
-    <EventTiming
+    {spectator ? <p className="event-timing__static-time" aria-label="Время репетиции">{details.item.timeStart}–{details.item.timeEnd}</p> : <EventTiming
       lesson={details.type === "lesson"}
       date={date}
       start={details.item.timeStart}
       end={details.item.timeEnd}
       blocks={details.type === "rehearsal" ? details.item.blocks : undefined}
       cancelled={details.type === "lesson" && details.item.occurrence?.status === "cancelled"}
-    />
+    />}
     <dl className="details-modal__list">
       <div><dt>Дата</dt><dd>{formatDate(date)}</dd></div>
       {details.type === "lesson" ? <>
@@ -112,6 +113,7 @@ export default function EventDetailsContent({ details, lessonDate, creatorId, pe
         <div><dt>Аудитория</dt><dd>{details.item.auditorium}</dd></div>
         {details.item.note && <div><dt>Примечание</dt><dd>{details.item.note}</dd></div>}
       </> : <>
+        <div><dt>Моё участие</dt><dd>{isRehearsalParticipant(details.item, creatorId, personName) ? "Вы участвуете" : "Вы не участвуете"}</dd></div>
         <div><dt>Автор</dt><dd>{details.item.creatorName ?? "Автор не указан"}</dd></div>
         <div><dt>Ответственный</dt><dd>{details.item.responsible}</dd></div>
         <div><dt>Участники</dt><dd className="details-modal__participants">

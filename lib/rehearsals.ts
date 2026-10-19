@@ -15,6 +15,13 @@ export function getRehearsalAudienceNames(rehearsal: Pick<Rehearsal, "participan
   return uniq(rehearsal.participants ?? []);
 }
 
+/** Shared participation rules for personal plans and visual labels. Global rehearsals are for everyone. */
+export function isRehearsalParticipant(rehearsal: Rehearsal, personId?: string | null, personName?: string | null): boolean {
+  return Boolean(rehearsal.isGlobal
+    || (personId && rehearsal.creatorId === personId)
+    || (personName && getRehearsalAudienceNames(rehearsal).includes(personName)));
+}
+
 export function ensureRehearsalAuthorParticipation(rehearsal: Rehearsal, creatorName?: string): Rehearsal {
   if (!creatorName || rehearsal.isGlobal) return rehearsal;
   if (getRehearsalParticipantMode(rehearsal) === "blocks") {
