@@ -1,4 +1,5 @@
 "use client";
+import { isRehearsalParticipant } from "@/lib/rehearsals";
 import { fetchAuthSession } from "@/lib/auth-client";
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -222,7 +223,7 @@ export default function DashboardV2() {
             key: x.id,
           })),
         ...rehearsals
-          .filter((x) => x.date === todayKey)
+          .filter((x) => x.date === todayKey && isRehearsalParticipant(x, person?.id, person?.name))
           .map((x) => ({
             kind: "rehearsal" as const,
             start: x.timeStart,
@@ -236,7 +237,7 @@ export default function DashboardV2() {
             key: x.id,
           })),
       ].sort((a, b) => mins(a.start) - mins(b.start)),
-    [groups, individuals, rehearsals, todayKey, attendanceReports],
+    [groups, individuals, rehearsals, todayKey, attendanceReports, person?.id, person?.name],
   );
   const currentMin = now.getHours() * 60 + now.getMinutes(),
     activeEvents = events.filter((e) => e.status !== "cancelled"),
@@ -288,7 +289,7 @@ export default function DashboardV2() {
           );
         })
       : [], [schedule, tomorrowKey, chinaMode, preferences]),
-    tomorrowRehearsals = rehearsals.filter((x) => x.date === tomorrowKey),
+    tomorrowRehearsals = rehearsals.filter((x) => x.date === tomorrowKey && isRehearsalParticipant(x, person?.id, person?.name)),
     tomorrowIndividuals = individuals.filter((x) => x.date === tomorrowKey),
     tomorrowEvents = [
       ...tomorrowLessons.map((x) => ({

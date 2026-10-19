@@ -248,3 +248,37 @@ body:has(.dev-environment-banner) .version-update-notice{top:calc(max(10px,env(s
 @media(max-width:560px){.version-update-notice{align-items:flex-start;gap:10px}.version-update-notice>div:last-child{flex-direction:column}.version-update-notice span{white-space:normal}}
 
 
+
+/* Rehearsals remain readable and clickable when the viewer is not a participant. */
+.rehearsal-participation-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin: 3px 0;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted-strong);
+  background: var(--surface);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+body .schedule-shell .rehearsal-card.is-non-participant {
+  --event-color: var(--muted-strong);
+  border-color: var(--border) !important;
+  border-style: dashed;
+  background: var(--surface) !important;
+  box-shadow: inset 3px 0 0 var(--border) !important;
+}
+body .schedule-shell .rehearsal-card.is-non-participant .schedule-card__time {
+  background: var(--surface);
+  border-right-color: var(--border);
+}
+body .dashboard-event-v2.dashboard-rehearsal.is-non-participant {
+  --event-color: var(--muted-strong);
+  border-style: dashed;
+  border-color: var(--border) !important;
+  background: var(--surface) !important;
+  box-shadow: inset 3px 0 0 var(--border) !important;
+}

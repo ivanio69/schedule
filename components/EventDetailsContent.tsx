@@ -7,7 +7,7 @@ import EventTiming from "@/components/EventTiming";
 import LessonAttendanceQuickActions from "@/components/LessonAttendanceQuickActions";
 import PersonalEventNote from "@/components/PersonalEventNote";
 import RehearsalTimeline from "@/components/RehearsalTimeline";
-import { getRehearsalAudienceNames } from "@/lib/rehearsals";
+import { getRehearsalAudienceNames, isRehearsalParticipant } from "@/lib/rehearsals";
 
 export type EventDetails =
   | { type: "lesson"; item: Lesson }
@@ -112,6 +112,7 @@ export default function EventDetailsContent({ details, lessonDate, creatorId, pe
         <div><dt>Аудитория</dt><dd>{details.item.auditorium}</dd></div>
         {details.item.note && <div><dt>Примечание</dt><dd>{details.item.note}</dd></div>}
       </> : <>
+        <div><dt>Моё участие</dt><dd>{isRehearsalParticipant(details.item, creatorId, personName) ? "Вы участвуете" : "Вы не участвуете"}</dd></div>
         <div><dt>Автор</dt><dd>{details.item.creatorName ?? "Автор не указан"}</dd></div>
         <div><dt>Ответственный</dt><dd>{details.item.responsible}</dd></div>
         <div><dt>Участники</dt><dd className="details-modal__participants">

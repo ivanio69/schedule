@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createRehearsal, deleteRehearsal, filterRehearsalsForPerson, getDatabase, getPeople, getRehearsals, updateRehearsal } from "@/lib/database";
+import { createRehearsal, deleteRehearsal, getDatabase, getPeople, getRehearsals, updateRehearsal } from "@/lib/database";
 import { ensureRehearsalAuthorParticipation, getChangedRehearsalAudienceNames, getRehearsalAudienceNames, getRehearsalBounds } from "@/lib/rehearsals";
 import { sendPush } from "@/lib/push";
 import type { Rehearsal, RehearsalBlock, RehearsalParticipantMode } from "@/lib/schedule";
@@ -120,14 +120,11 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const date = url.searchParams.get("date");
     const id = url.searchParams.get("id");
-    const personId = url.searchParams.get("personId");
     const db = await getDatabase();
 
     if (id) {
       const rehearsal = await db.collection<Rehearsal>("rehearsals").findOne({ id });
       if (!rehearsal) return NextResponse.json({ error: "Репетиция не найдена" }, { status: 404 });
-      const visible = await filterRehearsalsForPerson([rehearsal], personId);
-      if (!visible.length) return NextResponse.json({ error: "Репетиция не найдена" }, { status: 404 });
       const people = await getPeople();
       const creatorName = people.find(person => person.id === rehearsal.creatorId)?.name;
       return NextResponse.json({ rehearsal: ensureRehearsalAuthorParticipation({ ...rehearsal, creatorName: rehearsal.creatorName ?? creatorName }, creatorName) }, { headers: { "Cache-Control": "no-store" } });
@@ -135,14 +132,14 @@ export async function GET(request: Request) {
 
     if (date) {
       if (!validDate(date)) return NextResponse.json({ error: "Некорректная дата" }, { status: 400 });
-      return NextResponse.json({ rehearsals: await filterRehearsalsForPerson(await getRehearsals(date), personId) }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json({ rehearsals: await getRehearsals(date) }, { headers: { "Cache-Control": "no-store" } });
     }
 
     const rehearsals = await db.collection<Rehearsal>("rehearsals").find({}).sort({ date: 1, timeStart: 1 }).toArray();
     const people = await getPeople();
     const names = new Map(people.map(person => [person.id, person.name]));
     const hydrated = rehearsals.map(item => ensureRehearsalAuthorParticipation({ ...item, creatorName: item.creatorName ?? names.get(item.creatorId) }, names.get(item.creatorId)));
-    return NextResponse.json({ rehearsals: await filterRehearsalsForPerson(hydrated, personId) }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ rehearsals: hydrated }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Failed to load rehearsals", error);
     return NextResponse.json({ error: "Не удалось загрузить репетиции" }, { status: 500 });

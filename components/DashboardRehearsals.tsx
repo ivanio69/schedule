@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import type { Rehearsal } from "@/lib/schedule";
 import type { Person } from "@/lib/people";
-import { getRehearsalAudienceNames } from "@/lib/rehearsals";
+import { getRehearsalAudienceNames, isRehearsalParticipant } from "@/lib/rehearsals";
 import EventDetailsContent from "@/components/EventDetailsContent";
 import LoadingState from "@/components/LoadingState";
 
@@ -110,13 +110,14 @@ export default function DashboardRehearsals() {
         <div className="dashboard-rehearsals__list">
           {items.map(item => {
             const blocks = item.blocks?.length ?? 0;
+            const participating = isRehearsalParticipant(item, personId, personName);
             const participants = getRehearsalAudienceNames(item).length;
             return <button
               type="button"
               key={item.id}
-              className={item.isGlobal ? "dashboard-event-v2 dashboard-rehearsal is-global" : "dashboard-event-v2 dashboard-rehearsal"}
+              className={`dashboard-event-v2 dashboard-rehearsal${item.isGlobal ? " is-global" : ""}${!participating ? " is-non-participant" : ""}`}
               onClick={event => { lastTrigger.current = event.currentTarget; setSelectedId(item.id); }}
-              aria-label={"Открыть репетицию «" + item.subject + "» " + formatDate(item.date) + ", " + item.timeStart}
+              aria-label={"Открыть репетицию «" + item.subject + "» " + formatDate(item.date) + ", " + item.timeStart + (!participating ? ". Вы не участвуете" : "")}
             >
               <span className="dashboard-event-time dashboard-rehearsal__date">
                 <strong>{item.timeStart}</strong>
@@ -126,6 +127,7 @@ export default function DashboardRehearsals() {
               </span>
               <span className="dashboard-event-content dashboard-rehearsal__content">
                 <span className="dashboard-rehearsal__kind">{item.isGlobal ? "ОБЩАЯ РЕПЕТИЦИЯ" : "РЕПЕТИЦИЯ"}</span>
+                {!participating && <span className="rehearsal-participation-badge">Вы не участвуете</span>}
                 <strong className="dashboard-rehearsal__subject">{item.subject}</strong>
                 <span className="dashboard-rehearsal__details">
                   {item.responsible && <span>Ответственный: {item.responsible}</span>}
