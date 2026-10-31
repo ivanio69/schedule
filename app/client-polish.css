@@ -330,3 +330,16 @@ body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__date time {
 body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__details {
   font-size: 11px;
 }
+
+
+/* Modal polish: consistent header surface and breathing room around live timers. */
+body .details-modal__header {
+  background: var(--surface) !important;
+  background-image: none !important;
+  border-bottom: 1px solid var(--border);
+}
+body .details-modal .event-timing,
+body .details-modal .event-timing__static-time {
+  margin-block: 18px 24px;
+}
+body .details-modal .event-timing { padding: 18px; }
