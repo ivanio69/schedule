@@ -358,3 +358,23 @@ body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__details {
   .details-modal .event-timing,
   .details-modal .event-timing__static-time { margin: 20px 0 24px !important; }
 }
+
+
+/* Remove decorative grey/gradient bands around the modal header and timing area. */
+.details-modal::before,
+.details-modal::after,
+.details-modal__header::before,
+.details-modal__header::after {
+  content: none !important;
+  display: none !important;
+}
+.details-modal .event-timing {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+.details-modal .event-timing::before,
+.details-modal .event-timing::after {
+  content: none !important;
+  display: none !important;
+}
