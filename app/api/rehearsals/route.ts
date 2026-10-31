@@ -171,17 +171,21 @@ export async function PUT(request: Request) {
     const creatorId = typeof body?.creatorId === "string" ? body.creatorId : "";
     if (!id || !creatorId) return NextResponse.json({ error: "Проверьте данные репетиции" }, { status: 400 });
 
+    const people = await getPeople(true);
+    const requester = people.find(person => person.id === creatorId);
+    if (!requester) return NextResponse.json({ error: "Профиль не найден" }, { status: 403 });
     const db = await getDatabase();
-    const before = await db.collection<Rehearsal>("rehearsals").findOne({ id, creatorId, isGlobal: { $ne: true } });
-    if (!before) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
+    const before = await db.collection<Rehearsal>("rehearsals").findOne({ id, isGlobal: { $ne: true } });
+    if (!before || (before.creatorId !== creatorId && requester.role !== "admin")) {
+      return NextResponse.json({ error: "Репетиция не найдена или недостаточно прав" }, { status: 404 });
+    }
 
-    const input = await normalizeInput(body, creatorId);
+    const input = await normalizeInput(body, before.creatorId);
     if (!input) return NextResponse.json({ error: "Проверьте данные репетиции" }, { status: 400 });
-    const updated = await updateRehearsal(id, creatorId, input);
-    if (!updated) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
+    const updated = await updateRehearsal(id, before.creatorId, input);
+    if (!updated) return NextResponse.json({ error: "Репетиция не найдена или недостаточно прав" }, { status: 404 });
 
-    const people = await getPeople();
-    const creatorName = people.find(person => person.id === creatorId)?.name;
+    const creatorName = people.find(person => person.id === before.creatorId)?.name;
     const rehearsal = { ...updated, creatorName };
     await notifyNames(getChangedRehearsalAudienceNames(before, rehearsal), "Репетиция изменена", rehearsal);
     return NextResponse.json({ rehearsal });
@@ -197,12 +201,16 @@ export async function DELETE(request: Request) {
     const id = url.searchParams.get("id");
     const creatorId = url.searchParams.get("creatorId");
     if (!id || !creatorId) return NextResponse.json({ error: "Не хватает данных" }, { status: 400 });
+    const people = await getPeople(true);
+    const requester = people.find(person => person.id === creatorId);
+    if (!requester) return NextResponse.json({ error: "Профиль не найден" }, { status: 403 });
     const db = await getDatabase();
-    const rehearsal = await db.collection<Rehearsal>("rehearsals").findOne({ id, creatorId, isGlobal: { $ne: true } });
-    if (!rehearsal) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
-    const deleted = await deleteRehearsal(id, creatorId);
-    if (!deleted) return NextResponse.json({ error: "Репетиция не найдена или вы не её автор" }, { status: 404 });
-    const people = await getPeople();
+    const rehearsal = await db.collection<Rehearsal>("rehearsals").findOne({ id, isGlobal: { $ne: true } });
+    if (!rehearsal || (rehearsal.creatorId !== creatorId && requester.role !== "admin")) {
+      return NextResponse.json({ error: "Репетиция не найдена или недостаточно прав" }, { status: 404 });
+    }
+    const deleted = await deleteRehearsal(id, rehearsal.creatorId);
+    if (!deleted) return NextResponse.json({ error: "Репетиция не найдена или недостаточно прав" }, { status: 404 });
     const creatorName = people.find(person => person.id === rehearsal.creatorId)?.name;
     const hydrated = ensureRehearsalAuthorParticipation(rehearsal, creatorName);
     await notifyNames(getRehearsalAudienceNames(hydrated), "Репетиция отменена", hydrated);

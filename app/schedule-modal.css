@@ -110,3 +110,28 @@
 .event-attendance__notice{margin:10px 0 0;color:#ff9b9b;font-size:11px;line-height:1.45}
 .details-modal__share{flex-wrap:wrap}
 @media(max-width:600px){.event-timing{margin:17px 0}.event-timing__value{font-size:23px}.event-timeline__item{grid-template-columns:58px minmax(0,1fr)}}
+
+
+/* Keep modal transitions on the compositor: Motion owns opacity and transform.
+   A static backdrop blur avoids recalculating the filter on every animation frame. */
+.details-backdrop {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  will-change: opacity;
+}
+.details-modal[role="dialog"] {
+  animation: none !important;
+  will-change: opacity, transform;
+}
+@media (max-width: 600px) {
+  .details-backdrop {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .details-backdrop,
+  .details-modal[role="dialog"] {
+    will-change: auto;
+  }
+}

@@ -330,3 +330,49 @@ body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__date time {
 body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__details {
   font-size: 11px;
 }
+
+
+
+
+/* Modal surface and timer spacing: no translucent/grey header strip. */
+.details-modal__header,
+.details-modal header,
+.details-modal__top,
+.details-modal__titlebar {
+}
+.details-modal__header,
+.details-modal header {
+  border-bottom: 0 !important;
+}
+.details-modal .event-timing,
+.details-modal .event-timing__static-time {
+  margin: 24px 0 28px !important;
+}
+.details-modal .event-timing {
+  padding: 22px !important;
+}
+@media (max-width: 600px) {
+  .details-modal .event-timing { padding: 18px !important; }
+  .details-modal .event-timing,
+  .details-modal .event-timing__static-time { margin: 20px 0 24px !important; }
+}
+
+
+/* Remove decorative grey/gradient bands around the modal header and timing area. */
+.details-modal::before,
+.details-modal::after,
+.details-modal__header::before,
+.details-modal__header::after {
+  content: none !important;
+  display: none !important;
+}
+.details-modal .event-timing {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+.details-modal .event-timing::before,
+.details-modal .event-timing::after {
+  content: none !important;
+  display: none !important;
+}

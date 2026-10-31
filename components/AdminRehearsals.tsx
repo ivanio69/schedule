@@ -26,6 +26,10 @@ export default function AdminRehearsals() {
   const [editingId, setEditingId] = useState("");
   const [loading, setLoading] = useState(true);
   const [peopleLoading, setPeopleLoading] = useState(true);
+  const [mode, setMode] = useState<"global" | "users">("global");
+  const [userItems, setUserItems] = useState<Rehearsal[]>([]);
+  const [userLoading, setUserLoading] = useState(false);
+  const [userEditing, setUserEditing] = useState<Rehearsal | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -37,7 +41,19 @@ export default function AdminRehearsals() {
     setLoading(false);
   };
 
-  useEffect(() => { void load(); }, [date]);
+  useEffect(() => { if (mode === "global") void load(); }, [date, mode]);
+  useEffect(() => {
+    if (mode !== "users") return;
+    let active = true;
+    setUserLoading(true);
+    void fetch("/api/admin/rehearsals?userCreated=true", { cache: "no-store" }).then(async response => {
+      const data = await response.json();
+      if (!active) return;
+      if (response.ok) setUserItems(data.rehearsals ?? []);
+      else setMessage(data.error ?? "Не удалось загрузить пользовательские репетиции");
+    }).finally(() => { if (active) setUserLoading(false); });
+    return () => { active = false; };
+  }, [mode]);
   useEffect(() => {
     void fetch("/api/people", { cache: "no-store" }).then(async response => {
       if (!response.ok) return;
@@ -107,6 +123,22 @@ export default function AdminRehearsals() {
   };
 
   const globalItems = items.filter(item => item.isGlobal);
+  const saveUserEdit = async () => {
+    if (!userEditing) return;
+    setSaving(true); setMessage("");
+    const response = await fetch("/api/admin/rehearsals", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...userEditing, userCreated: true }) });
+    const data = await response.json();
+    if (response.ok) { setUserEditing(null); setUserItems(current => current.map(item => item.id === data.rehearsal.id ? data.rehearsal : item)); setMessage("Репетиция пользователя обновлена"); }
+    else setMessage(data.error ?? "Не удалось сохранить репетицию");
+    setSaving(false);
+  };
+  const removeUserRehearsal = async (item: Rehearsal) => {
+    if (!confirm(`Удалить репетицию «${item.subject}», созданную пользователем ${item.creatorName ?? "группы"}?`)) return;
+    const response = await fetch(`/api/admin/rehearsals?id=${encodeURIComponent(item.id)}&userCreated=true`, { method: "DELETE" });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) setUserItems(current => current.filter(entry => entry.id !== item.id));
+    else setMessage(data.error ?? "Не удалось удалить репетицию");
+  };
 
   if (loading || peopleLoading) return <LoadingState compact label="Загружаем репетиции" detail="Получаем события и участников группы."/>;
 
@@ -116,6 +148,8 @@ export default function AdminRehearsals() {
       description="Общие репетиции видит вся группа. Приглашённые получают уведомления; для графика можно назначать людей по отдельным блокам."
       actions={<a className="admin-primary admin-rehearsal-schedule-link" href={`/admin/rehearsals/new?date=${encodeURIComponent(date)}`}>＋ Репетиция с графиком</a>}
     />
+    <div className="admin-modebar" aria-label="Тип репетиций"><button className={mode === "global" ? "is-active" : ""} onClick={() => setMode("global")}>Общие репетиции</button><button className={mode === "users" ? "is-active" : ""} onClick={() => setMode("users")}>Пользовательские <span>{userItems.length}</span></button></div>
+    {mode === "global" ? <>
     <section className="admin-card admin-rehearsal-form">
       <p className="admin-eyebrow">{editingId?"Редактирование общей репетиции":"Обычная общая репетиция"}</p>
       <div className="admin-form-grid admin-form-grid-main">
@@ -149,5 +183,28 @@ export default function AdminRehearsals() {
       </article>)}
       {globalItems.length===0&&<div className="admin-card admin-empty">На эту дату общих репетиций нет.</div>}
     </section>
+    </> : <section className="admin-user-rehearsals">
+      <AdminHeading title="Пользовательские репетиции" description="Репетиции, созданные участниками группы. Здесь администратор может исправить данные или удалить событие." />
+      {userEditing && <section className="admin-card admin-rehearsal-form">
+        <p className="admin-eyebrow">Редактирование репетиции пользователя</p>
+        <div className="admin-form-grid admin-form-grid-main">
+          <label>Название<input className="admin-input" value={userEditing.subject} onChange={e=>setUserEditing(v=>v?{...v,subject:e.target.value}:v)}/></label>
+          <label>Автор<input className="admin-input" value={userEditing.creatorName ?? userEditing.creatorId} disabled /></label>
+          <label>Ответственный<input className="admin-input" value={userEditing.responsible} onChange={e=>setUserEditing(v=>v?{...v,responsible:e.target.value}:v)}/></label>
+          <label>Дата<input className="admin-input" type="date" value={userEditing.date} onChange={e=>setUserEditing(v=>v?{...v,date:e.target.value}:v)}/></label>
+        </div>
+        <div className="admin-editor-row"><label>Начало<input className="admin-input" type="time" value={userEditing.timeStart} onChange={e=>setUserEditing(v=>v?{...v,timeStart:e.target.value}:v)}/></label><label>Конец<input className="admin-input" type="time" value={userEditing.timeEnd} onChange={e=>setUserEditing(v=>v?{...v,timeEnd:e.target.value}:v)}/></label></div>
+        <label className="admin-rehearsal-notes">Заметки<textarea className="admin-input" value={userEditing.notes ?? ""} onChange={e=>setUserEditing(v=>v?{...v,notes:e.target.value}:v)}/></label>
+        <div className="admin-actions admin-rehearsal-actions"><button className="admin-secondary" onClick={()=>setUserEditing(null)}>Отмена</button><button className="admin-primary" disabled={saving} onClick={()=>void saveUserEdit()}>{saving?"Сохраняю…":"Сохранить изменения"}</button></div>
+      </section>}
+      {message && mode === "users" && <p className={message.includes("обновлена") ? "admin-success" : "admin-error"}>{message}</p>}
+      {userLoading ? <LoadingState compact label="Загружаем пользовательские репетиции" detail="Получаем список событий группы."/> : <section className="admin-rehearsal-list">
+        {userItems.map(item=><article className="admin-card admin-rehearsal-item" key={item.id}>
+          <strong className="admin-rehearsal-time">{item.timeStart}–{item.timeEnd}</strong><div className="admin-rehearsal-copy"><strong>{item.subject}</strong><div className="admin-muted">Автор: {item.creatorName ?? item.creatorId} · {item.date} · {item.participants?.length ?? 0} участников</div>{item.notes&&<small className="admin-muted">{item.notes}</small>}</div>
+          <button className="admin-secondary admin-rehearsal-edit-link" onClick={()=>setUserEditing(item)}>Изменить</button><button className="admin-danger" onClick={()=>void removeUserRehearsal(item)}>Удалить</button>
+        </article>)}
+        {userItems.length===0&&<div className="admin-card admin-empty">Пользовательских репетиций пока нет.</div>}
+      </section>}
+    </section>}
   </>;
 }
