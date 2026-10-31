@@ -335,17 +335,16 @@ body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__details {
 
 
 /* Modal surface and timer spacing: no translucent/grey header strip. */
-.details-modal,
 .details-modal__header,
 .details-modal header,
 .details-modal__top,
 .details-modal__titlebar {
-  background-color: var(--bg) !important;
+  background-color: inherit !important;
   background-image: none !important;
 }
 .details-modal__header,
 .details-modal header {
-  border-bottom-color: var(--border);
+  border-bottom: 0 !important;
 }
 .details-modal .event-timing,
 .details-modal .event-timing__static-time {
