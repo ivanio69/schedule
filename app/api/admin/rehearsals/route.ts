@@ -55,7 +55,7 @@ async function normalizeBlocks(values: unknown): Promise<RehearsalBlock[] | null
   return blocks;
 }
 
-async function normalizeInput(body: unknown) {
+async function normalizeInput(body: unknown, creatorId = "admin", isGlobal = true) {
   if (!body || typeof body !== "object") return null;
   const raw = body as Partial<Rehearsal>;
   const subject = cleanText(raw.subject, 120);
@@ -83,7 +83,7 @@ async function normalizeInput(body: unknown) {
   }
 
   return {
-    creatorId: "admin",
+    creatorId,
     subject,
     date: String(raw.date),
     timeStart,
@@ -94,7 +94,7 @@ async function normalizeInput(body: unknown) {
     blocks: blocks ?? [],
     notes,
     ignoredConflictKeys,
-    isGlobal: true,
+    ...(isGlobal ? { isGlobal: true } : { isGlobal: false }),
   };
 }
 
@@ -120,6 +120,14 @@ export async function GET(request: NextRequest) {
   if (!authenticated(request)) return unauthorized();
   const id = request.nextUrl.searchParams.get("id");
   const date = request.nextUrl.searchParams.get("date");
+  const userCreated = request.nextUrl.searchParams.get("userCreated") === "true";
+  if (userCreated && !id) {
+    const db = await getDatabase();
+    const rehearsals = await db.collection<Rehearsal>("rehearsals").find({ isGlobal: { $ne: true } }).sort({ date: 1, timeStart: 1 }).toArray();
+    const people = await getPeople(true);
+    const names = new Map(people.map(person => [person.id, person.name]));
+    return NextResponse.json({ rehearsals: rehearsals.map(item => ({ ...item, creatorName: item.creatorName ?? names.get(item.creatorId) ?? "Неизвестный автор" })) }, { headers: { "Cache-Control": "no-store" } });
+  }
   if (id) {
     const rehearsal = await (await getDatabase()).collection<Rehearsal>("rehearsals").findOne({ id, isGlobal: true });
     return rehearsal
@@ -146,14 +154,18 @@ export async function PUT(request: NextRequest) {
   const id = typeof body?.id === "string" ? body.id : "";
   if (!id) return NextResponse.json({ error: "Не указана репетиция" }, { status: 400 });
   const db = await getDatabase();
-  const before = await db.collection<Rehearsal>("rehearsals").findOne({ id, creatorId: "admin", isGlobal: true });
-  if (!before) return NextResponse.json({ error: "Общая репетиция не найдена" }, { status: 404 });
-  const input = await normalizeInput(body);
+  const userCreated = body?.userCreated === true;
+  const before = await db.collection<Rehearsal>("rehearsals").findOne(userCreated
+    ? { id, isGlobal: { $ne: true } }
+    : { id, creatorId: "admin", isGlobal: true });
+  if (!before) return NextResponse.json({ error: "Репетиция не найдена" }, { status: 404 });
+  const input = await normalizeInput(body, before.creatorId, !userCreated);
   if (!input) return NextResponse.json({ error: "Проверь данные репетиции" }, { status: 400 });
-  const updated = await updateRehearsal(id, "admin", input);
-  if (!updated) return NextResponse.json({ error: "Общая репетиция не найдена" }, { status: 404 });
-  const rehearsal = { ...updated, creatorName: "Администратор" };
-  await notifyNames(getChangedRehearsalAudienceNames(before, rehearsal), "Общая репетиция изменена", rehearsal);
+  const updated = await updateRehearsal(id, before.creatorId, input);
+  if (!updated) return NextResponse.json({ error: "Репетиция не найдена" }, { status: 404 });
+  const people = await getPeople(true);
+  const rehearsal = { ...updated, creatorName: people.find(person => person.id === before.creatorId)?.name ?? (userCreated ? "Неизвестный автор" : "Администратор") };
+  await notifyNames(getChangedRehearsalAudienceNames(before, rehearsal), userCreated ? "Ваша репетиция изменена администратором" : "Общая репетиция изменена", rehearsal);
   return NextResponse.json({ rehearsal });
 }
 
@@ -162,10 +174,13 @@ export async function DELETE(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Не указана репетиция" }, { status: 400 });
   const db = await getDatabase();
-  const rehearsal = await db.collection<Rehearsal>("rehearsals").findOne({ id, creatorId: "admin", isGlobal: true });
-  if (!rehearsal) return NextResponse.json({ error: "Общая репетиция не найдена" }, { status: 404 });
-  const deleted = await deleteRehearsal(id, "admin");
-  if (!deleted) return NextResponse.json({ error: "Общая репетиция не найдена" }, { status: 404 });
-  await notifyNames(getRehearsalAudienceNames(rehearsal), "Репетиция отменена", rehearsal);
+  const userCreated = request.nextUrl.searchParams.get("userCreated") === "true";
+  const rehearsal = await db.collection<Rehearsal>("rehearsals").findOne(userCreated
+    ? { id, isGlobal: { $ne: true } }
+    : { id, creatorId: "admin", isGlobal: true });
+  if (!rehearsal) return NextResponse.json({ error: "Репетиция не найдена" }, { status: 404 });
+  const deleted = await deleteRehearsal(id, rehearsal.creatorId);
+  if (!deleted) return NextResponse.json({ error: "Репетиция не найдена" }, { status: 404 });
+  await notifyNames(getRehearsalAudienceNames(rehearsal), userCreated ? "Репетиция удалена администратором" : "Репетиция отменена", rehearsal);
   return NextResponse.json({ ok: true });
 }
