@@ -19,7 +19,6 @@ type Props = {
   lessonDate: string;
   creatorId: string;
   personName: string;
-  isAdmin?: boolean;
   onEditRehearsal?: (rehearsal: Rehearsal) => void;
   onDeleteRehearsal?: (rehearsal: Rehearsal) => void;
 };
@@ -38,7 +37,7 @@ function noteKey(details: EventDetails) {
     : [lesson.class, lesson.timeStart, lesson.timeEnd, lesson.auditorium, lesson.group.join(",")].join("|");
 }
 
-export default function EventDetailsContent({ details, lessonDate, creatorId, personName, isAdmin = false, onEditRehearsal, onDeleteRehearsal }: Props) {
+export default function EventDetailsContent({ details, lessonDate, creatorId, personName, onEditRehearsal, onDeleteRehearsal }: Props) {
   const [notice, setNotice] = useState("");
   const spectator = details.type === "rehearsal" && !isRehearsalParticipant(details.item, creatorId, personName);
   const date = details.type === "lesson" ? lessonDate : details.item.date;
@@ -142,7 +141,7 @@ export default function EventDetailsContent({ details, lessonDate, creatorId, pe
     </div>
     {details.type === "rehearsal" && <>
       <RehearsalTimeline rehearsal={details.item} personName={personName}/>
-      {(details.item.creatorId === creatorId || isAdmin) && <div className="details-modal__actions">
+      {details.item.creatorId === creatorId && <div className="details-modal__actions">
         {details.item.blocks?.length
           ? <a className="details-modal__edit-button" href={"/schedule/rehearsals/new?edit=" + encodeURIComponent(details.item.id)}>Редактировать график</a>
           : onEditRehearsal
