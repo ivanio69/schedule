@@ -330,3 +330,32 @@ body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__date time {
 body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__details {
   font-size: 11px;
 }
+
+
+
+
+/* Modal surface and timer spacing: no translucent/grey header strip. */
+.details-modal,
+.details-modal__header,
+.details-modal header,
+.details-modal__top,
+.details-modal__titlebar {
+  background-color: var(--bg) !important;
+  background-image: none !important;
+}
+.details-modal__header,
+.details-modal header {
+  border-bottom-color: var(--border);
+}
+.details-modal .event-timing,
+.details-modal .event-timing__static-time {
+  margin: 24px 0 28px !important;
+}
+.details-modal .event-timing {
+  padding: 22px !important;
+}
+@media (max-width: 600px) {
+  .details-modal .event-timing { padding: 18px !important; }
+  .details-modal .event-timing,
+  .details-modal .event-timing__static-time { margin: 20px 0 24px !important; }
+}
