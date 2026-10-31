@@ -339,8 +339,6 @@ body .dashboard-rehearsal.is-non-participant .dashboard-rehearsal__details {
 .details-modal header,
 .details-modal__top,
 .details-modal__titlebar {
-  background-color: inherit !important;
-  background-image: none !important;
 }
 .details-modal__header,
 .details-modal header {
