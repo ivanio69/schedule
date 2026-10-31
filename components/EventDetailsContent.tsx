@@ -41,6 +41,8 @@ export default function EventDetailsContent({ details, lessonDate, creatorId, pe
   const [notice, setNotice] = useState("");
   const spectator = details.type === "rehearsal" && !isRehearsalParticipant(details.item, creatorId, personName);
   const date = details.type === "lesson" ? lessonDate : details.item.date;
+  const today = (() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; })();
+  const showRehearsalTimer = details.type !== "rehearsal" || date === today;
 
   const downloadCalendar = () => {
     const start = new Date(date + "T" + details.item.timeStart + ":00");
@@ -90,7 +92,7 @@ export default function EventDetailsContent({ details, lessonDate, creatorId, pe
   };
 
   return <>
-    {spectator ? <p className="event-timing__static-time" aria-label="Время репетиции">{details.item.timeStart}–{details.item.timeEnd}</p> : <EventTiming
+    {details.type === "rehearsal" && !showRehearsalTimer ? <p className="event-timing__static-time" aria-label="Время репетиции">{details.item.timeStart}–{details.item.timeEnd}</p> : spectator ? <p className="event-timing__static-time" aria-label="Время репетиции">{details.item.timeStart}–{details.item.timeEnd}</p> : <EventTiming
       lesson={details.type === "lesson"}
       date={date}
       start={details.item.timeStart}
