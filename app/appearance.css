@@ -23,7 +23,8 @@ html[data-appearance-transition="true"] {
     --accent .46s cubic-bezier(.22,1,.36,1),
     --rehearsal .46s cubic-bezier(.22,1,.36,1),
     --individual .46s cubic-bezier(.22,1,.36,1),
-    --seminar .46s cubic-bezier(.22,1,.36,1);
+    --seminar .46s cubic-bezier(.22,1,.36,1),
+    --personal .46s cubic-bezier(.22,1,.36,1);
 }
 html[data-appearance-transition="time"] {
   transition:--accent 1.8s cubic-bezier(.22,1,.36,1);
@@ -344,3 +345,26 @@ body .app-loading-state.is-screen{visibility:visible}
 @media(prefers-reduced-motion:reduce){.ambient-background,.ambient-spots>span>i{transition:none}.ambient-spots>span{will-change:auto}}
 /* Keep the progress fill on its own compositor layer; it never animates width. */
 .dashboard-progress i{will-change:transform;backface-visibility:hidden;background-position:0 0!important;animation:none!important}
+
+/* Personal plans use the same saved accent palette as other event types. */
+@property --personal { syntax:"<color>"; inherits:true; initial-value:#76aef8; }
+html { --personal:#76aef8; --personal-text:#10213a; --personal-bg:color-mix(in srgb,var(--personal) 10%,transparent); }
+html[data-personal-accent="default"],html[data-personal-accent="blue"] { --personal:#76aef8; --personal-text:#10213a; }
+html[data-personal-accent="mint"] { --personal:#79d9b0; --personal-text:#10271e; }
+html[data-personal-accent="violet"] { --personal:#aa8df5; --personal-text:#24183d; }
+html[data-personal-accent="amber"] { --personal:#edb761; --personal-text:#30210a; }
+html[data-personal-accent="rose"] { --personal:#ed8ca1; --personal-text:#38151d; }
+.settings-color-preset.is-default-personal span { --default-swatch:#76aef8; }
+body .personal-event-card,body .dashboard-event-v2.personal {
+  --event-color:var(--personal); border-color:color-mix(in srgb,var(--personal) 35%,var(--border))!important;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--personal) 7%,var(--surface)),var(--surface))!important;
+  box-shadow:inset 3px 0 var(--personal),var(--shadow-card);
+}
+body .personal-event-card .schedule-card__time { color:var(--personal); background:var(--personal-bg); }
+body .personal-event-card .card-kind-badge { color:var(--personal); background:var(--personal-bg); }
+body .dashboard-event-v2.personal .dashboard-event-content>span,body .dashboard-event-v2.personal .dashboard-event-time strong { color:var(--personal)!important; }
+body .personal-event-form { border-color:color-mix(in srgb,var(--personal) 32%,var(--border)); background:color-mix(in srgb,var(--personal) 4%,var(--surface)); box-shadow:inset 3px 0 var(--personal); }
+
+body .personal-event-card .schedule-card__body { min-width:0; }
+body .personal-event-card h2,body .personal-event-card .schedule-card__meta span { overflow-wrap:anywhere; }
+body .personal-event-card:focus-visible { outline:2px solid var(--personal); outline-offset:3px; }
