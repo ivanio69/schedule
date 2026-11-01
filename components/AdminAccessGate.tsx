@@ -45,6 +45,6 @@ export default function AdminAccessGate({ children }: { children: ReactNode }) {
   }, []);
 
   if (state === "checking") return <LoadingState screen label="Проверяем доступ" detail="Сверяем роль выбранного профиля."/>;
-  if (state === "denied") return <main className="admin-shell admin-auth"><div className="admin-card admin-auth-card"><div className="admin-logo">214Р</div><p className="admin-eyebrow">Schedule Admin</p><h1>Нет доступа</h1><p className="admin-muted">Админ-панель доступна только профилям с ролью «Админ».</p><Link className="admin-primary admin-wide" href="/">Вернуться в приложение</Link></div></main>;
+  if (state === "denied") return <main className="admin-shell admin-auth"><div className="admin-card admin-auth-card"><div className="admin-logo">214Р</div><h1>Нет доступа</h1><p className="admin-muted">Админ-панель доступна только профилям с ролью «Админ».</p><Link className="admin-primary admin-wide" href="/">Вернуться в приложение</Link></div></main>;
   return children;
 }

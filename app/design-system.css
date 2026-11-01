@@ -41,7 +41,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Page rhythm and reusable interactive surfaces. */
 .dashboard-v2, .seminars-client, .student-slots, .settings-page { padding-top: 44px !important; }
-.dashboard-v2 h1, .seminars h1, .student-slots h2, .settings-page h1 { font-weight: 760; }
+.dashboard-v2 h1, .seminars h1, .student-slots > header h1, .settings-page h1 { font-weight: 760; }
 .schedule-card, .rehearsal-card, .settings-section, .admin-card, .seminar-create, .seminar-list,
 .student-slots-list, .student-slots-mine article, .settings-page-row {
   box-shadow: 0 1px 0 rgba(255,255,255,.025), var(--shadow-card);
@@ -63,7 +63,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .admin-primary, .seminars button.seminar-primary, .student-slots button {
   color: var(--accent-text); background: var(--accent); border-color: var(--accent);
 }
-.admin-primary:hover, .seminars button.seminar-primary:hover:not(:disabled) { background: #d4f9e3; }
+.admin-primary:hover, .seminars button.seminar-primary:hover:not(:disabled) { background: color-mix(in srgb,var(--accent) 90%,var(--bg)); }
 .admin-danger { color: var(--danger); }
 .admin-success { color: var(--success); }
 .admin-input, .seminars :is(input, select, textarea) { border-color: var(--border); background: #101016; }
@@ -308,15 +308,18 @@ body .rehearsal-form .admin-primary{
 }
 
 body .add-rehearsal-button{
-  border-color:color-mix(in srgb,var(--rehearsal) 62%,transparent);
-  color:var(--rehearsal);
-  background:color-mix(in srgb,var(--rehearsal) 8%,var(--surface))
+  min-height:46px;
+  border:1px solid var(--accent);
+  color:var(--accent-text);
+  background:var(--accent);
+  font-size:var(--font-ui);
+  font-weight:600;
 }
 body .add-rehearsal-button:hover{
-  border-color:var(--rehearsal);
-  background:color-mix(in srgb,var(--rehearsal) 13%,var(--surface))
+  border-color:var(--accent);
+  background:color-mix(in srgb,var(--accent) 90%,var(--bg));
 }
-body .add-rehearsal-button:focus-visible{outline-color:var(--rehearsal)!important}
+body .add-rehearsal-button:focus-visible{outline-color:var(--accent)!important}
 body .rehearsal-participants{
   grid-column:1 / -1;
   display:grid;

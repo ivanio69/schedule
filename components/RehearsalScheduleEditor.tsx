@@ -265,7 +265,7 @@ export default function RehearsalScheduleEditor({ admin = false, initialDate = "
 
   return <main className={`rehearsal-editor-page${admin ? " is-admin" : ""}`}>
     <header className="rehearsal-editor-head">
-      <div><p>РЕПЕТИЦИЯ · ГРАФИК</p><h1>{editId ? "Редактировать график" : admin ? "Общая репетиция с графиком" : "Репетиция с графиком"}</h1><span>Разбейте репетицию на блоки и назначьте участников общим списком или отдельно для каждого блока.</span></div>
+      <div><h1>{editId ? "Редактировать график" : admin ? "Общая репетиция с графиком" : "Репетиция с графиком"}</h1><span>Разбейте репетицию на блоки и назначьте участников общим списком или отдельно для каждого блока.</span></div>
       <button type="button" className="rehearsal-editor-back" onClick={() => history.back()}>← Назад</button>
     </header>
 

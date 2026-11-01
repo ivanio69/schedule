@@ -1,17 +1,20 @@
 "use client";
 
+import { useDialogMotion } from "@/lib/dialog-motion";
+
 import { useCallback, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import styles from "./Tasks.module.css";
 
-export default function TaskDialog({ title, caption, children, busy, closing, onClose }: {
-  title: string; caption: string; children: ReactNode; busy: boolean; closing: boolean; onClose: () => void;
+export default function TaskDialog({ title, caption, children, busy, closing, onClose, compact = false }: {
+  title: string; caption: string; children: ReactNode; busy: boolean; closing: boolean; onClose: () => void; compact?: boolean;
 }) {
   const element = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  const focused = useRef(false);
   const [exiting, setExiting] = useState(false);
-  const reducedMotion = useReducedMotion();
+  const modalMotion = useDialogMotion();
   const requestClose = useCallback(() => { if (!busy) setExiting(true); }, [busy]);
   const leaving = closing || exiting;
   useLayoutEffect(() => {
@@ -24,7 +27,8 @@ export default function TaskDialog({ title, caption, children, busy, closing, on
     if (scrollbar > 0) document.body.style.paddingRight = `${parseFloat(getComputedStyle(document.body).paddingRight) + scrollbar}px`;
     document.body.style.overflow = "hidden";
     dialog?.showModal();
-    dialog?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+    // Keep the mobile keyboard from resizing the viewport during entry.
+    dialog?.querySelector<HTMLButtonElement>("[data-dialog-close]")?.focus({ preventScroll: true });
     return () => {
       // The panel and shade have finished fading before this cleanup runs.
       dialog?.close();
@@ -33,11 +37,23 @@ export default function TaskDialog({ title, caption, children, busy, closing, on
       if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, []);
-  const transition = { duration: reducedMotion ? 0 : leaving ? .16 : .22, ease: [.22, 1, .36, 1] as const };
   return createPortal(<dialog ref={element} className={styles.dialog} aria-labelledby={titleId} aria-busy={busy} onKeyDownCapture={e => { if (leaving) { e.preventDefault(); e.stopPropagation(); } }} onCancel={e => { e.preventDefault(); requestClose(); }} onClick={e => { if (e.target === e.currentTarget) requestClose(); }}>
-    <motion.div className={styles.dialogShade} aria-hidden="true" initial={{ opacity: 0 }} animate={{ opacity: leaving ? 0 : 1 }} transition={transition}/>
-    <motion.section className={styles.dialogPanel} initial={reducedMotion ? false : { opacity: 0, y: 14, scale: .985 }} animate={leaving ? { opacity: 0, y: reducedMotion ? 0 : 8, scale: reducedMotion ? 1 : .99 } : { opacity: 1, y: 0, scale: 1 }} transition={transition} onAnimationComplete={() => { if (leaving) onClose(); }} data-closing={leaving}>
-      <header className={styles.dialogHeading}><div><p>{caption}</p><h2 id={titleId}>{title}</h2></div><button type="button" className="icon-button" disabled={busy || leaving} onClick={requestClose} aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+    <motion.div className={styles.dialogShade} aria-hidden="true" {...modalMotion.shade} animate={leaving ? modalMotion.shade.exit : modalMotion.shade.animate}/>
+    <motion.section className={`${styles.dialogPanel}${compact ? ` ${styles.dialogPanelCompact}` : ""}`} {...modalMotion.panel} animate={leaving ? modalMotion.panel.exit : modalMotion.panel.animate} onAnimationComplete={() => {
+      if (leaving) {
+        onClose();
+        // A confirmation may return to its editor instead of unmounting.
+        setExiting(false);
+        return;
+      }
+      if (!focused.current) {
+        focused.current = true;
+        if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+          element.current?.querySelector<HTMLInputElement>("input:not([disabled])")?.focus({ preventScroll: true });
+        }
+      }
+    }} data-closing={leaving}>
+      <header className={styles.dialogHeading}><div><p>{caption}</p><h2 id={titleId}>{title}</h2></div><button type="button" data-dialog-close autoFocus className="icon-button" disabled={busy || leaving} onClick={requestClose} aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
       <div>{children}</div>
     </motion.section>
   </dialog>, document.body);

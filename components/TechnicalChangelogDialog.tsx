@@ -1,27 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { TechnicalChangelog } from "@/lib/technical-changelog";
 import styles from "./TechnicalChangelogDialog.module.css";
+import TaskDialog from "./TaskDialog";
 
 export default function TechnicalChangelogDialog({ onClose }: { onClose: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null);
   const [data, setData] = useState<TechnicalChangelog | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    const element = dialog.current;
-    const trigger = document.activeElement as HTMLElement | null;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    element?.showModal();
-    return () => {
-      element?.close();
-      document.body.style.overflow = overflow;
-      trigger?.focus();
-    };
-  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -38,17 +25,8 @@ export default function TechnicalChangelogDialog({ onClose }: { onClose: () => v
     return () => controller.abort();
   }, [attempt]);
 
-  return <dialog ref={dialog} className={styles.dialog} aria-labelledby="technical-changelog-title" onCancel={onClose} onClick={event => {
-    if (event.target !== event.currentTarget) return;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose();
-  }}>
-    <header className={styles.header}>
-      <div><span>ИСТОРИЯ РАЗРАБОТКИ</span><h2 id="technical-changelog-title">Технический чейнджлог</h2>
-        {data && <p>DEV {data.version} · {data.commits.length} коммитов · <a href={`https://github.com/ivanio69/schedule/pull/${data.pr}`} target="_blank" rel="noreferrer">PR #{data.pr} ↗</a></p>}
-      </div>
-      <button type="button" onClick={onClose} aria-label="Закрыть">×</button>
-    </header>
+  return <TaskDialog title="Технический чейнджлог" caption="ИСТОРИЯ РАЗРАБОТКИ" busy={false} closing={false} onClose={onClose}>
+    {data && <p className={styles.summary}>DEV {data.version} · {data.commits.length} коммитов · <a href={`https://github.com/ivanio69/schedule/pull/${data.pr}`} target="_blank" rel="noreferrer">PR #{data.pr} ↗</a></p>}
     <div className={styles.content} aria-busy={!data && !error}>
       {!data && !error && <p role="status">Загружаю коммиты…</p>}
       {error && <div role="alert"><p>{error}</p><button type="button" onClick={() => { setError(""); setAttempt(value => value + 1); }}>Повторить</button></div>}
@@ -62,5 +40,5 @@ export default function TechnicalChangelogDialog({ onClose }: { onClose: () => v
         </article>;
       })}
     </div>
-  </dialog>;
+  </TaskDialog>;
 }
