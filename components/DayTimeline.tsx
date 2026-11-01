@@ -57,13 +57,24 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
     if (!section || !header) return;
     let frame = 0;
     let previousEdge = -1;
+    let previousOpacity = -1;
     const measure = () => {
       frame = 0;
       const rect = section.getBoundingClientRect();
       const edge = Math.round(Math.max(0, Math.min(rect.height + 112, header.getBoundingClientRect().bottom + 52 - rect.top)));
-      if (edge === previousEdge) return;
-      previousEdge = edge;
-      section.style.setProperty("--timeline-fade-edge", `${edge}px`);
+      if (edge !== previousEdge) {
+        previousEdge = edge;
+        section.style.setProperty("--timeline-fade-edge", `${edge}px`);
+      }
+      // Fade out the whole timeline as its bottom reaches the pinned header,
+      // so its last cards cannot appear underneath the header at seminars.
+      const overlap = header.getBoundingClientRect().bottom + 52 - rect.bottom;
+      const opacity = Math.max(0, Math.min(1, 1 - (overlap + 120) / 120));
+      const roundedOpacity = Math.round(opacity * 1000) / 1000;
+      if (roundedOpacity !== previousOpacity) {
+        previousOpacity = roundedOpacity;
+        section.style.setProperty("--timeline-exit-opacity", `${roundedOpacity}`);
+      }
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(measure); };
     const observer = new ResizeObserver(schedule);
