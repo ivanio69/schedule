@@ -323,7 +323,7 @@ export default function DashboardV2() {
           align-items: flex-end;
           justify-content: space-between;
           gap: 20px;
-          padding: 48px 0 14px;
+          padding: 10px 0 6px;
           border: 0;
           background: transparent;
           isolation: isolate;
@@ -344,16 +344,16 @@ export default function DashboardV2() {
         body:has(.dev-environment-banner) .dashboard-v2-head { top: calc(44px + env(safe-area-inset-top, 0px)); }
         .dashboard-v2 h1 {
           margin: 0;
-          font-size: clamp(30px, 6vw, 52px);
+          font-size: clamp(26px, 5vw, 40px);
           letter-spacing: -0.045em;
         }
         .dashboard-v2-head > div > p:last-child {
-          margin: 9px 0 0;
+          margin: 3px 0 0;
           color: var(--muted);
           font-size: 14px;
         }
         .dashboard-kicker {
-          margin: 0 0 8px;
+          margin: 0 0 3px;
           color: var(--muted);
           font-size: 11px;
           font-weight: 750;
@@ -576,7 +576,7 @@ export default function DashboardV2() {
             padding-top: 0;
           }
           .dashboard-v2-head {
-            padding-top: 36px;
+            padding-top: 8px;
             align-items: flex-start;
           }
           .dashboard-event-v2 {
