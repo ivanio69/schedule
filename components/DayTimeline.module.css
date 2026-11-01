@@ -1,11 +1,11 @@
 .timeline { margin-top:34px; color:var(--text); font:inherit; opacity:var(--timeline-exit-opacity,1); -webkit-mask-image:linear-gradient(to bottom,transparent max(0px,calc(var(--timeline-fade-edge,0px) - 112px)),#000 max(0px,var(--timeline-fade-edge,0px))); mask-image:linear-gradient(to bottom,transparent max(0px,calc(var(--timeline-fade-edge,0px) - 112px)),#000 max(0px,var(--timeline-fade-edge,0px))); }
-.dayOverview { display:flex; align-items:center; justify-content:space-between; gap:20px; margin:0 0 28px; padding:6px 0 20px; border-bottom:1px solid var(--border); }
+.dayOverview { display:flex; align-items:center; justify-content:space-between; min-width:0; gap:20px; margin:0 0 28px; padding:6px 0 20px; border-bottom:1px solid var(--border); }
 .dayOverviewMeta { display:grid; gap:10px; min-width:0; }
 .overviewEyebrow { color:var(--muted); font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; }
-.overviewFacts { display:flex; align-items:center; gap:12px; color:var(--muted-strong); font-size:14px; line-height:1.4; }
+.overviewFacts { display:flex; flex-wrap:wrap; align-items:center; gap:12px; color:var(--muted-strong); font-size:14px; line-height:1.4; }
 .overviewFacts strong { color:var(--text); font-size:16px; font-weight:650; font-variant-numeric:tabular-nums; }
 .overviewDot { width:4px; height:4px; border-radius:50%; background:var(--muted); flex:none; opacity:.6; }
-.dayOverviewFinish { display:grid; gap:3px; min-width:0; text-align:right; }
+.dayOverviewFinish { display:grid; gap:3px; min-width:0; text-align:right; overflow-wrap:anywhere; }
 .dayOverviewFinish>span { color:var(--muted); font-size:12px; font-weight:500; }
 .dayOverviewFinish>strong { color:var(--text); font-size:clamp(28px,4.6vw,40px); font-weight:650; line-height:1.08; letter-spacing:-.055em; font-variant-numeric:tabular-nums; }
 /* The rail belongs only to the list. It cannot cross the summary or neighbouring sections. */
@@ -41,10 +41,10 @@
 .progressLabels { display:flex; justify-content:space-between; gap:12px; margin-bottom:9px; color:var(--muted-strong); font-size:12px; font-variant-numeric:tabular-nums; }
 .progress { height:5px; border-radius:999px; overflow:hidden; background:color-mix(in srgb,var(--event-color) 16%,var(--border)); }
 .progress>span { display:block; width:100%; height:100%; border-radius:inherit; background:var(--event-color); transform-origin:left; transition:transform .4s ease; }
-.gap { position:relative; display:grid; grid-template-columns:60px minmax(0,1fr); column-gap:32px; row-gap:14px; align-items:center; padding:20px 0; margin:6px 0; }
+.gap { position:relative; display:grid; min-width:0; grid-template-columns:60px minmax(0,1fr); column-gap:32px; row-gap:14px; align-items:center; padding:20px 0; margin:6px 0; }
 .shortGap { padding-block:6px; margin-block:0; row-gap:6px; }
 .gapTime { color:var(--muted); font-size:10px; line-height:1.5; text-align:right; font-variant-numeric:tabular-nums; }
-.gapContent { display:flex; gap:12px; align-items:center; padding-left:4px; color:var(--muted); font-size:13px; }
+.gapContent { display:flex; min-width:0; overflow-wrap:anywhere; gap:12px; align-items:center; padding-left:4px; color:var(--muted); font-size:13px; }
 .gapContent svg { width:23px; height:23px; flex-shrink:0; }
 .gapContent strong { margin-left:5px; font-weight:500; color:var(--muted-strong); }
 .now { display:flex; align-items:center; gap:8px; color:var(--danger,#ff9ea6); font-size:11px; font-weight:500; font-variant-numeric:tabular-nums; }
@@ -54,6 +54,8 @@
 .afterNow { position:relative; padding:12px 0 0 72px; background:var(--bg); }
 @media(max-width:650px) {
   .dayOverview { gap:12px; margin-bottom:22px; padding-bottom:16px; }
+  .dayOverviewMeta { flex:1 1 auto; }
+  .dayOverviewFinish { flex:0 1 auto; }
   .dayOverviewMeta { gap:9px; }
   .overviewFacts { gap:8px; font-size:12px; }
   .overviewFacts strong { font-size:14px; }
