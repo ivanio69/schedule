@@ -33,9 +33,10 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
 }) {
   const reducedMotion = useReducedMotion();
   const occupancy = getDayOccupancy(events);
-  const active = events.filter(event => event.status !== "cancelled");
+  const active = events.filter(event => event.status !== "cancelled").sort((a,b)=>a.start.localeCompare(b.start));
+  const openFromTop = Boolean(active[0] && currentMinute < timeMinutes(active[0].end));
   const current = active.find(event => timeMinutes(event.start) <= currentMinute && currentMinute < timeMinutes(event.end));
-  const next = [...active].sort((a,b)=>a.start.localeCompare(b.start)).find(event => timeMinutes(event.start) > currentMinute);
+  const next = active.find(event => timeMinutes(event.start) > currentMinute);
   const lastEnd = occupancy.ranges.at(-1)?.end;
   const gaps = occupancy.gaps.map(gap => ({ ...gap, key: `gap-${gap.start}`, kind: "gap" as const }));
   const rows = [
@@ -96,6 +97,11 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
     // Let the browser/route finish restoring its scroll position first.
     let frame = requestAnimationFrame(() => {
       frame = requestAnimationFrame(() => {
+        if (openFromTop) {
+          positionedDate.current = date;
+          window.scrollTo({top:0,behavior:"instant"});
+          return;
+        }
         const target = list.current?.querySelector<HTMLElement>("[data-timeline-focus]");
         if (!target) return;
         const header = document.querySelector<HTMLElement>("[data-dashboard-header]");
@@ -109,7 +115,7 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
       });
     });
     return () => cancelAnimationFrame(frame);
-  }, [date, focusKey]);
+  }, [date, focusKey, openFromTop]);
 
   return <section ref={timeline} className={styles.timeline} aria-label="Единая временная шкала дня">
     <div className={styles.dayOverview} aria-label="Сводка дня">
