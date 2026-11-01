@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { sameTaskLink, taskEventLabels, type TaskEvent, type TaskEventKind, type TaskLink } from "@/lib/tasks";
 import styles from "./Tasks.module.css";
 
@@ -14,6 +15,7 @@ export default function TaskEventPicker({ events, value, fallback, loading, erro
   events: TaskEvent[]; value: TaskLink | null; fallback?: TaskEvent | null;
   loading: boolean; error: string; onRetry: () => void; onChange: (value: TaskLink | null) => void;
 }) {
+  const reducedMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("all");
@@ -38,7 +40,8 @@ export default function TaskEventPicker({ events, value, fallback, loading, erro
       </button>
       {value && <button type="button" className={styles.unlink} onClick={() => choose(null)} aria-label="Убрать привязку к событию" title="Убрать привязку"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8 8 8m0-8-8 8"/></svg></button>}
     </div>
-    {open && <div id={panelId} className={styles.pickerPanel} onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setOpen(false); trigger.current?.focus(); } }}>
+    <AnimatePresence initial={false}>{open && <motion.div id={panelId} className={styles.pickerReveal} initial={{height:reducedMotion?"auto":0,opacity:0,y:reducedMotion?0:-5}} animate={{height:"auto",opacity:1,y:0}} exit={{height:reducedMotion?"auto":0,opacity:0,y:reducedMotion?0:-5}} transition={{duration:reducedMotion?0:.2,ease:[.22,1,.36,1]}} onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setOpen(false); trigger.current?.focus(); } }}>
+      <div className={styles.pickerPanel}>
       <div className={styles.search}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input type="search" aria-label="Поиск события" autoFocus placeholder="Название или время" value={query} onKeyDown={e => { if (e.key === "Enter") e.preventDefault(); }} onChange={e => setQuery(e.target.value)} /></div>
       {availableFilters.length > 2 && <div className={styles.filters} role="group" aria-label="Тип события">{availableFilters.map(item => <button key={item.key} type="button" aria-pressed={filter === item.key} onClick={() => setFilter(item.key)}>{item.label}</button>)}</div>}
       {loading ? <p className={styles.pickerMessage} role="status">Загружаем события…</p> : error ? <div className={styles.error} role="alert">{error} <button type="button" onClick={onRetry}>Повторить</button></div> : <>
@@ -52,6 +55,7 @@ export default function TaskEventPicker({ events, value, fallback, loading, erro
         {visible.length === 0 && <p className={styles.pickerMessage}>{search || filter !== "all" ? "Ничего не найдено. Попробуйте другое название или тип." : "На выбранную дату событий нет. Можно оставить задачу без привязки."}</p>}
       </>}
       <div className={styles.pickerFooter}><button type="button" onClick={() => choose(null)}>Без привязки</button><button type="button" onClick={() => { setOpen(false); trigger.current?.focus(); }}>Готово</button></div>
-    </div>}
+      </div>
+    </motion.div>}</AnimatePresence>
   </section>;
 }

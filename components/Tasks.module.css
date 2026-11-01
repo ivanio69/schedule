@@ -2,8 +2,7 @@
 .heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
 .heading h2 { display:flex; align-items:baseline; gap:10px; margin:0; font-size:21px; font-weight:700; letter-spacing:-.04em; }
 .heading h2 span { color:var(--muted); font-size:13px; font-weight:500; letter-spacing:0; font-variant-numeric:tabular-nums; }
-.heading>button { display:grid; place-items:center; flex:none; width:44px; height:44px; padding:0; border:1px solid var(--border); border-radius:50%; background:transparent; color:var(--text); cursor:pointer; transition:background .16s,border-color .16s; }
-.heading>button:hover { background:var(--surface-hover); border-color:var(--accent); }
+.heading>button { display:grid; place-items:center; flex:none; padding:0; }
 .heading>button svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; }
 .list { list-style:none; padding:0; margin:0; }
 .list li { display:grid; grid-template-columns:36px minmax(0,1fr) 14px; align-items:start; gap:10px; padding:16px 0; border-bottom:1px solid var(--border); }
@@ -12,8 +11,7 @@
 .checkTarget input { appearance:none; -webkit-appearance:none; width:22px; height:22px; margin:0; border:1.5px solid var(--muted); border-radius:8px; background:transparent; cursor:pointer; transition:background .16s,border-color .16s; }
 .checkTarget input:hover { border-color:var(--accent); }
 .checkTarget input:checked { background:var(--accent); border-color:var(--accent); }
-.checkTarget svg { position:absolute; width:17px; height:17px; pointer-events:none; fill:none; stroke:var(--accent-text); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; opacity:0; transform:scale(.7); transition:opacity .16s,transform .16s; }
-.checkTarget input:checked+svg { opacity:1; transform:scale(1); }
+.checkTarget svg { position:absolute; width:17px; height:17px; pointer-events:none; fill:none; stroke:var(--accent-text); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .checkTarget input:disabled { opacity:.5; cursor:wait; }
 .task { display:grid; gap:8px; min-width:0; min-height:44px; padding:0; border:0; color:var(--text); background:transparent; text-align:left; cursor:pointer; font:inherit; overflow-wrap:anywhere; }
 .task>strong { font-size:15px; line-height:1.4; font-weight:600; letter-spacing:-.015em; }
@@ -34,8 +32,6 @@
 .done .task>strong { text-decoration:line-through; color:var(--muted); }
 .done .deadline { color:var(--muted); }
 .empty { margin:0; padding:18px 0; color:var(--muted); font-size:13px; line-height:1.5; }
-.completed { margin-top:8px; }
-.completed summary { min-height:44px; padding:12px 0; color:var(--muted); cursor:pointer; font-size:12px; }
 .form { display:grid; gap:18px; }
 .form label { display:grid; gap:8px; min-width:0; color:var(--muted); font-size:12px; font-weight:650; }
 .form input,.form select,.form textarea { box-sizing:border-box; width:100%; min-width:0; max-width:100%; min-height:46px; border:1px solid var(--border); border-radius:12px; padding:11px 13px; color:var(--text); background:var(--surface-raised); font:inherit; font-size:14px; }
@@ -55,7 +51,7 @@
 .error { margin:10px 0; color:#e76c6c; font-size:12px; line-height:1.5; }
 .error button { min-height:44px; padding:6px 10px; border:0; color:var(--text); background:var(--surface-raised); border-radius:8px; cursor:pointer; }
 .block button:hover:not(:disabled),.actions button:hover:not(:disabled) { filter:brightness(1.08); }
-.block button:focus-visible,.block input:focus-visible,.completed summary:focus-visible,.form :is(input,select,textarea,button):focus-visible,.actions button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.block button:focus-visible,.block input:focus-visible,.form :is(input,select,textarea,button):focus-visible,.actions button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 .block button:disabled,.actions button:disabled { opacity:.55; cursor:wait; }
 @media(max-width:600px) { .block { padding:0; margin:24px 0; } .list li { gap:10px; } .form input,.form textarea,.form select { font-size:16px; } .timing button { flex:1 1 auto; } .actions .primary { flex:1; } }
 
@@ -75,6 +71,7 @@
 .pickerChevron[data-open=true] { transform:rotate(180deg); }
 .unlink { display:grid; place-items:center; flex:none; width:44px; height:44px; margin-right:5px; padding:0; border:0; border-radius:12px; background:transparent; color:var(--muted); cursor:pointer; }
 .unlink svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; }
+.pickerReveal { overflow:hidden; }
 .pickerPanel { margin-top:8px; padding:12px; border:1px solid var(--border); border-radius:16px; background:var(--surface-raised); }
 .search { position:relative; min-width:0; }
 .search>svg { position:absolute; top:14px; left:12px; width:17px; height:17px; fill:none; stroke:var(--muted); stroke-width:1.6; stroke-linecap:round; pointer-events:none; }
@@ -103,3 +100,36 @@
 .picker button:hover:not(:disabled) { background:var(--surface-hover); }
 @media(max-width:600px) { .list li { grid-template-columns:32px minmax(0,1fr) 12px; gap:8px; padding:15px 0; } .checkTarget { width:32px; } .meta { gap:6px 10px; } .pickerPanel { padding:10px; } .form .search input { font-size:16px; } .eventOptions { max-height:240px; } }
 @media(prefers-reduced-motion:reduce) { .block *,.picker * { transition:none; } }
+
+.dialog { box-sizing:border-box; position:fixed; inset:0; width:min(600px,calc(100% - 32px)); max-width:none; max-height:calc(100dvh - 40px); margin:auto; padding:26px; overflow:auto; overscroll-behavior:contain; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:24px; box-shadow:0 28px 100px #0005; transform-origin:center; }
+.dialog::backdrop { background:rgb(0 0 0 / .5); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); animation:task-backdrop-in .22s ease both; }
+.dialog[data-closing=true]::backdrop { animation:task-backdrop-out .16s ease both; }
+.dialog[data-closing=true] { pointer-events:none; }
+.dialogHeading { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:24px; }
+.dialogHeading>div { min-width:0; }
+.dialogHeading p { margin:0 0 7px; color:var(--muted); font-size:11px; line-height:1.4; }
+.dialogHeading h2 { margin:0; font-size:27px; letter-spacing:-.04em; line-height:1.15; overflow-wrap:anywhere; }
+.dialogHeading button { display:grid; place-items:center; flex:none; }
+.dialogHeading svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; }
+.timingDetail { overflow:hidden; }
+.form input,.form textarea,.timing button,.actions button { transition:border-color .16s,background .16s,box-shadow .16s; }
+.form input:focus,.form textarea:focus { border-color:var(--accent); }
+.task>strong,.deadline { transition:color .2s; }
+.checkTarget input:checked { animation:task-check-pop .3s ease; }
+.confirm { max-width:420px; margin:auto; padding:8px 0 4px; text-align:center; }
+.deleteIcon { display:grid; place-items:center; width:66px; height:66px; margin:0 auto 22px; border-radius:22px; background:color-mix(in srgb,#e76c6c 9%,var(--surface)); border:1px solid color-mix(in srgb,#e76c6c 20%,var(--border)); color:#e76c6c; }
+.deleteIcon svg { width:28px; height:28px; overflow:visible; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.confirm h3 { margin:0 0 10px; font-size:24px; line-height:1.2; letter-spacing:-.035em; }
+.confirm>p { max-width:320px; margin:0 auto 22px; font-size:13px; line-height:1.65; }
+.deletePreview { display:flex; align-items:center; gap:13px; padding:17px; margin:0 0 24px; border:1px solid var(--border); border-radius:15px; text-align:left; background:var(--surface-raised); }
+.deletePreviewCheck { display:grid; place-items:center; flex:none; width:22px; height:22px; border:1px solid var(--border); border-radius:8px; color:var(--muted); font-size:13px; }
+.deletePreview>div { display:grid; gap:6px; min-width:0; }
+.deletePreview strong { font-size:14px; font-weight:600; line-height:1.45; overflow-wrap:anywhere; }
+.deletePreview>div>span { color:var(--muted); font-size:11px; }
+.deleteActions { display:grid; grid-template-columns:1fr 1fr; margin-top:0; }
+.deleteActions .danger { margin:0; color:#fff; border-color:#c94c50; background:#c94c50; }
+@keyframes task-backdrop-in { from {opacity:0} to {opacity:1} }
+@keyframes task-backdrop-out { from {opacity:1} to {opacity:0} }
+@keyframes task-check-pop { 0% {transform:scale(1)} 45% {transform:scale(1.14)} 100% {transform:scale(1)} }
+@media(max-width:600px) { .dialog { width:100%; height:100dvh; max-height:100dvh; border:0; border-radius:0; padding:max(24px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom)); } .dialogHeading { margin-bottom:22px; } .confirm { padding-top:24px; } .deleteActions { grid-template-columns:1fr; } }
+@media(prefers-reduced-motion:reduce) { .dialog::backdrop,.dialog[data-closing=true]::backdrop,.checkTarget input:checked { animation:none; } .task>strong,.deadline { transition:none; } }

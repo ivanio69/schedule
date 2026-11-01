@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { taskWhen, type ResolvedTask, type TaskDay } from "@/lib/tasks";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { sortTasks, taskWhen, type ResolvedTask, type TaskDay } from "@/lib/tasks";
 import styles from "./Tasks.module.css";
 const TaskEditor = dynamic(() => import("./TaskEditor"));
 
 export default function TasksBlock({ date, newTaskOpen = false, onNewTaskClose }: {
   date: string; newTaskOpen?: boolean; onNewTaskClose?: () => void;
 }) {
+  const reducedMotion = useReducedMotion();
   const [data, setData] = useState<(TaskDay & { date: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState<{date:string;message:string} | null>(null);
@@ -43,20 +45,25 @@ export default function TasksBlock({ date, newTaskOpen = false, onNewTaskClose }
   async function complete(task: ResolvedTask) {
     if (pending.current.has(task.id)) return;
     pending.current.add(task.id); setBusyIds([...pending.current]); setFailure(null);
+    setData(current => current ? { ...current, tasks: current.tasks.map(item => item.id === task.id ? { ...item, completed: !task.completed } : item) } : current);
     try {
       const response = await fetch("/api/tasks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: task.id, revision: task.revision, completed: !task.completed }) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Не удалось изменить задачу");
-      await latestRefresh.current();
-    } catch (failure) { setFailure({date,message:failure instanceof Error ? failure.message : "Не удалось изменить задачу"}); }
+      setData(current => current ? { ...current, tasks: current.tasks.map(item => item.id === task.id && item.revision === task.revision ? { ...item, completed: !task.completed, revision: task.revision + 1 } : item) } : current);
+      if (pending.current.size === 1) await latestRefresh.current();
+    } catch (failure) {
+      setData(current => current ? { ...current, tasks: current.tasks.map(item => item.id === task.id && item.revision === task.revision ? { ...item, completed: task.completed } : item) } : current);
+      setFailure({date,message:failure instanceof Error ? failure.message : "Не удалось изменить задачу"});
+    }
     finally { pending.current.delete(task.id); setBusyIds([...pending.current]); }
   }
-  const tasks = data?.date === date ? data.tasks : [];
-  const active = tasks.filter(task => !task.completed), completed = tasks.filter(task => task.completed);
-  const row = (task: ResolvedTask) => <li key={task.id} className={task.completed ? styles.done : undefined}>
+  const tasks = sortTasks(data?.date === date ? data.tasks : []);
+  const active = tasks.filter(task => !task.completed);
+  const row = (task: ResolvedTask) => <motion.li layout={reducedMotion ? false : "position"} key={task.id} className={task.completed ? styles.done : undefined} initial={reducedMotion ? false : {opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,scale:reducedMotion?1:.98}} transition={{layout:{type:"spring",stiffness:380,damping:34},opacity:{duration:.18},y:{duration:.2}}} aria-busy={busyIds.includes(task.id)}>
     <label className={styles.checkTarget}>
       <input type="checkbox" checked={task.completed} disabled={busyIds.includes(task.id)} aria-label={`${task.completed ? "Вернуть в задачи" : "Выполнить"}: ${task.title}`} onChange={() => void complete(task)} />
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 4 4 8-8"/></svg>
+      <motion.svg viewBox="0 0 24 24" aria-hidden="true" initial={false} animate={{opacity:task.completed?1:0,scale:task.completed?1:.7}} transition={{duration:reducedMotion?0:.2}}><motion.path d="m6 12 4 4 8-8" initial={false} animate={{pathLength:task.completed?1:0}} transition={{duration:reducedMotion?0:.28,ease:"easeOut"}}/></motion.svg>
     </label>
     <button type="button" className={styles.task} disabled={busyIds.includes(task.id)} onClick={() => setEditor(task)}>
       <strong>{task.title}</strong>
@@ -67,13 +74,12 @@ export default function TasksBlock({ date, newTaskOpen = false, onNewTaskClose }
       </span>
       {task.notes && <p>{task.notes}</p>}
     </button><svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
-  </li>;
+  </motion.li>;
   return <section className={styles.block} aria-label="Задачи">
-    <header className={styles.heading}><h2>Задачи {active.length > 0 && <span>{active.length}</span>}</h2><button type="button" onClick={() => setEditor("new")} aria-label="Добавить задачу" title="Добавить задачу"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></header>
+    <header className={styles.heading}><h2>Задачи {active.length > 0 && <span>{active.length}</span>}</h2><motion.button type="button" className="icon-button" whileTap={reducedMotion?undefined:{scale:.93}} onClick={() => setEditor("new")} aria-label="Добавить задачу" title="Добавить задачу"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></motion.button></header>
     {error && <p className={styles.error} role="alert">{error} <button type="button" onClick={() => void refresh()}>Повторить</button></p>}
     {(loading || data?.date !== date) && !error ? <p className={styles.empty} role="status">Загружаем задачи…</p> : <>
-      {active.length > 0 ? <ul className={styles.list}>{active.map(row)}</ul> : !error && <p className={styles.empty}>{completed.length ? "Все задачи выполнены" : "На этот день задач пока нет"}</p>}
-      {completed.length > 0 && <details className={styles.completed}><summary>Выполнено · {completed.length}</summary><ul className={styles.list}>{completed.map(row)}</ul></details>}
+      {tasks.length > 0 ? <motion.ul layout={reducedMotion ? false : "size"} className={styles.list}><AnimatePresence initial={false}>{tasks.map(row)}</AnimatePresence></motion.ul> : !error && <p className={styles.empty}>На этот день задач пока нет</p>}
     </>}
     {(newTaskOpen || editor) && <TaskEditor date={date} task={editor && editor !== "new" && !newTaskOpen ? editor : undefined} onClose={() => { setEditor(null); onNewTaskClose?.(); }} onSaved={() => void refresh()} />}
   </section>;

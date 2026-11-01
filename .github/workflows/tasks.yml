@@ -23,4 +23,4 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: node --test tests/tasks.test.mjs tests/personal-events.test.mjs tests/pwa-cache.test.mjs
-      - run: npx eslint components/TasksBlock.tsx components/TaskEditor.tsx components/TaskEventPicker.tsx lib/tasks.ts lib/task-events.ts app/api/tasks/route.ts
+      - run: npx eslint components/TasksBlock.tsx components/TaskEditor.tsx components/TaskEventPicker.tsx components/TaskDialog.tsx lib/tasks.ts lib/task-events.ts app/api/tasks/route.ts
