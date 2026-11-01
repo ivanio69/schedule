@@ -126,7 +126,7 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
         <strong>{lastEnd === undefined ? "Свободен" : clock(lastEnd)}</strong>
       </div>
     </div>
-    <ol ref={list} className={styles.rows}>
+    {active.length > 0 && <ol ref={list} className={styles.rows}>
       {rows.map((row, index) => {
         if (row.kind === "gap") return <li data-timeline-focus={row.key === focusKey ? "" : undefined} className={`${styles.gap}${row.end - row.start < 30 ? ` ${styles.shortGap}` : ""}`} key={row.key}>
           <span className={styles.gapTime}>{clock(row.start)}–{clock(row.end)}</span>
@@ -153,7 +153,6 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
         </li>;
       })}
       {between && nowBefore < 0 && rows.length > 0 && <li className={styles.afterNow}>{nowLabel}</li>}
-    </ol>
-    {!events.length && <div className="dashboard-empty">На сегодня ничего не запланировано.</div>}
+    </ol>}
   </section>;
 }
