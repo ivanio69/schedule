@@ -38,8 +38,8 @@ export default function TaskEventPicker({ events, value, fallback, loading, erro
       </button>
       {value && <button type="button" className={styles.unlink} onClick={() => choose(null)} aria-label="Убрать привязку к событию" title="Убрать привязку"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8 8 8m0-8-8 8"/></svg></button>}
     </div>
-    {open && <div id={panelId} className={styles.pickerPanel}>
-      <div className={styles.search}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input type="search" aria-label="Поиск события" autoFocus placeholder="Название или время" value={query} onChange={e => setQuery(e.target.value)} /></div>
+    {open && <div id={panelId} className={styles.pickerPanel} onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setOpen(false); trigger.current?.focus(); } }}>
+      <div className={styles.search}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input type="search" aria-label="Поиск события" autoFocus placeholder="Название или время" value={query} onKeyDown={e => { if (e.key === "Enter") e.preventDefault(); }} onChange={e => setQuery(e.target.value)} /></div>
       {availableFilters.length > 2 && <div className={styles.filters} role="group" aria-label="Тип события">{availableFilters.map(item => <button key={item.key} type="button" aria-pressed={filter === item.key} onClick={() => setFilter(item.key)}>{item.label}</button>)}</div>}
       {loading ? <p className={styles.pickerMessage} role="status">Загружаем события…</p> : error ? <div className={styles.error} role="alert">{error} <button type="button" onClick={onRetry}>Повторить</button></div> : <>
         <div className={styles.eventOptions} role="group" aria-label="События на выбранную дату">
