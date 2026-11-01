@@ -112,11 +112,20 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
   }, [date, focusKey]);
 
   return <section ref={timeline} className={styles.timeline} aria-label="Единая временная шкала дня">
-    <dl className={styles.summary}>
-      <div><dt>Неделя</dt><dd>№ {week}</dd></div>
-      <div><dt>Событий</dt><dd>{active.length}</dd></div>
-      <div><dt>Освободишься в</dt><dd>{lastEnd === undefined ? "День свободен" : clock(lastEnd)}</dd></div>
-    </dl>
+    <div className={styles.dayOverview} aria-label="Сводка дня">
+      <div className={styles.dayOverviewMeta}>
+        <span className={styles.overviewEyebrow}>Твой день</span>
+        <div className={styles.overviewFacts}>
+          <span><strong>{week}</strong> неделя</span>
+          <span className={styles.overviewDot} aria-hidden="true"/>
+          <span><strong>{active.length}</strong> {active.length % 10 === 1 && active.length % 100 !== 11 ? "событие" : active.length % 10 >= 2 && active.length % 10 <= 4 && (active.length % 100 < 12 || active.length % 100 > 14) ? "события" : "событий"}</span>
+        </div>
+      </div>
+      <div className={styles.dayOverviewFinish}>
+        <span>{lastEnd === undefined ? "Сегодня" : "Освободишься в"}</span>
+        <strong>{lastEnd === undefined ? "Свободен" : clock(lastEnd)}</strong>
+      </div>
+    </div>
     <ol ref={list} className={styles.rows}>
       {rows.map((row, index) => {
         if (row.kind === "gap") return <li data-timeline-focus={row.key === focusKey ? "" : undefined} className={`${styles.gap}${row.end - row.start < 30 ? ` ${styles.shortGap}` : ""}`} key={row.key}>
