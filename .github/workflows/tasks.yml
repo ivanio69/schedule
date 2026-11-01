@@ -1,0 +1,26 @@
+name: Private tasks
+on:
+  pull_request:
+    paths:
+      - "lib/tasks.ts"
+      - "lib/task-events.ts"
+      - "lib/schedule.ts"
+      - "app/api/tasks/**"
+      - "components/Task*.tsx"
+      - "components/Tasks.module.css"
+      - "tests/tasks.test.mjs"
+      - ".github/workflows/tasks.yml"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node --test tests/tasks.test.mjs tests/personal-events.test.mjs tests/pwa-cache.test.mjs
+      - run: npx eslint components/TasksBlock.tsx components/TaskEditor.tsx lib/tasks.ts lib/task-events.ts app/api/tasks/route.ts
