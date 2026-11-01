@@ -33,7 +33,8 @@ export default function DashboardRehearsals() {
   const [modalReady, setModalReady] = useState(false);
   const [exiting, setExiting] = useState(false);
   const lastTrigger = useRef<HTMLButtonElement | null>(null);
-  const selected = items.find(item => item.id === selectedId);
+  const visibleItems = items.filter(item => isRehearsalParticipant(item, personId, personName));
+  const selected = visibleItems.find(item => item.id === selectedId);
 
   useEffect(() => {
     setModalReady(true);
@@ -101,14 +102,14 @@ export default function DashboardRehearsals() {
   };
 
   return <>
-    {!ready ? <section className="dashboard-rehearsals"><LoadingState compact label="Загружаем репетиции" detail="Проверяем ближайшие события."/></section> : items.length > 0 ? (
+    {!ready ? <section className="dashboard-rehearsals"><LoadingState compact label="Загружаем репетиции" detail="Проверяем ближайшие события."/></section> : visibleItems.length > 0 ? (
       <section className="dashboard-rehearsals" aria-label="Ближайшие репетиции">
         <div className="dashboard-section-head dashboard-rehearsals__head">
           <h2>Ближайшие репетиции</h2>
-          <span>{items.length}</span>
+          <span>{visibleItems.length}</span>
         </div>
         <div className="dashboard-rehearsals__list">
-          {items.map(item => {
+          {visibleItems.map(item => {
             const blocks = item.blocks?.length ?? 0;
             const participating = isRehearsalParticipant(item, personId, personName);
             const participants = getRehearsalAudienceNames(item).length;
