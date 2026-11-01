@@ -95,6 +95,9 @@ test('nonparticipant cards show an explicit label and retain keyboard access to 
 });
 
 test('nonparticipant modal shows static time without mounting the live timer', () => {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const currentRehearsal = { ...simple, date: today };
   const empty = { __esModule: true, default: () => null };
   const { default: EventDetailsContent } = load('components/EventDetailsContent.tsx', {
     '@/lib/rehearsals': helpers,
@@ -104,7 +107,7 @@ test('nonparticipant modal shows static time without mounting the live timer', (
     '@/components/RehearsalTimeline': empty,
   });
   const modal = person => renderToStaticMarkup(createElement(EventDetailsContent, {
-    details: { type: 'rehearsal', item: simple }, lessonDate: simple.date,
+    details: { type: 'rehearsal', item: currentRehearsal }, lessonDate: today,
     creatorId: person.id, personName: person.name,
   }));
   const spectator = modal(people[2]);

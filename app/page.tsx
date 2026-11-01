@@ -1,6 +1,4 @@
 import DashboardV2 from "@/components/DashboardV2";
-import DashboardRehearsals from "@/components/DashboardRehearsals";
-import BookedIndividualSlotsInDashboard from "@/components/BookedIndividualSlotsInDashboard";
 import { ScholarshipBadge } from "@/components/ScholarshipBadge";
 
 export default function Home() {
@@ -8,8 +6,6 @@ export default function Home() {
     <>
       <ScholarshipBadge />
       <DashboardV2 />
-      <BookedIndividualSlotsInDashboard />
-      <DashboardRehearsals />
     </>
   );
 }

@@ -1,31 +1,26 @@
 "use client";
-import { isRehearsalParticipant } from "@/lib/rehearsals";
+import { getDashboardRehearsalSegments } from "@/lib/dashboard-timeline";
 import { fetchAuthSession } from "@/lib/auth-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import type { IndividualLesson, Person } from "@/lib/people";
+import type { IndividualSlot } from "@/lib/individual-slots";
 import {
-  formatWeekRange,
   getCurrentWeek,
   getLessonsForWeek,
-  getOccurrences,
-  getSubgroupSubjects,
-  lessonMatchesChinaMode,
   type GroupPreference,
   type Rehearsal,
   type ScheduleData,
 } from "@/lib/schedule";
 import type { SeminarList } from "@/lib/seminars";
-import PersonalEventInvitations from "@/components/PersonalEventInvitations";
 import PersonalEventEditor from "@/components/PersonalEventEditor";
+import PersonalEventInvitations from "@/components/PersonalEventInvitations";
+import DayTimeline from "@/components/DayTimeline";
+import EventDialog from "@/components/EventDialog";
+import EventDetailsContent, { type EventDetails } from "@/components/EventDetailsContent";
 import type { PersonalEvent } from "@/lib/personal-events";
 import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
-import DashboardDailyQuote from "@/components/DashboardDailyQuote";
-import { loadDashboardDailyQuote, type DashboardDailyQuoteData } from "@/lib/dashboard-daily-quote";
-import AttendanceActions from "@/components/AttendanceActions";
 import type { AttendanceReport } from "@/lib/attendance";
 const PERSON_KEY = "schedule_person_id";
 const mins = (v: string) => {
@@ -51,7 +46,7 @@ const pick = (items: string[], seed: string) => {
   return items[hash % items.length];
 };
 type Event = {
-  kind: "group" | "individual" | "rehearsal" | "personal";
+  kind: "group" | "individual" | "slot" | "rehearsal" | "personal";
   start: string;
   end: string;
   title: string;
@@ -64,16 +59,17 @@ type Event = {
   attendanceKey?: string;
   attendance?: "late" | "absence";
   attendanceReason?: string;
+  href?: string;
+  rehearsalId?: string;
 };
 export default function DashboardV2() {
   const [personalInvitations, setPersonalInvitations] = useState<PersonalEvent[]>([]);
   const personalRequest = useRef(0);
+  const [details, setDetails] = useState<EventDetails | null>(null);
   const [personalEvents, setPersonalEvents] = useState<PersonalEvent[]>([]);
   const [personalEvent, setPersonalEvent] = useState<PersonalEvent | null>(null);
   const [personalError, setPersonalError] = useState("");
-  const reducedMotion = useReducedMotion();
-  const [modalPortalReady, setModalPortalReady] = useState(false);
-  const [dailyQuote, setDailyQuote] = useState<DashboardDailyQuoteData | null>(null);
+  const [bookedSlots, setBookedSlots] = useState<IndividualSlot[]>([]);
   const [person, setPerson] = useState<Person | null>(null),
     [schedule, setSchedule] = useState<ScheduleData | null>(null),
     [individuals, setIndividuals] = useState<IndividualLesson[]>([]),
@@ -85,9 +81,6 @@ export default function DashboardV2() {
     ),
     [notes, setNotes] = useState<Record<string, string>>({}),
     [now, setNow] = useState(() => new Date()),
-    [noteEvent, setNoteEvent] = useState<Event | null>(null),
-    [noteText, setNoteText] = useState(""),
-    [saving, setSaving] = useState(false),
     [chinaMode, setChinaMode] = useState(false),
     [loading, setLoading] = useState(true);
   const refreshPersonalEvents = useCallback(async (signal?: AbortSignal) => {
@@ -97,7 +90,9 @@ export default function DashboardV2() {
       if (!response.ok) throw new Error();
       const data = await response.json();
       if (signal?.aborted || revision !== personalRequest.current) return;
-      setPersonalEvents(data.events ?? []); setPersonalInvitations(data.invitations ?? []); setPersonalError("");
+      setPersonalEvents(data.events ?? []);
+      setPersonalInvitations(data.invitations ?? []);
+      setPersonalError("");
     } catch { if (!signal?.aborted && revision === personalRequest.current) setPersonalError("Не удалось обновить события и приглашения"); }
   }, []);
   useEffect(() => {
@@ -132,22 +127,9 @@ export default function DashboardV2() {
     const response = await fetch(`/api/attendance?date=${encodeURIComponent(clockDate)}&time=${encodeURIComponent(clockTime)}`, { cache: "no-store" });
     if (response.ok) setAttendanceReports((await response.json()).reports ?? []);
   };
-  const loadRehearsals = async (id: string, date: string) => {
-    const r = await fetch(
-      `/api/rehearsals?date=${encodeURIComponent(date)}&personId=${encodeURIComponent(id)}`,
-      { cache: "no-store" },
-    );
-    if (r.ok) setRehearsals((await r.json()).rehearsals ?? []);
-  };
-  useEffect(() => {
-    setModalPortalReady(true);
-  }, []);
   useEffect(() => {
     let cancelled=false;
     const today=dateKey(new Date());
-    // Public quote data does not depend on the session. Start it immediately,
-    // while keeping the quote inside the dashboard loading boundary.
-    const quoteRequest=loadDashboardDailyQuote(today);
     const seminarRequest=fetch("/api/seminars",{cache:"no-store"})
       .then(response=>response.ok?response.json():{lists:[]})
       .catch(()=>({lists:[]}));
@@ -159,11 +141,13 @@ export default function DashboardV2() {
         const current=auth.person as {id:string;name:string;role?:Person["role"]};
         if(!current?.id){window.location.replace("/login");return;}
         localStorage.setItem(PERSON_KEY,current.id);
-        const [s,seminarData,quote,personalData]=await Promise.all([
+        const profileRequest = loadProfile(current.id).catch(() => undefined);
+        const [s,seminarData,personalData,slotData]=await Promise.all([
           fetch(`/api/schedule?date=${today}&personId=${encodeURIComponent(current.id)}`,{cache:"no-store"}).then(r=>r.json()),
           seminarRequest,
-          quoteRequest,
           fetch("/api/personal-events", {cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();return r.json()}).catch(()=>({events:[],failed:true})),
+          fetch(`/api/individual-slots?from=${today}&to=${today}`, {cache:"no-store"}).then(r=>r.ok?r.json():({slots:[]})).catch(()=>({slots:[]})),
+          profileRequest,
         ]);
         if(cancelled)return;
         setPerson({id:current.id,name:current.name,active:true,role:current.role,createdAt:""});
@@ -172,9 +156,8 @@ export default function DashboardV2() {
         setSeminars(seminarData.lists??[]);
         setPersonalEvents(personalData.events??[]);
         setPersonalInvitations(personalData.invitations??[]);
-        if(personalData.failed)setPersonalError("Не удалось загрузить события");
-        setDailyQuote(quote);
-        void loadProfile(current.id);
+        setBookedSlots((slotData.slots??[]).filter((slot:IndividualSlot)=>slot.studentIds?.includes(current.id) || slot.studentId===current.id));
+        if(personalData.failed)setPersonalError("Не удалось загрузить личные события");
         void loadAttendance();
       }finally{
         if(!cancelled)setLoading(false);
@@ -198,7 +181,7 @@ export default function DashboardV2() {
     };
   }, []);
   useEffect(() => {
-    if (!person) return;
+    if (!person?.id) return;
     const t = setInterval(() => { if (!document.hidden) void loadAttendance(); }, 60000);
     return () => clearInterval(t);
   }, [person?.id]);
@@ -217,7 +200,7 @@ export default function DashboardV2() {
       [
         ...personalEvents.filter(x=>x.date===todayKey).map(x=>({
           kind: "personal" as const, start:x.timeStart, end:x.timeEnd,
-          title:x.title, subtitle:"Событие", detail:x.location || "Видно только вам", note:x.notes, key:x.id,
+          title:x.title, subtitle:x.creatorId === person?.id ? "Событие" : `Приглашение · ${x.creatorName ?? "Участник"}`, detail:x.location || (x.creatorId === person?.id ? "Ваше событие" : "Вы участвуете"), note:x.notes, key:`personal-${x.id}`,
         })),
         ...groups.map((x) => ({
           kind: "group" as const,
@@ -256,30 +239,36 @@ export default function DashboardV2() {
             note: x.note,
             key: x.id,
           })),
-        ...rehearsals
-          .filter((x) => x.date === todayKey && isRehearsalParticipant(x, person?.id, person?.name))
+        ...bookedSlots
+          .filter((x) => x.date === todayKey)
           .map((x) => ({
-            kind: "rehearsal" as const,
+            kind: "slot" as const,
             start: x.timeStart,
             end: x.timeEnd,
             title: x.subject,
-            subtitle: x.blocks?.length
-              ? `Репетиция · ${x.blocks.length} блоков`
-              : "Репетиция",
-            detail: x.responsible,
-            note: x.notes,
-            key: x.id,
+            subtitle: `Индивидуальное · ${x.professor}`,
+            detail: x.auditorium || "Аудитория не указана",
+            note: x.note,
+            key: `slot-${x.id}`,
+            href: "/individual-slots",
           })),
+        ...rehearsals
+          .filter((x) => x.date === todayKey)
+          .flatMap((x) => getDashboardRehearsalSegments(x, person?.id, person?.name).map(segment => ({
+            kind: "rehearsal" as const,
+            start: segment.timeStart,
+            end: segment.timeEnd,
+            title: segment.title,
+            subtitle: segment.blockId ? x.subject : "Репетиция",
+            detail: x.responsible,
+            note: segment.notes,
+            key: `rehearsal-${x.id}-${segment.blockId ?? "whole"}`,
+            rehearsalId: x.id,
+          }))),
       ].sort((a, b) => mins(a.start) - mins(b.start)),
-    [groups, individuals, rehearsals, personalEvents, todayKey, attendanceReports, person?.id, person?.name],
+    [groups, individuals, bookedSlots, rehearsals, personalEvents, todayKey, attendanceReports, person?.id, person?.name],
   );
-  const currentMin = now.getHours() * 60 + now.getMinutes(),
-    activeEvents = events.filter((e) => e.status !== "cancelled"),
-    current = activeEvents.find(
-      (e) => mins(e.start) <= currentMin && mins(e.end) > currentMin,
-    ),
-    next = activeEvents.find((e) => mins(e.start) > currentMin),
-    past = (e: Event) => mins(e.end) <= currentMin;
+  const currentMin = now.getHours() * 60 + now.getMinutes();
   const hour = now.getHours(),
     daySeed = `${todayKey}|${person?.id ?? "guest"}`,
     nightText =
@@ -291,60 +280,6 @@ export default function DashboardV2() {
               daySeed,
             )
           : null;
-  const previous = next
-      ? activeEvents.filter((e) => mins(e.end) <= mins(next.start)).at(-1)
-      : null,
-    gapMinutes = next && previous ? mins(next.start) - mins(previous.end) : 0,
-    gapText =
-      next && gapMinutes > 120
-        ? pick(
-            [
-              "масштабный перекур",
-              "тихий час",
-              "в общагу?",
-              "можно и пивка вмазать",
-            ],
-            `${daySeed}|${next.key}`,
-          )
-        : null;
-  const tomorrowDate = new Date(now);
-  tomorrowDate.setDate(now.getDate() + 1);
-  const tomorrowKey = dateKey(tomorrowDate),
-    tomorrowLessons = useMemo(() => schedule
-      ? getOccurrences(schedule, tomorrowKey).filter((x) => {
-          if (x.occurrence?.status === "cancelled") return false;
-          if (!lessonMatchesChinaMode(x, chinaMode)) return false;
-          if (chinaMode) return true;
-          const preference = preferences[x.class] ?? "both";
-          return (
-            preference === "both" ||
-            !x.group.length ||
-            x.group.includes(Number(preference))
-          );
-        })
-      : [], [schedule, tomorrowKey, chinaMode, preferences]),
-    tomorrowRehearsals = rehearsals.filter((x) => x.date === tomorrowKey && isRehearsalParticipant(x, person?.id, person?.name)),
-    tomorrowIndividuals = individuals.filter((x) => x.date === tomorrowKey),
-    tomorrowEvents = [
-      ...personalEvents.filter(x=>x.date===tomorrowKey).map(x=>({start:x.timeStart,end:x.timeEnd,title:x.title})),
-      ...tomorrowLessons.map((x) => ({
-        start: x.timeStart,
-        end: x.timeEnd,
-        title: x.class,
-      })),
-      ...tomorrowRehearsals.map((x) => ({
-        start: x.timeStart,
-        end: x.timeEnd,
-        title: x.subject,
-      })),
-      ...tomorrowIndividuals.map((x) => ({
-        start: x.timeStart,
-        end: x.timeEnd,
-        title: x.subject,
-      })),
-    ].sort((a, b) => a.start.localeCompare(b.start)),
-    todayFinished = events.length > 0 && !current && !next,
-    showTomorrow = todayFinished || (!events.length && hour >= 18);
   const mySeminars = useMemo(() => seminars.flatMap((list) =>
     list.topics
       .filter((topic) => topic.studentIds.includes(person?.id ?? ""))
@@ -357,69 +292,6 @@ export default function DashboardV2() {
         participants: topic.studentNames ?? [],
       })),
   ), [seminars, person?.id]);
-  const countdown = (v: string) => {
-    const d = mins(v) - currentMin;
-    if (d <= 0) return "сейчас";
-    const h = Math.floor(d / 60),
-      m = d % 60;
-    return h ? `${h} ч ${m} мин` : `${m} мин`;
-  };
-  const todayCount = events.filter(
-      (e) => e.status !== "cancelled" && e.status !== "moved",
-    ).length,
-    showNextStat = !!current && !!next;
-  const breakStart = current ? mins(current.start) + 40 : 0,
-    breakEnd = current ? mins(current.start) + 45 : 0,
-    inBreak = current?.kind === "group" && currentMin >= breakStart && currentMin < breakEnd,
-    breakFinished = current?.kind === "group" && currentMin >= breakEnd;
-  const progress = current
-    ? Math.round(
-        Math.min(
-          100,
-          Math.max(
-            0,
-            ((currentMin - mins(current.start)) /
-              (mins(current.end) - mins(current.start))) *
-              100,
-          ),
-        ),
-      )
-    : 0;
-  const focusCountdown = inBreak
-    ? countdown(
-        `${String(Math.floor(breakEnd / 60)).padStart(2, "0")}:${String(breakEnd % 60).padStart(2, "0")}`,
-      )
-    : current
-      ? countdown(current.end)
-      : "";
-  const openNote = (e: Event) => {
-    setNoteEvent(e);
-    setNoteText(notes[e.key] ?? "");
-  };
-  const saveNote = async () => {
-    if (!person || !noteEvent) return;
-    const nextNotes = { ...notes };
-    if (noteText.trim()) nextNotes[noteEvent.key] = noteText.trim();
-    else delete nextNotes[noteEvent.key];
-    setSaving(true);
-    try {
-      const r = await fetch("/api/profile/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          personId: person.id,
-          preferences,
-          notes: nextNotes,
-        }),
-      });
-      if (r.ok) {
-        setNotes(nextNotes);
-        setNoteEvent(null);
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
   if (loading)
     return (
       <LoadingState
@@ -429,181 +301,65 @@ export default function DashboardV2() {
       />
     );
   if (!person) return <LoadingState screen label="Проверяем вход" detail="Подтверждаем Telegram-сессию."/>;
-  const noPairs = groups.length === 0;
-  const attendanceLessons = groups.filter(item => item.occurrence?.status !== "cancelled").map(item => ({ key: item.occurrence?.key ?? item.id ?? noteKey(todayKey,item.timeStart,item.class), title: item.class, start: item.timeStart, end: item.timeEnd }));
   return (
-    <main data-no-pairs={noPairs ? "true" : undefined} className="dashboard-v2">
+    <main className="dashboard-v2">
       {personalError&&<p className="admin-error" role="alert">{personalError}</p>}
-      {personalEvent&&<PersonalEventEditor personId={person.id} date={personalEvent.date} event={personalEvent} onClose={()=>setPersonalEvent(null)} onSaved={()=>void refreshPersonalEvents()}/>}
+      {personalEvent&&<PersonalEventEditor date={personalEvent.date} event={personalEvent} personId={person.id} onClose={()=>setPersonalEvent(null)} onSaved={()=>void refreshPersonalEvents()}/>}
+      {details && <EventDialog title={details.type === "lesson" ? details.item.class : details.item.subject} eyebrow={details.type === "rehearsal" ? "РЕПЕТИЦИЯ" : "ЗАНЯТИЕ"} onClose={()=>setDetails(null)}><EventDetailsContent details={details} lessonDate={todayKey} creatorId={person.id} personName={person.name}/>{details.type === "rehearsal" && details.item.creatorId === person.id && <Link className="admin-secondary" href={`/schedule/rehearsals/new?edit=${encodeURIComponent(details.item.id)}`}>Редактировать репетицию</Link>}</EventDialog>}
       <style jsx global>{`
         .dashboard-v2 {
           width: min(calc(100% - 28px), 980px);
+          min-width: 0;
           margin: 0 auto;
-          padding: 34px 0 24px;
+          padding: 0 0 24px;
           color: var(--text);
         }
+        /* Keep the sticky header within the timeline, before seminars. */
+        .dashboard-sticky-region { display: flow-root; min-width: 0; }
         .dashboard-v2-head {
+          position: sticky;
+          top: env(safe-area-inset-top, 0px);
+          z-index: 30;
           display: flex;
           align-items: flex-end;
           justify-content: space-between;
           gap: 20px;
+          padding: 10px 0 6px;
+          border: 0;
+          background: transparent;
+          isolation: isolate;
         }
+        .dashboard-v2-head::before {
+          content: "";
+          position: absolute;
+          z-index: -1;
+          inset-inline: 0;
+          bottom: -52px;
+          height: 112px;
+          pointer-events: none;
+          -webkit-backdrop-filter: blur(16px);
+          backdrop-filter: blur(16px);
+          -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+          mask-image: linear-gradient(to bottom, #000, transparent);
+        }
+        body:has(.dev-environment-banner) .dashboard-v2-head { top: calc(44px + env(safe-area-inset-top, 0px)); }
         .dashboard-v2 h1 {
           margin: 0;
-          font-size: clamp(30px, 6vw, 52px);
+          overflow-wrap: anywhere;
+          font-size: clamp(26px, 5vw, 40px);
           letter-spacing: -0.045em;
         }
         .dashboard-v2-head > div > p:last-child {
-          margin: 9px 0 0;
+          margin: 3px 0 0;
           color: var(--muted);
           font-size: 14px;
         }
         .dashboard-kicker {
-          margin: 0 0 8px;
+          margin: 0 0 3px;
           color: var(--muted);
           font-size: 11px;
           font-weight: 750;
           letter-spacing: 0.12em;
-        }
-        .dashboard-focus {
-          margin-top: 28px;
-          padding: 28px;
-          border: 1px solid var(--border);
-          border-radius: 24px;
-          background: linear-gradient(
-            135deg,
-            rgba(255, 255, 255, 0.09),
-            rgba(255, 255, 255, 0.025)
-          );
-          box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24);
-        }
-        .dashboard-focus-top {
-          display: flex;
-          justify-content: space-between;
-          color: var(--muted);
-          font-size: 11px;
-          font-weight: 750;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-        }
-        .dashboard-focus-top em {
-          font-style: normal;
-        }
-        .dashboard-focus h2 {
-          margin: 8px 0 7px;
-          font-size: clamp(25px, 5vw, 40px);
-          letter-spacing: -0.04em;
-        }
-        .dashboard-focus p {
-          margin: 0;
-          color: var(--muted-strong);
-        }
-        .dashboard-focus > strong {
-          display: block;
-          margin-top: 20px;
-          font-size: 17px;
-        }
-        .dashboard-progress {
-          height: 7px;
-          margin-top: 15px;
-          overflow: hidden;
-          border-radius: 999px;
-          background: var(--border);
-        }
-        .dashboard-progress i {
-          display: block;
-          height: 100%;
-          border-radius: inherit;
-          background: #f2f2f2;
-          width: 100%;
-          transform-origin: left;
-          transition: transform 0.5s;
-        }
-        .dashboard-progress-labels {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 6px;
-          color: var(--muted);
-          font-size: 10px;
-        }
-        .dashboard-tomorrow {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 18px;
-          margin-top: 9px;
-          padding: 17px;
-          border: 1px solid var(--border);
-          border-radius: 16px;
-          background: var(--surface);
-        }
-        .dashboard-tomorrow > div {
-          display: grid;
-          gap: 4px;
-        }
-        .dashboard-tomorrow span {
-          color: var(--muted);
-          font-size: 9px;
-          font-weight: 800;
-          letter-spacing: 0.1em;
-        }
-        .dashboard-tomorrow strong {
-          font-size: 16px;
-        }
-        .dashboard-tomorrow small {
-          color: var(--muted);
-          font-size: 11px;
-        }
-        .dashboard-tomorrow a {
-          color: var(--muted);
-          font-size: 11px;
-          text-decoration: none;
-          white-space: nowrap;
-        }
-        .dashboard-tomorrow a:hover {
-          color: var(--text);
-        }
-        .dashboard-stats {
-          display: flex;
-          align-items: stretch;
-          gap: 9px;
-          margin-top: 9px;
-        }
-        .dashboard-stat-next {
-          flex: 2 1 0;
-          min-width: 0;
-        }
-        .dashboard-stat-pair {
-          display: grid;
-          flex: 2 1 0;
-          min-width: 0;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 9px;
-        }
-        .dashboard-stats:not(.has-next) .dashboard-stat-pair {
-          flex-basis: 100%;
-        }
-        .dashboard-stats article {
-          display: grid;
-          gap: 6px;
-          padding: 16px;
-          border: 1px solid var(--border);
-          border-radius: 16px;
-          background: var(--surface);
-        }
-        .dashboard-stats span {
-          color: var(--muted);
-          font-size: 10px;
-          font-weight: 750;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-        .dashboard-stats strong {
-          font-size: 17px;
-        }
-        .dashboard-stats small {
-          color: var(--muted);
-          font-size: 10px;
         }
         .dashboard-timeline,
         .dashboard-seminars {
@@ -816,122 +572,15 @@ export default function DashboardV2() {
         .dashboard-people b {
           color: var(--muted);
         }
-        .dashboard-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 2450;
-          display: grid;
-          place-items: center;
-          width: 100vw;
-          height: 100dvh;
-          padding: 20px;
-          overflow: hidden;
-          background: rgba(0, 0, 0, 0.8);
-          overscroll-behavior: contain;
-        }
-        .dashboard-note-modal {
-          width: min(100%, 500px);
-          max-height: min(760px, calc(100dvh - 40px));
-          overflow: auto;
-          overscroll-behavior: contain;
-          -webkit-overflow-scrolling: touch;
-          padding: 20px;
-          border: 1px solid var(--border);
-          border-radius: 20px;
-          background: var(--surface);
-          box-shadow: 0 30px 100px #000;
-          will-change: opacity, transform;
-        }
-        .dashboard-note-modal > div {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .dashboard-note-modal > div > span {
-          color: var(--muted);
-          font-size: 9px;
-          font-weight: 800;
-          letter-spacing: 0.1em;
-        }
-        .dashboard-note-modal > div > button {
-          border: 0;
-          background: none;
-          color: var(--muted);
-          font-size: 24px;
-          cursor: pointer;
-        }
-        .dashboard-note-modal h2 {
-          margin: 14px 0 3px;
-        }
-        .dashboard-note-modal > p {
-          margin: 0;
-          color: var(--muted);
-          font-size: 11px;
-        }
-        .dashboard-note-modal textarea {
-          width: 100%;
-          min-height: 130px;
-          margin-top: 15px;
-          padding: 12px;
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          outline: 0;
-          resize: vertical;
-          color: var(--text);
-          background: var(--surface-raised);
-          font: 13px/1.5 inherit;
-        }
-        .dashboard-note-modal footer {
-          display: flex;
-          justify-content: flex-end;
-          gap: 7px;
-          margin-top: 10px;
-        }
-        .dashboard-note-modal footer button {
-          border: 1px solid var(--border);
-          border-radius: 10px;
-          padding: 9px 12px;
-          color: var(--muted);
-          background: var(--surface-hover);
-          cursor: pointer;
-          font-size: 11px;
-          font-weight: 750;
-        }
-        .dashboard-note-modal footer button:last-child {
-          color: var(--accent-text);
-          background: var(--accent);
-        }
         @media (max-width: 650px) {
           .dashboard-v2 {
             width: calc(100% - 20px);
-            padding-top: 22px;
+            padding-top: 0;
           }
           .dashboard-v2-head {
-            align-items: flex-start;
-          }
-          .dashboard-focus {
-            margin-top: 18px;
-            padding: 21px;
-            border-radius: 19px;
-          }
-          .dashboard-stats,
-          .dashboard-stats.has-next {
-            display: block;
-          }
-          .dashboard-stat-next {
-            width: 100%;
-            margin-bottom: 9px;
-          }
-          .dashboard-stat-pair {
-            display: grid;
-            width: 100%;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 9px;
-          }
-          .dashboard-stat-pair > article {
-            width: 100%;
             min-width: 0;
-            grid-column: auto !important;
+            padding-top: 8px;
+            align-items: flex-start;
           }
           .dashboard-event-v2 {
             grid-template-columns: 58px minmax(0, 1fr) auto;
@@ -946,39 +595,10 @@ export default function DashboardV2() {
           .dashboard-seminar-grid {
             grid-template-columns: 1fr;
           }
-          .dashboard-overlay {
-            place-items: stretch;
-            padding: 0;
-            background: var(--surface);
-          }
-          .dashboard-note-modal {
-            width: 100%;
-            height: 100dvh;
-            max-height: 100dvh;
-            padding: max(20px, env(safe-area-inset-top)) 18px
-              calc(20px + env(safe-area-inset-bottom));
-            border: 0;
-            border-radius: 0;
-            box-shadow: none;
-          }
-          .dashboard-note-modal > div:first-child {
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            margin: calc(-20px - env(safe-area-inset-top)) -18px 0;
-            padding: calc(20px + env(safe-area-inset-top)) 18px 14px;
-            border-bottom: 1px solid var(--border);
-            background: var(--surface);
-          }
-          .dashboard-note-modal textarea {
-            min-height: 220px;
-          }
-          .dashboard-note-modal footer {
-            padding-bottom: env(safe-area-inset-bottom);
-          }
         }
       `}</style>
-      <header className="dashboard-v2-head">
+      <div className="dashboard-sticky-region">
+      <header data-dashboard-header className="dashboard-v2-head">
         <div>
           <p className="dashboard-kicker">214Р</p>
           <h1>{nightText ?? `Привет, ${person.name.split(" ")[0]}.`}</h1>
@@ -991,188 +611,26 @@ export default function DashboardV2() {
           </p>
         </div>
       </header>
-      <PersonalEventInvitations items={personalInvitations} onResponded={id=>{setPersonalInvitations(items=>items.filter(item=>item.id!==id));void refreshPersonalEvents()}}/>
       <DashboardAnnouncements personId={person.id} />
-      <DashboardDailyQuote quote={dailyQuote} />
-      {(noPairs || current || next) && (
-        <section className={`dashboard-focus${current ? " is-current" : ""}`}>
-          <div className="dashboard-focus-top">
-            <span>
-              {current
-                ? "Сейчас идёт"
-                : noPairs
-                  ? "Сегодня"
-                  : gapText
-                    ? "Окно"
-                    : next?.kind === "personal" ? "Следующее событие" : "Следующая пара"}
-            </span>
-            {current && <em>{progress}%</em>}
-          </div>
-          <h2>
-            {current?.title ??
-              (gapText ? gapText : next?.title) ??
-              "гуляем, товарищи"}
-          </h2>
-          {current ? (
-            <>
-              <p>
-                {current.subtitle} · {current.detail}
-              </p>
-              <strong>
-                {inBreak
-                  ? `до конца перерыва · ${focusCountdown}`
-                  : `до конца · ${focusCountdown}`}
-              </strong>
-              <div
-                className={`dashboard-progress${breakFinished ? " break-finished" : ""}`}
-              >
-                <i style={{ transform: `scaleX(${progress / 100})` }} />
-              </div>
-              <div className="dashboard-progress-labels">
-                <span>{current.start}</span>
-                <span>{current.end}</span>
-              </div>
-            </>
-          ) : !noPairs && next ? (
-            <>
-              <p>
-                {gapText
-                  ? `Следующая · ${next.title}`
-                  : `${next.subtitle} · ${next.detail}`}
-              </p>
-              <strong>до начала · {countdown(next.start)}</strong>
-            </>
-          ) : (
-            <p>Пар сегодня нет.</p>
-          )}
-        </section>
-      )}
-      <AttendanceActions date={todayKey} lessons={attendanceLessons} reports={attendanceReports} onReportsChange={setAttendanceReports} />
-      {!noPairs && showTomorrow && (
-        <section className="dashboard-tomorrow">
-          <div>
-            <span>ЗАВТРА</span>
-            <strong>
-              {tomorrowEvents.length
-                ? tomorrowEvents[0].title
-                : "завтра отдыхаем."}
-            </strong>
-            <small>
-              {tomorrowEvents.length
-                ? `Первая в ${tomorrowEvents[0].start} · ${tomorrowEvents.length} ${tomorrowEvents.length === 1 ? "занятие" : "занятия"} · до ${tomorrowEvents[tomorrowEvents.length - 1].end}`
-                : "Занятий не запланировано"}
-            </small>
-          </div>
-          <Link href="/schedule">Расписание →</Link>
-        </section>
-      )}
-      {!noPairs && <div className="dashboard-scholarship-slot" />}
-      {!noPairs && (
-        <section
-          className={`dashboard-stats${showNextStat ? " has-next" : ""}`}
-        >
-          {showNextStat && (
-            <article className="dashboard-stat-next">
-              <span>Следующая</span>
-              <strong>{next?.title ?? "—"}</strong>
-              <small>
-                {next
-                  ? `через ${countdown(next.start)} · ${next.start}–${next.end}`
-                  : "Больше пар нет"}
-              </small>
-            </article>
-          )}
-          <div className="dashboard-stat-pair">
-            <article className="dashboard-stat-today">
-              <span>Сегодня</span>
-              <strong>{todayCount}</strong>
-              <small>занятий</small>
-            </article>
-            <article className="dashboard-stat-week">
-              <span>Неделя</span>
-              <strong>№ {week}</strong>
-              <small>{schedule ? formatWeekRange(schedule, week) : "—"}</small>
-            </article>
-          </div>
-        </section>
-      )}
+      <PersonalEventInvitations items={personalInvitations} onResponded={id => {setPersonalInvitations(items=>items.filter(item=>item.id!==id)); void refreshPersonalEvents();}}/>
 
-      {!noPairs && (
-        <section className="dashboard-timeline">
-          <div className="dashboard-section-head">
-            <h2>Сегодня</h2>
-            <span>{todayCount}</span>
-          </div>
-          {events.length ? (
-            events.map((e) => (
-              <article
-                className={`dashboard-event-v2 ${e.kind} ${current === e ? "current" : ""} ${past(e) ? "past" : ""}${e.status ? ` is-${e.status}` : ""}${e.attendance ? ` attendance-${e.attendance}` : ""}`}
-                key={e.key}
-              >
-                <div className="dashboard-event-time">
-                  <strong>{e.start}</strong>
-                  <small>{e.end}</small>
-                </div>
-                <div className="dashboard-event-content">
-                  <span>
-                    {e.status === "cancelled"
-                      ? "ОТМЕНЕНА"
-                      : e.status === "moved"
-                        ? "ПЕРЕНЕСЕНА"
-                        : e.attendance === "absence"
-                          ? "МЕНЯ НЕ БУДЕТ"
-                          : e.attendance === "late"
-                            ? "ОПОЗДАЮ"
-                            : e.kind === "individual"
-                          ? "ИНДИВИДУАЛЬНО"
-                          : e.kind === "rehearsal"
-                            ? "РЕПЕТИЦИЯ"
-                            : e.kind === "personal" ? "СОБЫТИЕ" : "ПАРА"}
-                  </span>
-                  <h3>{e.title}</h3>
-                  <p>
-                    {e.subtitle} · {e.detail}
-                  </p>
-                  {e.attendance && (
-                    <small className="dashboard-change-reason">
-                      {e.attendance === "late" ? "Староста предупреждена об опоздании" : "Староста предупреждена об отсутствии"}
-                    </small>
-                  )}
-                  {e.status && (
-                    <small className="dashboard-change-reason">
-                      {e.reason?.trim()
-                        ? `Причина: ${e.reason}`
-                        : "Причина не указана"}
-                    </small>
-                  )}
-                  {(e.note || notes[e.key]) && (
-                    <small className="dashboard-note-preview">
-                      ● {e.note || notes[e.key]}
-                    </small>
-                  )}
-                </div>
-                {e.kind === "personal" && <button type="button" className="dashboard-note" aria-label="Открыть личное событие" onClick={()=>setPersonalEvent(personalEvents.find(item=>item.id===e.key)??null)}>✎</button>}
-                {e.kind === "group" && (
-                  <button
-                    className="dashboard-note"
-                    onClick={() => openNote(e)}
-                    aria-label={
-                      notes[e.key] ? "Изменить заметку" : "Добавить заметку"
-                    }
-                    title={
-                      notes[e.key] ? "Изменить заметку" : "Добавить заметку"
-                    }
-                  >
-                    ✎
-                  </button>
-                )}
-              </article>
-            ))
-          ) : (
-            <div className="dashboard-empty">На сегодня занятий нет.</div>
-          )}
-        </section>
-      )}
+      <DayTimeline events={events} date={todayKey} week={week} currentMinute={currentMin} notes={notes} onOpen={event => {
+        if (event.kind === "personal") setPersonalEvent(personalEvents.find(item => `personal-${item.id}` === event.key) ?? null);
+        if (event.kind === "group") {
+          const item = groups.find(item => noteKey(todayKey, item.timeStart, item.class) === event.key);
+          if (item) setDetails({type:"lesson",item});
+        }
+        if (event.kind === "individual") {
+          const item = individuals.find(item => item.id === event.key);
+          if (item) setDetails({type:"individual",item:{...item,personName:person.name}});
+        }
+        if (event.kind === "rehearsal") {
+          const source = events.find(item => item.key === event.key);
+          const item = rehearsals.find(item => item.id === source?.rehearsalId);
+          if (item) setDetails({type:"rehearsal",item});
+        }
+      }}/>
+      </div>
       <section className="dashboard-seminars">
         <div className="dashboard-section-head">
           <h2>Мои семинары</h2>
@@ -1205,68 +663,6 @@ export default function DashboardV2() {
           </div>
         )}
       </section>
-      {modalPortalReady &&
-        createPortal(
-          <AnimatePresence>
-            {noteEvent && (
-              <motion.div
-                className="dashboard-overlay"
-                onMouseDown={() => setNoteEvent(null)}
-                initial={reducedMotion ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={reducedMotion ? undefined : { opacity: 0 }}
-                transition={{ duration: reducedMotion ? 0 : 0.14 }}
-              >
-                <motion.section
-                  className="dashboard-note-modal"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Личная заметка"
-                  onMouseDown={(e) => e.stopPropagation()}
-                  initial={
-                    reducedMotion ? false : { opacity: 0, y: 14, scale: 0.985 }
-                  }
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={
-                    reducedMotion
-                      ? undefined
-                      : { opacity: 0, y: 8, scale: 0.992 }
-                  }
-                  transition={{
-                    duration: reducedMotion ? 0 : 0.18,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                >
-                  <div>
-                    <span>ЛИЧНАЯ ЗАМЕТКА</span>
-                    <button
-                      onClick={() => setNoteEvent(null)}
-                      aria-label="Закрыть"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <h2>{noteEvent.title}</h2>
-                  <p>
-                    {noteEvent.start}–{noteEvent.end} · {noteEvent.subtitle}
-                  </p>
-                  <textarea
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                    placeholder="Например: взять конспект…"
-                  />
-                  <footer>
-                    <button onClick={() => setNoteEvent(null)}>Отмена</button>
-                    <button onClick={saveNote} disabled={saving}>
-                      {saving ? "Сохранение…" : "Сохранить"}
-                    </button>
-                  </footer>
-                </motion.section>
-              </motion.div>
-            )}
-          </AnimatePresence>,
-          document.body,
-        )}
     </main>
   );
 }

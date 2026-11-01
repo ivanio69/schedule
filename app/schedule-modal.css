@@ -63,6 +63,8 @@
 .details-modal__share span{color:var(--muted);font-size:9px}
 
 .details-modal__personal-note{margin-top:16px;padding-top:4px}.details-modal__personal-note .personal-event-note{margin-top:0}
+.details-modal__personal-note .personal-event-note__add{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:11px 16px;border:1px solid color-mix(in srgb,var(--modal-color,var(--accent)) 38%,var(--border));border-radius:12px;color:var(--text);background:color-mix(in srgb,var(--modal-color,var(--accent)) 8%,var(--surface-raised));font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .18s ease,background-color .18s ease}
+.details-modal__personal-note .personal-event-note__add:hover{border-color:var(--modal-color,var(--accent));background:color-mix(in srgb,var(--modal-color,var(--accent)) 14%,var(--surface-raised))}
 
 
 /* Event overview, live timeline, and attendance quick actions */
