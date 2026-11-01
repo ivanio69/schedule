@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import EventDialog from "./EventDialog";
-import { normalizeTask, sameTaskLink, taskEventLabels, type ResolvedTask, type TaskDay, type TaskLink, type TaskTiming } from "@/lib/tasks";
+import TaskEventPicker from "./TaskEventPicker";
+import { normalizeTask, validTaskDate, type ResolvedTask, type TaskDay, type TaskLink, type TaskTiming } from "@/lib/tasks";
 import styles from "./Tasks.module.css";
 
 export default function TaskEditor({ date, task, onClose, onSaved }: {
@@ -45,8 +46,8 @@ export default function TaskEditor({ date, task, onClose, onSaved }: {
     finally { setSaving(false); }
   }
   const events = day?.events ?? [];
-  const missingSelection = event && !events.some(item => sameTaskLink(item, event));
-  return <EventDialog title={deleting ? "Удалить задачу?" : task ? "Задача" : "Новая задача"} eyebrow="ВИДНО ТОЛЬКО ВАМ" busy={saving} compact={deleting} onClose={() => { if (deleting) { setDeleting(false); setError(""); } else onClose(); }}>
+  const dateCaption = validTaskDate(taskDate) ? new Intl.DateTimeFormat("ru-RU", {day:"numeric", month:"long"}).format(new Date(`${taskDate}T12:00:00`)) : "План на день";
+  return <EventDialog title={deleting ? "Удалить задачу?" : task ? "Задача" : "Новая задача"} eyebrow={dateCaption} busy={saving} compact={deleting} onClose={() => { if (deleting) { setDeleting(false); setError(""); } else onClose(); }}>
     {deleting ? <div className={styles.confirm}>
       <p>Задача «{task?.title}» будет удалена.</p>
       {error && <p role="alert" className={styles.error}>{error}</p>}
@@ -57,13 +58,7 @@ export default function TaskEditor({ date, task, onClose, onSaved }: {
       <fieldset className={styles.timing}><legend>Когда</legend><div role="group" aria-label="Срок задачи">{([ ["anytime", "В течение дня"], ["time", "Ко времени"], ["after-classes", "После пар"] ] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={timing === value} onClick={() => setTiming(value)}>{label}</button>)}</div></fieldset>
       {timing === "time" && <label>Время<input type="time" required value={time} onChange={e => setTime(e.target.value)} /></label>}
       {timing === "after-classes" && <p className={styles.hint}>{loading ? "Проверяем расписание…" : loadError ? "Время появится после загрузки расписания" : day?.afterClassesTime ? `Пары заканчиваются в ${day.afterClassesTime}. Время обновится при изменении расписания.` : "На эту дату пар нет. Задача останется в списке на выбранный день."}</p>}
-      <label>Связать с событием<select value={event ? JSON.stringify(event) : ""} disabled={loading} onChange={e => setEvent(e.target.value ? JSON.parse(e.target.value) as TaskLink : null)}>
-        <option value="">Без привязки</option>
-        {missingSelection && <option value={JSON.stringify(event)}>{task?.linkedEvent?.title ?? "Прежнее событие"} · {loading ? "загрузка…" : "недоступно"}</option>}
-        {events.map(item => { const link = { kind: item.kind, id: item.id, date: item.date }; return <option key={JSON.stringify(link)} value={JSON.stringify(link)}>{item.start} · {taskEventLabels[item.kind]} · {item.title}</option>; })}
-      </select></label>
-      {loading && <p className={styles.hint} role="status">Загружаем события…</p>}
-      {loadError && <p className={styles.error} role="alert">{loadError} <button type="button" onClick={() => { setLoading(true); setLoadError(""); setAttempt(value => value + 1); }}>Повторить</button></p>}
+      <TaskEventPicker key={taskDate} events={events} value={event} fallback={task?.linkedEvent} loading={loading} error={loadError} onChange={setEvent} onRetry={() => { setLoading(true); setLoadError(""); setAttempt(value => value + 1); }}/>
       <label>Заметки<textarea maxLength={2000} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Детали, которые важно не забыть" /></label>
       {error && <p className={styles.error} role="alert">{error}</p>}
       <div className={styles.actions}>{task && <button type="button" className={styles.danger} disabled={saving} onClick={() => { setDeleting(true); setError(""); }}>Удалить</button>}<button type="button" disabled={saving} onClick={onClose}>Отмена</button><button type="submit" className={styles.primary} disabled={saving}>{saving ? "Сохраняю…" : task ? "Сохранить" : "Добавить задачу"}</button></div>

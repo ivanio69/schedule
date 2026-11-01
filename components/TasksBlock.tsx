@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { taskEventLabels, taskWhen, type ResolvedTask, type TaskDay } from "@/lib/tasks";
+import { taskWhen, type ResolvedTask, type TaskDay } from "@/lib/tasks";
 import styles from "./Tasks.module.css";
 const TaskEditor = dynamic(() => import("./TaskEditor"));
 
@@ -54,16 +54,22 @@ export default function TasksBlock({ date, newTaskOpen = false, onNewTaskClose }
   const tasks = data?.date === date ? data.tasks : [];
   const active = tasks.filter(task => !task.completed), completed = tasks.filter(task => task.completed);
   const row = (task: ResolvedTask) => <li key={task.id} className={task.completed ? styles.done : undefined}>
-    <input type="checkbox" checked={task.completed} disabled={busyIds.includes(task.id)} aria-label={`${task.completed ? "Вернуть в задачи" : "Выполнить"}: ${task.title}`} onChange={() => void complete(task)} />
+    <label className={styles.checkTarget}>
+      <input type="checkbox" checked={task.completed} disabled={busyIds.includes(task.id)} aria-label={`${task.completed ? "Вернуть в задачи" : "Выполнить"}: ${task.title}`} onChange={() => void complete(task)} />
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 4 4 8-8"/></svg>
+    </label>
     <button type="button" className={styles.task} disabled={busyIds.includes(task.id)} onClick={() => setEditor(task)}>
-      <strong>{task.title}</strong><span>{taskWhen(task)}</span>
-      {task.linkedEvent && <small>{taskEventLabels[task.linkedEvent.kind]} · {task.linkedEvent.title}{task.linkedEvent.cancelled ? " · отменено" : ` · ${task.linkedEvent.start}`}</small>}
-      {task.linkMissing && <small>Связанное событие больше недоступно</small>}
+      <strong>{task.title}</strong>
+      <span className={styles.meta}>
+        <span className={styles.deadline} data-timed={task.timing !== "anytime"}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>{taskWhen(task)}</span>
+        {task.linkedEvent && <span className={styles.linked} data-kind={task.linkedEvent.kind}><i aria-hidden="true"/>{task.linkedEvent.title}{task.linkedEvent.cancelled ? " · отменено" : ` · ${task.linkedEvent.start}`}</span>}
+        {task.linkMissing && <span className={styles.unavailable}>Событие недоступно</span>}
+      </span>
       {task.notes && <p>{task.notes}</p>}
-    </button><span className={styles.chevron} aria-hidden="true">›</span>
+    </button><svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
   </li>;
-  return <section className={styles.block} aria-label="Мои задачи">
-    <header className={styles.heading}><div><p>ТОЛЬКО ДЛЯ ВАС</p><h2>Мои задачи {tasks.length > 0 && <span>{active.length}</span>}</h2></div><button type="button" onClick={() => setEditor("new")} aria-label="Добавить задачу"><span aria-hidden="true">＋</span> Задача</button></header>
+  return <section className={styles.block} aria-label="Задачи">
+    <header className={styles.heading}><h2>Задачи {active.length > 0 && <span>{active.length}</span>}</h2><button type="button" onClick={() => setEditor("new")} aria-label="Добавить задачу" title="Добавить задачу"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></header>
     {error && <p className={styles.error} role="alert">{error} <button type="button" onClick={() => void refresh()}>Повторить</button></p>}
     {(loading || data?.date !== date) && !error ? <p className={styles.empty} role="status">Загружаем задачи…</p> : <>
       {active.length > 0 ? <ul className={styles.list}>{active.map(row)}</ul> : !error && <p className={styles.empty}>{completed.length ? "Все задачи выполнены" : "На этот день задач пока нет"}</p>}
