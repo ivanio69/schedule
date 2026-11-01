@@ -134,7 +134,7 @@ export default function ScheduleApp() {
     void fetch("/api/personal-events", { cache: "no-store", signal: controller.signal })
       .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error); return data; })
       .then(data => { if (!controller.signal.aborted) { setPersonalEvents(data.events ?? []); setPersonalError(""); } })
-      .catch(() => { if (!controller.signal.aborted) setPersonalError("Не удалось загрузить личные события"); });
+      .catch(() => { if (!controller.signal.aborted) setPersonalError("Не удалось загрузить события"); });
     return () => controller.abort();
   }, [creatorId, personalRevision]);
   useEffect(() => { setModalPortalReady(true); }, []);
@@ -476,7 +476,7 @@ export default function ScheduleApp() {
 
   // Conflict badges on event cards are for administrators only.
   const personalIntervals: ConflictInterval[] = isAdmin ? entries.flatMap(entry => {
-    if (entry.type === "personal") return [{ key: entry.key, label: `Личное: ${entry.item.title}`, timeStart: entry.item.timeStart, timeEnd: entry.item.timeEnd }];
+    if (entry.type === "personal") return [{ key: entry.key, label: `Событие: ${entry.item.title}`, timeStart: entry.item.timeStart, timeEnd: entry.item.timeEnd }];
     if (entry.type === "lesson") {
       if (entry.item.occurrence?.status === "cancelled") return [];
       return [{ key: entry.key, label: `Пара: ${entry.item.class}`, timeStart: entry.item.timeStart, timeEnd: entry.item.timeEnd }];

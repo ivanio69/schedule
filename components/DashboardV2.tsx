@@ -172,7 +172,7 @@ export default function DashboardV2() {
         setSeminars(seminarData.lists??[]);
         setPersonalEvents(personalData.events??[]);
         setPersonalInvitations(personalData.invitations??[]);
-        if(personalData.failed)setPersonalError("Не удалось загрузить личные события");
+        if(personalData.failed)setPersonalError("Не удалось загрузить события");
         setDailyQuote(quote);
         void loadProfile(current.id);
         void loadAttendance();
@@ -217,7 +217,7 @@ export default function DashboardV2() {
       [
         ...personalEvents.filter(x=>x.date===todayKey).map(x=>({
           kind: "personal" as const, start:x.timeStart, end:x.timeEnd,
-          title:x.title, subtitle:"Личное событие", detail:x.location || "Видно только вам", note:x.notes, key:x.id,
+          title:x.title, subtitle:"Событие", detail:x.location || "Видно только вам", note:x.notes, key:x.id,
         })),
         ...groups.map((x) => ({
           kind: "group" as const,
@@ -1127,7 +1127,7 @@ export default function DashboardV2() {
                           ? "ИНДИВИДУАЛЬНО"
                           : e.kind === "rehearsal"
                             ? "РЕПЕТИЦИЯ"
-                            : e.kind === "personal" ? "ЛИЧНОЕ" : "ПАРА"}
+                            : e.kind === "personal" ? "СОБЫТИЕ" : "ПАРА"}
                   </span>
                   <h3>{e.title}</h3>
                   <p>

@@ -364,3 +364,7 @@ body .personal-event-card .schedule-card__time { color:var(--personal); backgrou
 body .personal-event-card .card-kind-badge { color:var(--personal); background:var(--personal-bg); }
 body .dashboard-event-v2.personal .dashboard-event-content>span,body .dashboard-event-v2.personal .dashboard-event-time strong { color:var(--personal)!important; }
 body .personal-event-form { border-color:color-mix(in srgb,var(--personal) 32%,var(--border)); background:color-mix(in srgb,var(--personal) 4%,var(--surface)); box-shadow:inset 3px 0 var(--personal); }
+
+body .personal-event-card .schedule-card__body { min-width:0; }
+body .personal-event-card h2,body .personal-event-card .schedule-card__meta span { overflow-wrap:anywhere; }
+body .personal-event-card:focus-visible { outline:2px solid var(--personal); outline-offset:3px; }

@@ -75,3 +75,16 @@
 .invitation summary { cursor:pointer; }
 .invitationNotes { line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 @media(max-width:600px) { .invitation { padding:18px 16px; } .invitation .actions { display:grid; grid-template-columns:1fr; } }
+
+/* Consistent interaction and wrapping for event forms and invitations. */
+.header>div,.inviteeHeading>div { min-width:0; }
+.header h2,.choices strong,.peoplePicker button span { overflow-wrap:anywhere; }
+.close:hover:not(:disabled),.secondary:hover:not(:disabled) { background:var(--surface-hover); border-color:var(--border-strong); }
+.primary:hover:not(:disabled) { filter:brightness(1.06); }
+.danger:hover:not(:disabled) { background:color-mix(in srgb,#ef6a6a 15%,var(--surface)); }
+.dialog button:focus-visible,.invitations button:focus-visible { outline:2px solid var(--personal); outline-offset:3px; }
+.peoplePicker button { min-height:44px; max-width:100%; }
+.peoplePicker button:hover:not(:disabled) { border-color:var(--personal); }
+.actions button { white-space:normal; line-height:1.35; }
+.invitation details[open] { padding:12px 14px; background:var(--surface-raised); border:1px solid var(--border); border-radius:12px; }
+@media(max-width:600px) { .form input,.form textarea { font-size:16px; } .confirmation .actions { grid-template-columns:1fr; } .readOnlyDetails>div { grid-template-columns:76px minmax(0,1fr); gap:12px; } }

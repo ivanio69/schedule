@@ -60,7 +60,7 @@ export default function PersonalEventEditor({ date, event, personId = "", onClos
     {error && <p className={styles.error} role="alert">{error}</p>}
     <div className={styles.actions}><button type="button" autoFocus className={styles.secondary} disabled={saving} onClick={()=>{setDeleting(false);setError("")}}>Оставить</button><button type="button" className={styles.danger} disabled={saving} onClick={()=>void save(true)}>{saving?"Удаляю…":"Удалить событие"}</button></div>
   </section> : <form className={styles.form} onSubmit={e => { e.preventDefault(); void save(); }}>
-    {!event&&<div className={styles.formHead}><div><p>ЛИЧНОЕ СОБЫТИЕ</p><h2>Новые планы</h2></div><span className={styles.privacy}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>{inviteeIds.length?"Вам и приглашённым":"Видно только вам"}</span></div>}
+    {!event&&<div className={styles.formHead}><div><p>СОБЫТИЕ</p><h2>Новые планы</h2></div><span className={styles.privacy}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>{inviteeIds.length?"Вам и приглашённым":"Видно только вам"}</span></div>}
     <div className={styles.grid}>
       <label className={styles.wide}>Название<input autoFocus required maxLength={120} value={title} onChange={e=>setTitle(e.target.value)} placeholder="Например, встреча или поход в театр" /></label>
       <label>Дата<input type="date" required value={eventDate} onChange={e=>setDate(e.target.value)} /></label>
@@ -88,5 +88,5 @@ export default function PersonalEventEditor({ date, event, personId = "", onClos
   </form>;
 
   if (!event) return <section className="rehearsal-form personal-event-form">{content}</section>;
-  return <EventDialog compact={deleting} title={deleting?"Подтверждение удаления":"Личное событие"} eyebrow={inviteeIds.length?"ВАМ И ПРИГЛАШЁННЫМ":"ВИДНО ТОЛЬКО ВАМ"} busy={saving} onClose={()=>{if(deleting){setDeleting(false);setError("")}else onClose()}}>{content}</EventDialog>;
+  return <EventDialog compact={deleting} title={deleting?"Подтверждение удаления":"Событие"} eyebrow={inviteeIds.length?"ВАМ И ПРИГЛАШЁННЫМ":"ВИДНО ТОЛЬКО ВАМ"} busy={saving} onClose={()=>{if(deleting){setDeleting(false);setError("")}else onClose()}}>{content}</EventDialog>;
 }
