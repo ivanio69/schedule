@@ -172,7 +172,6 @@ export default function LoginPage(){
       <header className={styles.head}>
         <motion.div className={styles.mark} initial={reducedMotion?false:{scale:.78,rotate:-6,opacity:0}} animate={{scale:1,rotate:0,opacity:1}} transition={{delay:.08,duration:.4,ease:[.22,1,.36,1]}}>214Р</motion.div>
         <motion.div initial={reducedMotion?false:{opacity:0,x:-8}} animate={{opacity:1,x:0}} transition={{delay:.13,duration:.38}}>
-          <span>РАСПИСАНИЕ</span>
           <h1>{method==="openid"?"Вход":otpStep==="choose"?"Вход по коду":otpStep==="link"?"Привяжи Telegram":"Код из Telegram"}</h1>
         </motion.div>
       </header>
