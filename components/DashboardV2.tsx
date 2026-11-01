@@ -313,6 +313,8 @@ export default function DashboardV2() {
           padding: 34px 0 24px;
           color: var(--text);
         }
+        /* Keep the sticky header within the timeline, before seminars. */
+        .dashboard-sticky-region { display: flow-root; }
         .dashboard-v2-head {
           position: sticky;
           top: env(safe-area-inset-top, 0px);
@@ -591,6 +593,7 @@ export default function DashboardV2() {
           }
         }
       `}</style>
+      <div className="dashboard-sticky-region">
       <header data-dashboard-header className="dashboard-v2-head">
         <div>
           <p className="dashboard-kicker">214Р</p>
@@ -623,6 +626,7 @@ export default function DashboardV2() {
           if (item) setDetails({type:"rehearsal",item});
         }
       }}/>
+      </div>
       <section className="dashboard-seminars">
         <div className="dashboard-section-head">
           <h2>Мои семинары</h2>
