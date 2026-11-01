@@ -1,3 +1,4 @@
+export type PersonalEventInvitation = { personId: string; status: "pending" | "accepted" | "declined"; name?: string };
 export type PersonalEvent = {
   id: string;
   creatorId: string;
@@ -7,6 +8,10 @@ export type PersonalEvent = {
   timeEnd: string;
   location: string;
   notes: string;
+  invitations?: PersonalEventInvitation[];
+  revision?: number;
+  creatorName?: string;
+  canEdit?: boolean;
 };
 
 export function normalizePersonalEvent(value: unknown) {

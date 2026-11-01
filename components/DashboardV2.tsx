@@ -1,7 +1,7 @@
 "use client";
 import { isRehearsalParticipant } from "@/lib/rehearsals";
 import { fetchAuthSession } from "@/lib/auth-client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -18,6 +18,7 @@ import {
   type ScheduleData,
 } from "@/lib/schedule";
 import type { SeminarList } from "@/lib/seminars";
+import PersonalEventInvitations from "@/components/PersonalEventInvitations";
 import PersonalEventEditor from "@/components/PersonalEventEditor";
 import type { PersonalEvent } from "@/lib/personal-events";
 import LoadingState from "@/components/LoadingState";
@@ -65,6 +66,8 @@ type Event = {
   attendanceReason?: string;
 };
 export default function DashboardV2() {
+  const [personalInvitations, setPersonalInvitations] = useState<PersonalEvent[]>([]);
+  const personalRequest = useRef(0);
   const [personalEvents, setPersonalEvents] = useState<PersonalEvent[]>([]);
   const [personalEvent, setPersonalEvent] = useState<PersonalEvent | null>(null);
   const [personalError, setPersonalError] = useState("");
@@ -87,6 +90,24 @@ export default function DashboardV2() {
     [saving, setSaving] = useState(false),
     [chinaMode, setChinaMode] = useState(false),
     [loading, setLoading] = useState(true);
+  const refreshPersonalEvents = useCallback(async (signal?: AbortSignal) => {
+    const revision = ++personalRequest.current;
+    try {
+      const response = await fetch("/api/personal-events", {cache:"no-store",signal});
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      if (signal?.aborted || revision !== personalRequest.current) return;
+      setPersonalEvents(data.events ?? []); setPersonalInvitations(data.invitations ?? []); setPersonalError("");
+    } catch { if (!signal?.aborted && revision === personalRequest.current) setPersonalError("Не удалось обновить события и приглашения"); }
+  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    const refresh = () => { if (!document.hidden) void refreshPersonalEvents(controller.signal); };
+    const timer = setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { controller.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
+  }, [refreshPersonalEvents]);
   const loadProfile = async (id: string) => {
     const [sr, ir] = await Promise.all([
       fetch(`/api/profile/settings?personId=${encodeURIComponent(id)}`, {
@@ -150,6 +171,7 @@ export default function DashboardV2() {
         setRehearsals(s.rehearsals??[]);
         setSeminars(seminarData.lists??[]);
         setPersonalEvents(personalData.events??[]);
+        setPersonalInvitations(personalData.invitations??[]);
         if(personalData.failed)setPersonalError("Не удалось загрузить личные события");
         setDailyQuote(quote);
         void loadProfile(current.id);
@@ -412,7 +434,7 @@ export default function DashboardV2() {
   return (
     <main data-no-pairs={noPairs ? "true" : undefined} className="dashboard-v2">
       {personalError&&<p className="admin-error" role="alert">{personalError}</p>}
-      {personalEvent&&<PersonalEventEditor date={personalEvent.date} event={personalEvent} onClose={()=>setPersonalEvent(null)} onSaved={()=>{void fetch("/api/personal-events",{cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();return r.json()}).then(data=>{setPersonalEvents(data.events??[]);setPersonalError("")}).catch(()=>setPersonalError("Не удалось обновить личные события"))}}/>}
+      {personalEvent&&<PersonalEventEditor personId={person.id} date={personalEvent.date} event={personalEvent} onClose={()=>setPersonalEvent(null)} onSaved={()=>void refreshPersonalEvents()}/>}
       <style jsx global>{`
         .dashboard-v2 {
           width: min(calc(100% - 28px), 980px);
@@ -969,6 +991,7 @@ export default function DashboardV2() {
           </p>
         </div>
       </header>
+      <PersonalEventInvitations items={personalInvitations} onResponded={id=>{setPersonalInvitations(items=>items.filter(item=>item.id!==id));void refreshPersonalEvents()}}/>
       <DashboardAnnouncements personId={person.id} />
       <DashboardDailyQuote quote={dailyQuote} />
       {(noPairs || current || next) && (
@@ -1247,5 +1270,3 @@ export default function DashboardV2() {
     </main>
   );
 }
-
-
