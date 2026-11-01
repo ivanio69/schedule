@@ -611,7 +611,7 @@ export default function DashboardV2() {
       <DashboardAnnouncements personId={person.id} />
       <PersonalEventInvitations items={personalInvitations} onResponded={id => {setPersonalInvitations(items=>items.filter(item=>item.id!==id)); void refreshPersonalEvents();}}/>
 
-      <DayTimeline events={events} date={todayKey} week={week} currentMinute={currentMin} notes={notes} onOpen={event => {
+      {events.some(event => event.status !== "cancelled") && <DayTimeline events={events} date={todayKey} week={week} currentMinute={currentMin} notes={notes} onOpen={event => {
         if (event.kind === "personal") setPersonalEvent(personalEvents.find(item => `personal-${item.id}` === event.key) ?? null);
         if (event.kind === "group") {
           const item = groups.find(item => noteKey(todayKey, item.timeStart, item.class) === event.key);
@@ -626,7 +626,7 @@ export default function DashboardV2() {
           const item = rehearsals.find(item => item.id === source?.rehearsalId);
           if (item) setDetails({type:"rehearsal",item});
         }
-      }}/>
+      }}/>} 
       </div>
       <section className="dashboard-seminars">
         <div className="dashboard-section-head">
