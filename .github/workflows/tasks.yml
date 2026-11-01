@@ -9,6 +9,8 @@ on:
       - "components/Task*.tsx"
       - "components/Tasks.module.css"
       - "tests/tasks.test.mjs"
+      - "tests/task-entrance.test.mjs"
+      - "lib/use-entrance-complete.ts"
       - ".github/workflows/tasks.yml"
 jobs:
   test:
@@ -22,5 +24,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - run: node --test tests/tasks.test.mjs tests/personal-events.test.mjs tests/pwa-cache.test.mjs
-      - run: npx eslint components/TasksBlock.tsx components/TaskEditor.tsx components/TaskEventPicker.tsx components/TaskDialog.tsx lib/tasks.ts lib/task-events.ts app/api/tasks/route.ts
+      - run: node --test tests/tasks.test.mjs tests/task-entrance.test.mjs tests/personal-events.test.mjs tests/pwa-cache.test.mjs
+      - run: npx eslint components/TasksBlock.tsx components/TaskEditor.tsx components/TaskEventPicker.tsx components/TaskDialog.tsx lib/tasks.ts lib/task-events.ts lib/use-entrance-complete.ts app/api/tasks/route.ts
