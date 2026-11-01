@@ -310,7 +310,7 @@ export default function DashboardV2() {
         .dashboard-v2 {
           width: min(calc(100% - 28px), 980px);
           margin: 0 auto;
-          padding: 34px 0 24px;
+          padding: 0 0 24px;
           color: var(--text);
         }
         /* Keep the sticky header within the timeline, before seminars. */
@@ -323,7 +323,7 @@ export default function DashboardV2() {
           align-items: flex-end;
           justify-content: space-between;
           gap: 20px;
-          padding-block: 14px;
+          padding: 48px 0 14px;
           border: 0;
           background: transparent;
           isolation: isolate;
@@ -573,9 +573,10 @@ export default function DashboardV2() {
         @media (max-width: 650px) {
           .dashboard-v2 {
             width: calc(100% - 20px);
-            padding-top: 22px;
+            padding-top: 0;
           }
           .dashboard-v2-head {
+            padding-top: 36px;
             align-items: flex-start;
           }
           .dashboard-event-v2 {
