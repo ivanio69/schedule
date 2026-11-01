@@ -1,6 +1,6 @@
 .block { min-width:0; margin:30px 0; padding:0; border:0; background:transparent; color:var(--text); }
 .heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
-.heading h2 { display:flex; align-items:baseline; gap:10px; margin:0; font-size:21px; font-weight:700; letter-spacing:-.04em; }
+.heading h2 { display:flex; align-items:baseline; gap:10px; margin:0; font-size:var(--font-section); font-weight:650; letter-spacing:-.025em; }
 .heading h2 span { color:var(--muted); font-size:13px; font-weight:500; letter-spacing:0; font-variant-numeric:tabular-nums; }
 .heading>button { display:grid; place-items:center; flex:none; padding:0; }
 .heading>button svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; }
@@ -14,7 +14,7 @@
 .checkTarget svg { position:absolute; width:17px; height:17px; pointer-events:none; fill:none; stroke:var(--accent-text); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .checkTarget input:disabled { opacity:.5; cursor:wait; }
 .task { display:grid; gap:8px; min-width:0; min-height:44px; padding:0; border:0; color:var(--text); background:transparent; text-align:left; cursor:pointer; font:inherit; overflow-wrap:anywhere; }
-.task>strong { font-size:15px; line-height:1.4; font-weight:600; letter-spacing:-.015em; }
+.task>strong { font-size:var(--font-card); line-height:1.4; font-weight:600; letter-spacing:-.015em; }
 .meta { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; min-width:0; color:var(--muted); font-size:11px; line-height:1.5; }
 .deadline { display:inline-flex; align-items:center; gap:5px; }
 .deadline svg { width:13px; height:13px; flex:none; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
@@ -106,11 +106,12 @@
 .dialog::backdrop { background:transparent; }
 .dialogShade { position:fixed; inset:0; pointer-events:none; background:rgb(0 0 0 / .5); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
 .dialogPanel { position:relative; box-sizing:border-box; width:min(600px,100%); max-height:calc(100dvh - 40px); padding:26px; overflow:auto; overscroll-behavior:contain; background:var(--surface); border:1px solid var(--border); border-radius:24px; box-shadow:0 28px 100px #0005; transform-origin:center; }
+.dialogPanelCompact { width:min(480px,100%); }
 .dialogPanel[data-closing=true] { pointer-events:none; }
 .dialogHeading { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:24px; }
 .dialogHeading>div { min-width:0; }
 .dialogHeading p { margin:0 0 7px; color:var(--muted); font-size:11px; line-height:1.4; }
-.dialogHeading h2 { margin:0; font-size:27px; letter-spacing:-.04em; line-height:1.15; overflow-wrap:anywhere; }
+.dialogHeading h2 { margin:0; font-size:clamp(24px,5vw,30px); letter-spacing:-.04em; line-height:1.15; overflow-wrap:anywhere; }
 .dialogHeading button { display:grid; place-items:center; flex:none; }
 .dialogHeading svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; }
 .timingDetail { overflow:hidden; }

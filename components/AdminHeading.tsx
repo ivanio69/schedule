@@ -5,7 +5,6 @@ export default function AdminHeading({ title, description, actions }: {
 }) {
   return <header className="admin-page-heading">
     <div className="admin-page-heading__copy">
-      <p className="admin-page-heading__eyebrow">214Р · Панель управления</p>
       <h1>{title}</h1>
       {description && <p className="admin-page-heading__description">{description}</p>}
     </div>

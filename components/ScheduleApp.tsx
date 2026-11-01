@@ -498,7 +498,7 @@ export default function ScheduleApp() {
   const conflictMap = isAdmin ? buildConflictMap(personalIntervals) : new Map<string, string[]>();
 
   return <MotionConfig reducedMotion="user"><main className="schedule-shell">
-    <header className="schedule-header"><div><p className="eyebrow">214Р · расписание</p><h1>{view === "schedule" ? "Учебная неделя" : "Настройки"}</h1>{view === "schedule" && <p className="week-caption">{formatWeekRange(schedule, week)}</p>}</div></header>
+    <header className="schedule-header"><div><h1>{view === "schedule" ? "Учебная неделя" : "Настройки"}</h1>{view === "schedule" && <p className="week-caption">{formatWeekRange(schedule, week)}</p>}</div></header>
     {view === "schedule" ? <>
       <div className="week-toolbar"><button type="button" className="icon-button" onClick={()=>setWeek(v=>Math.max(1,v-1))} disabled={week===1} aria-label="Предыдущая неделя">←</button><button type="button" className="week-number" onClick={()=>setWeek(currentWeek)} aria-label="Перейти к текущей неделе"><span>Неделя</span><strong>{week}</strong>{week===currentWeek&&<em>сейчас</em>}</button><button type="button" className="icon-button" onClick={()=>setWeek(v=>Math.min(totalWeeks,v+1))} disabled={week===totalWeeks} aria-label="Следующая неделя">→</button></div>
       <nav className="day-tabs" aria-label="Дни недели">{DAY_NAMES.map((name,index)=><button type="button" key={name} className={day===index?"is-active":""} aria-current={day===index?"page":undefined} onClick={()=>setDay(index)}><span>{name}</span><small>{index+1}</small></button>)}</nav>

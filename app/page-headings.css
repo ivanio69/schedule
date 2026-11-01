@@ -1,3 +1,101 @@
-.eyebrow{margin:0 0 8px!important;color:var(--muted)!important;font-size:11px!important;font-weight:750!important;letter-spacing:.12em!important;line-height:1.1!important;text-transform:uppercase!important}.dashboard-v2 h1,.schedule-header h1,.settings-page h1,.student-slots>header h2{margin:0!important;font-size:clamp(30px,6vw,52px)!important;line-height:1!important;letter-spacing:-.045em!important}.dashboard-v2-head>div>p:last-child,.settings-page .muted,.student-slots>header span{margin-top:9px!important;color:var(--muted)!important;font-size:14px!important;line-height:1.4}.schedule-header{align-items:flex-end}.schedule-header .week-caption{margin-top:9px}.student-slots>header p{margin-bottom:8px!important}
-.dashboard-progress{position:relative;overflow:visible}.dashboard-progress i{position:relative;z-index:1}.dashboard-progress:after{content:"";position:absolute;top:0;bottom:0;left:44.444%;width:5.556%;z-index:2;background:repeating-linear-gradient(135deg,rgba(255,255,255,.42) 0,rgba(255,255,255,.42) 2px,rgba(255,255,255,.12) 2px,rgba(255,255,255,.12) 5px);border-left:1px solid rgba(255,255,255,.5);border-right:1px solid rgba(255,255,255,.5);box-sizing:border-box;pointer-events:none}.dashboard-progress:before{content:"перерыв · 40–45 мин";position:absolute;left:44.444%;top:calc(100% + 8px);transform:translateX(-50%);z-index:3;color:#777780;font-size:8px;font-weight:750;letter-spacing:.04em;white-space:nowrap;pointer-events:none}
-@media(max-width:650px){.dashboard-v2 h1,.schedule-header h1,.settings-page h1,.student-slots>header h2{font-size:clamp(30px,9vw,42px)!important}.schedule-header{align-items:flex-start}.student-slots>header span{font-size:12px!important}.dashboard-progress:before{font-size:7px}}
+/* Shared type and spacing scale. Imported after feature styles. */
+:root {
+  --font-page: clamp(32px, 4.5vw, 46px);
+  --font-section: 21px;
+  --font-card: 16px;
+  --font-body: 14px;
+  --font-ui: 13px;
+  --font-meta: 12px;
+  --font-label: 11px;
+  --weight-title: 650;
+  --weight-control: 600;
+  --schedule-time-width: 76px;
+  --motion-fast: 140ms;
+  --motion-normal: 220ms;
+  --motion-enter: 320ms;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+}
+body { font-size: var(--font-body); line-height: 1.5; }
+input, textarea, select { font-family: inherit; }
+body :is(.schedule-header, .seminars-heading, .student-slots > header, .settings-page-head, .admin-page-heading, .rehearsal-editor-head) {
+  margin-bottom: 28px;
+  gap: 20px;
+}
+body :is(.dashboard-v2 h1, .schedule-header h1, .seminars-client h1, .student-slots > header h1, .settings-page h1, .admin-page-heading h1, .admin-header h1, .rehearsal-editor-head h1) {
+  margin: 0 !important;
+  font-size: var(--font-page) !important;
+  font-weight: var(--weight-title);
+  line-height: 1.12 !important;
+  letter-spacing: -.04em !important;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+body :is(.dashboard-section-head h2, .settings-page > h2, .seminar-subject > h2, .student-slot-subjects > section > h3, .student-slots-mine > h3, .admin-section-intro h2, .admin-section-header h2) {
+  font-size: var(--font-section);
+  font-weight: var(--weight-title);
+  line-height: 1.3;
+  letter-spacing: -.025em;
+}
+body :is(.schedule-header .week-caption, .seminars-heading > div > span, .student-slots > header span, .settings-page-head .muted, .admin-page-heading__description, .rehearsal-editor-head > div > span) {
+  display: block;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: var(--font-body) !important;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+body :is(.schedule-card h2, .schedule-card h3, .rehearsal-card h2, .dashboard-event-content h3, .seminars-client .seminar-summary-text strong, .student-slots-mine strong) {
+  font-size: var(--font-card);
+  font-weight: var(--weight-control);
+  line-height: 1.4;
+  letter-spacing: -.015em;
+}
+body :is(.settings-page .settings-page-row strong, .seminars-client .seminar-topic-info h4, .student-slot-date strong) {
+  font-size: var(--font-body);
+  font-weight: var(--weight-control);
+  line-height: 1.45;
+}
+body :is(.schedule-card__meta, .settings-page-row small, .seminars-client .seminar-topic-info p, .student-slot-info, .student-slot-students) {
+  font-size: var(--font-meta);
+  line-height: 1.55;
+}
+body :is(.admin-primary, .admin-secondary, .admin-danger, .settings-page-switch button, .preference-switch button, .seminar-topic button, .student-slots button) {
+  font-size: var(--font-ui);
+  font-weight: var(--weight-control);
+  line-height: 1.35;
+}
+/* Every event uses the same time rail, including muted rehearsals. */
+body .schedule-shell :is(.schedule-card, .rehearsal-card) {
+  grid-template-columns: var(--schedule-time-width) minmax(0, 1fr);
+}
+body .schedule-shell .schedule-card__time {
+  align-items: center;
+  padding-inline: 10px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+body .schedule-shell .schedule-card__time > :first-child {
+  font-size: var(--font-card);
+  font-weight: var(--weight-control);
+  line-height: 1.35;
+  letter-spacing: -.025em;
+}
+body .schedule-shell .schedule-card__time > :last-child {
+  font-size: var(--font-meta);
+  line-height: 1.4;
+}
+body .schedule-shell .rehearsal-card.is-non-participant h2 { font-size: var(--font-card); }
+body :is(.schedule-card__body, .seminar-summary-text, .student-slot-info) { min-width: 0; overflow-wrap: anywhere; }
+body :is(.icon-button, .details-modal__close) { min-width: 44px; min-height: 44px; }
+body .icon-button { display: inline-grid; place-items: center; padding: 0; }
+body .icon-button svg { width: 20px; height: 20px; }
+body :is(.admin-input, .seminars :is(input, select, textarea)) { background: var(--surface); }
+body .settings-page .settings-page-row { transition: background-color var(--motion-normal) ease, border-color var(--motion-normal) ease; }
+body .settings-page .settings-page-row:focus-within { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+body .student-slots > header > strong { font-variant-numeric: tabular-nums; font-size: var(--font-card); }
+
+@media (max-width: 600px) {
+  :root { --font-page: clamp(30px, 8vw, 38px); --font-section: 20px; --schedule-time-width: 64px; }
+  body :is(.schedule-header, .seminars-heading, .student-slots > header, .settings-page-head, .admin-page-heading, .rehearsal-editor-head) { margin-bottom: 24px; gap: 16px; }
+  body :is(.settings-page, .seminars-client, .schedule-shell, .student-slots, .rehearsal-editor) :is(input, textarea, select) { font-size: 16px; }
+}

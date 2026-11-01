@@ -14,7 +14,7 @@
 .personalChoice { --choice:var(--personal); }
 .choiceIcon { display:grid; place-items:center; width:44px; height:44px; border-radius:13px; color:var(--choice); background:color-mix(in srgb,var(--choice) 12%,transparent); }
 .choiceIcon svg { width:23px; height:23px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
-.choices strong { display:block; font-size:15px; font-weight:750; }
+.choices strong { display:block; font-size:var(--font-card); font-weight:600; }
 .choices small { display:block; margin-top:6px; color:var(--muted); font-size:12px; line-height:1.45; }
 .arrow { color:var(--choice); }
 .dismiss { display:block; margin:20px auto 0; padding:9px 20px; border:0; color:var(--muted); background:transparent; cursor:pointer; font-size:13px; }

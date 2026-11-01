@@ -149,7 +149,7 @@ html[data-theme="light"] .notification-center-list article.is-unread{background:
 }
 .rehearsal-card,.dashboard-rehearsal{background:linear-gradient(135deg,var(--rehearsal-bg),var(--surface))!important}
 .rehearsal-label,.rehearsal-card__label,.dashboard-rehearsal__main>span,.details-modal--rehearsal .details-modal__eyebrow{color:var(--rehearsal)!important}
-.add-rehearsal-button,.rehearsal-schedule-link,.details-modal__edit-button{
+.rehearsal-schedule-link,.details-modal__edit-button{
   border-color:color-mix(in srgb,var(--rehearsal) 54%,var(--border))!important;color:var(--rehearsal)!important;
 }
 .rehearsal-people-picker button.is-active{background:var(--rehearsal)!important;border-color:var(--rehearsal)!important;color:var(--rehearsal-text)!important}

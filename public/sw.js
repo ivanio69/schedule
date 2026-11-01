@@ -1,5 +1,6 @@
 /* PWA_BUILD_START */
-const BUILD_ASSETS = [];
+// Next build: "_0RrTkOde9evG9A2ODQVC"
+const BUILD_ASSETS = ["/_next/static/chunks/09548bce-d68d9a88211a1b1e.js","/_next/static/chunks/3199-1852b6323b7596ca.js","/_next/static/chunks/4335-c456ff4184bb92ff.js","/_next/static/chunks/4853-e257c10cd0a8ee7c.js","/_next/static/chunks/5256-f34f491e0fc20810.js","/_next/static/chunks/7395-b1d4e1d2047c0823.js","/_next/static/chunks/8453-a9f5e80eadbbc234.js","/_next/static/chunks/9465-69cb5183e80b93a5.js","/_next/static/chunks/app/layout-611f498ab9700c8a.js","/_next/static/chunks/app/loading-abc827f01364a4c4.js","/_next/static/chunks/app/login/page-832f69054441bd3a.js","/_next/static/chunks/app/page-538c0bcf8b7fa98a.js","/_next/static/chunks/main-app-b0c91a5f52fce85f.js","/_next/static/chunks/polyfills-42372ed130431b0a.js","/_next/static/chunks/webpack-bb21cadff76a3206.js","/_next/static/css/1c9ead34bab2549a.css","/_next/static/css/358ee7b409fc8c54.css","/_next/static/css/5619a6af78d48b49.css","/_next/static/css/c3d2cf1c3d05342a.css","/_next/static/css/eaeb2674915c3298.css","/_next/static/media/569ce4b8f30dc480-s.woff2"];
 /* PWA_BUILD_END */
 
 const STATIC_CACHE = "schedule-pwa-static-v1";
