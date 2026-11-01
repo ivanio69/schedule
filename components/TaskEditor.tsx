@@ -51,7 +51,7 @@ export default function TaskEditor({ date, task, onClose, onSaved }: {
   const events = day?.events ?? [];
   const dateCaption = validTaskDate(taskDate) ? new Intl.DateTimeFormat("ru-RU", {day:"numeric", month:"long"}).format(new Date(`${taskDate}T12:00:00`)) : "План на день";
   return <TaskDialog title={deleting ? "Удаление задачи" : task ? "Задача" : "Новая задача"} caption={dateCaption} busy={saving} closing={closing} onClose={onClose}>
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="wait" initial={false}>
     {deleting ? <motion.div key="delete" className={styles.confirm} initial={{opacity:0,y:reducedMotion?0:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:reducedMotion?0:-6}} transition={{duration:reducedMotion?0:.18}}>
       <motion.div className={styles.deleteIcon} initial={reducedMotion?false:{scale:.8,rotate:-8}} animate={{scale:1,rotate:0}} transition={{type:"spring",stiffness:320,damping:22}} aria-hidden="true"><svg viewBox="0 0 24 24"><motion.path d="M4 7h16m-11 0V4h6v3" animate={reducedMotion?undefined:{rotate:[0,-10,0]}} transition={{delay:.16,duration:.4}} style={{transformOrigin:"8px 7px"}}/><path d="m6 7 1 14h10l1-14m-8 4v6m4-6v6"/></svg></motion.div>
       <h3>Удалить эту задачу?</h3><p>Она исчезнет из списка. Связанное событие останется в расписании.</p>
@@ -59,7 +59,7 @@ export default function TaskEditor({ date, task, onClose, onSaved }: {
       {error && <p role="alert" className={styles.error}>{error}</p>}
       <div className={`${styles.actions} ${styles.deleteActions}`}><button type="button" autoFocus disabled={saving} onClick={() => { setDeleting(false); setError(""); }}>Оставить задачу</button><motion.button type="button" className={styles.danger} disabled={saving} whileTap={reducedMotion?undefined:{scale:.97}} onClick={() => void save(true)}>{saving ? "Удаляю…" : "Удалить"}</motion.button></div>
     </motion.div> : <motion.form key="edit" className={styles.form} initial={{opacity:0,y:reducedMotion?0:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:reducedMotion?0:-6}} transition={{duration:reducedMotion?0:.18}} onSubmit={e => { e.preventDefault(); void save(); }}>
-      <label>Что нужно сделать<input autoFocus required maxLength={160} placeholder="Например, подготовить реквизит" value={title} onChange={e => setTitle(e.target.value)} /></label>
+      <label>Что нужно сделать<input required maxLength={160} placeholder="Например, подготовить реквизит" value={title} onChange={e => setTitle(e.target.value)} /></label>
       <label>Дата<input type="date" required value={taskDate} onChange={e => { setTaskDate(e.target.value); setEvent(null); setDay(null); setLoading(true); setLoadError(""); }} /></label>
       <fieldset className={styles.timing}><legend>Когда</legend><div role="group" aria-label="Срок задачи">{([ ["anytime", "В течение дня"], ["time", "Ко времени"], ["after-classes", "После пар"] ] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={timing === value} onClick={() => setTiming(value)}>{label}</button>)}</div></fieldset>
       <AnimatePresence initial={false} mode="wait">

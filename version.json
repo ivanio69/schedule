@@ -1,6 +1,6 @@
 {
   "release": "5.11.0",
-  "dev": 4,
+  "dev": 5,
   "pr": 98,
   "majorBasePr": 68,
   "channel": "minor"

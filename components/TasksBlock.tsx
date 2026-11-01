@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import TaskEditor from "./TaskEditor";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { sortTasks, taskWhen, type ResolvedTask, type TaskDay } from "@/lib/tasks";
 import styles from "./Tasks.module.css";
-const TaskEditor = dynamic(() => import("./TaskEditor"));
 
 export default function TasksBlock({ date, newTaskOpen = false, onNewTaskClose }: {
   date: string; newTaskOpen?: boolean; onNewTaskClose?: () => void;

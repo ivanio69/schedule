@@ -101,10 +101,12 @@
 @media(max-width:600px) { .list li { grid-template-columns:32px minmax(0,1fr) 12px; gap:8px; padding:15px 0; } .checkTarget { width:32px; } .meta { gap:6px 10px; } .pickerPanel { padding:10px; } .form .search input { font-size:16px; } .eventOptions { max-height:240px; } }
 @media(prefers-reduced-motion:reduce) { .block *,.picker * { transition:none; } }
 
-.dialog { box-sizing:border-box; position:fixed; inset:0; width:min(600px,calc(100% - 32px)); max-width:none; max-height:calc(100dvh - 40px); margin:auto; padding:26px; overflow:auto; overscroll-behavior:contain; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:24px; box-shadow:0 28px 100px #0005; transform-origin:center; }
-.dialog::backdrop { background:rgb(0 0 0 / .5); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); animation:task-backdrop-in .22s ease both; }
-.dialog[data-closing=true]::backdrop { animation:task-backdrop-out .16s ease both; }
-.dialog[data-closing=true] { pointer-events:none; }
+.dialog { box-sizing:border-box; position:fixed; inset:0; width:100%; height:100%; max-width:none; max-height:none; margin:0; padding:20px 16px; border:0; color:var(--text); background:transparent; overflow:auto; overscroll-behavior:contain; }
+.dialog[open] { display:grid; place-items:center; }
+.dialog::backdrop { background:transparent; }
+.dialogShade { position:fixed; inset:0; pointer-events:none; background:rgb(0 0 0 / .5); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+.dialogPanel { position:relative; box-sizing:border-box; width:min(600px,100%); max-height:calc(100dvh - 40px); padding:26px; overflow:auto; overscroll-behavior:contain; background:var(--surface); border:1px solid var(--border); border-radius:24px; box-shadow:0 28px 100px #0005; transform-origin:center; }
+.dialogPanel[data-closing=true] { pointer-events:none; }
 .dialogHeading { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:24px; }
 .dialogHeading>div { min-width:0; }
 .dialogHeading p { margin:0 0 7px; color:var(--muted); font-size:11px; line-height:1.4; }
@@ -128,8 +130,6 @@
 .deletePreview>div>span { color:var(--muted); font-size:11px; }
 .deleteActions { display:grid; grid-template-columns:1fr 1fr; margin-top:0; }
 .deleteActions .danger { margin:0; color:#fff; border-color:#c94c50; background:#c94c50; }
-@keyframes task-backdrop-in { from {opacity:0} to {opacity:1} }
-@keyframes task-backdrop-out { from {opacity:1} to {opacity:0} }
 @keyframes task-check-pop { 0% {transform:scale(1)} 45% {transform:scale(1.14)} 100% {transform:scale(1)} }
-@media(max-width:600px) { .dialog { width:100%; height:100dvh; max-height:100dvh; border:0; border-radius:0; padding:max(24px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom)); } .dialogHeading { margin-bottom:22px; } .confirm { padding-top:24px; } .deleteActions { grid-template-columns:1fr; } }
-@media(prefers-reduced-motion:reduce) { .dialog::backdrop,.dialog[data-closing=true]::backdrop,.checkTarget input:checked { animation:none; } .task>strong,.deadline { transition:none; } }
+@media(max-width:600px) { .dialog { padding:0; } .dialogPanel { width:100%; height:100dvh; max-height:100dvh; border:0; border-radius:0; padding:max(24px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom)); } .dialogHeading { margin-bottom:22px; } .confirm { padding-top:24px; } .deleteActions { grid-template-columns:1fr; } }
+@media(prefers-reduced-motion:reduce) { .checkTarget input:checked { animation:none; } .task>strong,.deadline { transition:none; } }
