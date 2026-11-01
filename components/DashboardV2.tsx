@@ -15,6 +15,7 @@ import {
 import type { SeminarList } from "@/lib/seminars";
 import PersonalEventEditor from "@/components/PersonalEventEditor";
 import PersonalEventInvitations from "@/components/PersonalEventInvitations";
+import TasksBlock from "@/components/TasksBlock";
 import DayTimeline from "@/components/DayTimeline";
 import EventDialog from "@/components/EventDialog";
 import EventDetailsContent, { type EventDetails } from "@/components/EventDetailsContent";
@@ -630,6 +631,7 @@ export default function DashboardV2() {
           if (item) setDetails({type:"rehearsal",item});
         }
       }}/>
+      <TasksBlock key={person.id} date={todayKey}/>
       </div>
       <section className="dashboard-seminars">
         <div className="dashboard-section-head">
