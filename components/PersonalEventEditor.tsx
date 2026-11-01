@@ -29,6 +29,7 @@ export default function PersonalEventEditor({ date, event, personId = "", onClos
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   async function save(remove = false) {
     if (saving || readOnly) return;
@@ -43,14 +44,15 @@ export default function PersonalEventEditor({ date, event, personId = "", onClos
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Не удалось сохранить событие");
-      onSaved(); onClose();
+      onSaved();
+      if (event) setClosing(true); else onClose();
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Не удалось сохранить событие"); }
     finally { setSaving(false); }
   }
 
   const formattedDate = new Intl.DateTimeFormat("ru-RU", { day:"numeric", month:"long" }).format(new Date((event?.date ?? date) + "T12:00:00"));
-  if (readOnly && event) return <EventDialog title={event.title} eyebrow="СОБЫТИЕ ПО ПРИГЛАШЕНИЮ" onClose={onClose}>
-    <dl className={styles.readOnlyDetails}><div><dt>Автор</dt><dd>{event.creatorName}</dd></div><div><dt>Дата</dt><dd>{formattedDate}</dd></div><div><dt>Время</dt><dd>{event.timeStart}–{event.timeEnd}</dd></div>{event.location&&<div><dt>Место</dt><dd>{event.location}</dd></div>}{event.notes&&<div><dt>Заметки</dt><dd>{event.notes}</dd></div>}</dl><button type="button" className={styles.dismiss} onClick={onClose}>Закрыть</button>
+  if (readOnly && event) return <EventDialog closing={closing} title={event.title} eyebrow="СОБЫТИЕ ПО ПРИГЛАШЕНИЮ" onClose={onClose}>
+    <dl className={styles.readOnlyDetails}><div><dt>Автор</dt><dd>{event.creatorName}</dd></div><div><dt>Дата</dt><dd>{formattedDate}</dd></div><div><dt>Время</dt><dd>{event.timeStart}–{event.timeEnd}</dd></div>{event.location&&<div><dt>Место</dt><dd>{event.location}</dd></div>}{event.notes&&<div><dt>Заметки</dt><dd>{event.notes}</dd></div>}</dl><button type="button" className={styles.dismiss} onClick={()=>event ? setClosing(true) : onClose()}>Закрыть</button>
   </EventDialog>;
   const content = deleting ? <section className={styles.confirmation} aria-labelledby="delete-event-title">
     <div className={styles.warningIcon} aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6m4-6v6"/></svg></div>
@@ -82,11 +84,11 @@ export default function PersonalEventEditor({ date, event, personId = "", onClos
     {error&&<p className={styles.error} role="alert">{error}</p>}
     <div className={styles.actions}>
       {event&&<button type="button" className={`${styles.danger} ${styles.deleteTrigger}`} disabled={saving} onClick={()=>{setDeleting(true);setError("")}}>Удалить</button>}
-      <button type="button" className={styles.secondary} disabled={saving} onClick={onClose}>Отмена</button>
+      <button type="button" className={styles.secondary} disabled={saving} onClick={()=>event ? setClosing(true) : onClose()}>Отмена</button>
       <button type="submit" className={styles.primary} disabled={saving}>{saving?"Сохраняю…":event?"Сохранить изменения":"Создать событие"}</button>
     </div>
   </form>;
 
   if (!event) return <section className="rehearsal-form personal-event-form">{content}</section>;
-  return <EventDialog compact={deleting} title={deleting?"Подтверждение удаления":"Событие"} eyebrow={inviteeIds.length?"ВАМ И ПРИГЛАШЁННЫМ":"ВИДНО ТОЛЬКО ВАМ"} busy={saving} onClose={()=>{if(deleting){setDeleting(false);setError("")}else onClose()}}>{content}</EventDialog>;
+  return <EventDialog closing={closing} compact={deleting} title={deleting?"Подтверждение удаления":"Событие"} eyebrow={inviteeIds.length?"ВАМ И ПРИГЛАШЁННЫМ":"ВИДНО ТОЛЬКО ВАМ"} busy={saving} onClose={()=>{if(deleting&&!closing){setDeleting(false);setError("")}else onClose()}}>{content}</EventDialog>;
 }

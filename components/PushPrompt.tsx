@@ -1,4 +1,6 @@
 "use client";
+import { AnimatePresence, motion } from "motion/react";
+import { useDialogMotion } from "@/lib/dialog-motion";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -19,6 +21,7 @@ async function bindExistingSubscription(personId:string){
 }
 
 export default function PushPrompt(){
+ const modalMotion = useDialogMotion();
  const pathname = usePathname();
  const[show,setShow]=useState(false);const[error,setError]=useState("");
  useEffect(()=>{
@@ -48,5 +51,5 @@ export default function PushPrompt(){
   return()=>{alive=false;window.removeEventListener("storage",evaluate);window.removeEventListener("schedule-person-changed",evaluate as EventListener);window.removeEventListener("schedule-auth-change",evaluate as EventListener);window.removeEventListener("focus",evaluate);document.removeEventListener("visibilitychange",visible);window.clearInterval(timer)}
  },[pathname]);
  async function enable(){setError("");try{const key=process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;if(!key)throw new Error("Push не настроен на сервере");const permission=await Notification.requestPermission();if(permission!=="granted"){setShow(false);return}const registration=await navigator.serviceWorker.ready;let subscription=await registration.pushManager.getSubscription();subscription??=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:applicationServerKey(key)});const personId=localStorage.getItem(PERSON_KEY);if(!personId)throw new Error("Профиль не выбран");const response=await fetch("/api/push/subscription",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({personId,subscription:subscription.toJSON()})});if(!response.ok)throw new Error("Не удалось сохранить подписку");setShow(false)}catch(e){setError(e instanceof Error?e.message:"Не удалось включить уведомления")}}
- if(!show)return null;return <div className="push-prompt-backdrop"><section className="push-prompt" role="dialog" aria-modal="true" aria-labelledby="push-prompt-title"><h2 id="push-prompt-title">Не пропускай изменения</h2><p>Включи уведомления о новых семинарах и индивидуальных занятиях.</p>{error&&<p role="alert">{error}</p>}<button onClick={()=>void enable()}>Включить уведомления</button><button onClick={()=>{localStorage.setItem(DISMISSED_KEY,String(Date.now()));setShow(false)}}>Не сейчас</button></section></div>;
+ return <AnimatePresence>{show&&<motion.div {...modalMotion.shade} className="push-prompt-backdrop"><motion.section {...modalMotion.panel} className="push-prompt" role="dialog" aria-modal="true" aria-labelledby="push-prompt-title"><h2 id="push-prompt-title">Не пропускай изменения</h2><p>Включи уведомления о новых семинарах и индивидуальных занятиях.</p>{error&&<p role="alert">{error}</p>}<button onClick={()=>void enable()}>Включить уведомления</button><button onClick={()=>{localStorage.setItem(DISMISSED_KEY,String(Date.now()));setShow(false)}}>Не сейчас</button></motion.section></motion.div>}</AnimatePresence>;
 }

@@ -25,6 +25,7 @@ import "./appearance.css";
 import "./announcements.css";
 import "./runtime-status.css";
 import "./page-headings.css";
+import "./modal-motion.css";
 import AppNavigation from "@/components/AppNavigation";
 import OfflineBanner from "@/components/OfflineBanner";
 import DevEnvironmentBanner from "@/components/DevEnvironmentBanner";

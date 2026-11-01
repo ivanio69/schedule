@@ -1,5 +1,7 @@
 "use client";
 
+import { useDialogMotion } from "@/lib/dialog-motion";
+
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
@@ -25,6 +27,7 @@ function plural(count: number, one: string, few: string, many: string) {
 }
 
 export default function DashboardRehearsals() {
+  const modalMotion = useDialogMotion();
   const [items, setItems] = useState<Rehearsal[]>([]);
   const [ready, setReady] = useState(false);
   const [personId, setPersonId] = useState("");
@@ -147,12 +150,9 @@ export default function DashboardRehearsals() {
     {modalReady && createPortal(
       <AnimatePresence initial={false} onExitComplete={() => setExiting(false)}>
         {selected && <motion.div className="details-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}
-          initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: .14, ease: [.22, 1, .36, 1] } }}
-          exit={{ opacity: 0, transition: { duration: .12, ease: [.4, 0, 1, 1] } }}>
+          {...modalMotion.shade}>
           <motion.section className="details-modal details-modal--rehearsal" role="dialog" aria-modal="true" aria-labelledby="dashboard-rehearsal-title"
-            initial={{ opacity: 0, y: 14, scale: .985 }}
-            animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: .18, ease: [.22, 1, .36, 1] } }}
-            exit={{ opacity: 0, y: 8, scale: .992, transition: { duration: .12, ease: [.4, 0, 1, 1] } }}>
+            {...modalMotion.panel}>
             <div className="details-modal__header"><div>
               <span className="details-modal__eyebrow">Репетиция</span>
               <h2 id="dashboard-rehearsal-title">{selected.subject}</h2>

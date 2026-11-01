@@ -1,5 +1,7 @@
 "use client";
 
+import { useDialogMotion } from "@/lib/dialog-motion";
+
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
@@ -21,6 +23,7 @@ export default function NotificationCenter({ personId, variant = "icon" }: { per
   const [exiting, setExiting] = useState(false);
   const [ready, setReady] = useState(false);
   const reducedMotion = useReducedMotion();
+  const modalMotion = useDialogMotion();
   const [readVersions, setReadVersions] = useState<string[]>([]);
   const storageKey = `${READ_KEY_PREFIX}:${personId}`;
 
@@ -96,10 +99,7 @@ export default function NotificationCenter({ personId, variant = "icon" }: { per
           key="notification-center"
           className="notification-center-overlay"
           onMouseDown={closeCenter}
-          initial={reducedMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={reducedMotion ? undefined : { opacity: 0 }}
-          transition={{ duration: reducedMotion ? 0 : .18, ease: "easeOut" }}
+          {...modalMotion.shade}
         >
           <motion.section
             className="notification-center-panel"
@@ -107,10 +107,7 @@ export default function NotificationCenter({ personId, variant = "icon" }: { per
             aria-modal="true"
             aria-labelledby="notification-center-title"
             onMouseDown={event => event.stopPropagation()}
-            initial={reducedMotion ? false : { opacity: 0, y: 14, scale: .985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reducedMotion ? undefined : { opacity: 0, y: 8, scale: .992 }}
-            transition={{ duration: reducedMotion ? 0 : .22, ease: [0.22, 1, 0.36, 1] }}
+            {...modalMotion.panel}
           >
             <header>
               <div>

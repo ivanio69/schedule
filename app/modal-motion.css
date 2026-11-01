@@ -1,0 +1,25 @@
+/* One compositor animation per panel; no competing CSS transitions. */
+[data-app-modal-panel] {
+  animation: none !important;
+  transition: none !important;
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+[data-app-modal-shade] { animation: none !important; transition: none !important; will-change: opacity; }
+@media (max-width: 640px) {
+  /* Large blurred layers are expensive on iOS, even when only opacity changes. */
+  [data-app-modal-shade] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgb(0 0 0 / .56) !important;
+  }
+  [data-app-modal-panel] { box-shadow: none !important; }
+}
+/* Portalled slot forms should stay above the admin navigation on phones. */
+.slots-overlay[data-app-modal-shade] { z-index: 2600; }
+.slots-modal[data-app-modal-panel] { max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-app-modal-panel], [data-app-modal-shade] { will-change: auto; }
+}

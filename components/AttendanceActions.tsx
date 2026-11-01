@@ -1,7 +1,9 @@
 "use client";
 
+import { useDialogMotion } from "@/lib/dialog-motion";
+
 import { useMemo, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { createPortal } from "react-dom";
 import styles from "./AttendanceActions.module.css";
 import { attendanceReasonText, type AttendanceReason, type AttendanceReport, type AttendanceScope } from "@/lib/attendance";
@@ -9,7 +11,7 @@ import { attendanceReasonText, type AttendanceReason, type AttendanceReport, typ
 export type AttendanceLessonOption = { key:string; title:string; start:string; end:string };
 
 export default function AttendanceActions({ date, lessons, reports, onReportsChange }: { date:string; lessons:AttendanceLessonOption[]; reports:AttendanceReport[]; onReportsChange:(reports:AttendanceReport[])=>void }) {
-  const reducedMotion = useReducedMotion();
+  const modalMotion = useDialogMotion();
   const [mode,setMode]=useState<"late"|"absence"|null>(null);
   const [scope,setScope]=useState<AttendanceScope>("lesson");
   const [lessonKey,setLessonKey]=useState("");
@@ -69,7 +71,7 @@ export default function AttendanceActions({ date, lessons, reports, onReportsCha
   const ready=mode==="late"?!!lateLesson:scope==="lesson"?!!selectedLesson:scope==="period"?!!dateFrom&&!!dateTo&&dateFrom<=dateTo:true;
   return <>
     <section className={styles.root} aria-label="Сообщить старосте"><button type="button" className={styles.action+" "+styles.late} disabled={!lateLesson||busy} onClick={openLate}>Я опоздаю</button><button type="button" className={styles.action+" "+styles.absence} disabled={busy} onClick={openAbsence}>Меня не будет</button>{reports.length>0&&<div className={styles.reports}><span>МОИ ОТМЕТКИ</span>{reports.map(report=><div className={styles.report} key={report.id}><div><strong>{reportLabel(report)}</strong><small>Староста уведомлена</small></div><button type="button" disabled={busy} onClick={()=>void cancelReport(report)}>Отменить</button></div>)}</div>}{status&&<p className={styles.status} role="status">{status}</p>}</section>
-    {typeof document!=="undefined"&&createPortal(<AnimatePresence>{mode&&<motion.div className={styles.overlay} onMouseDown={()=>!busy&&setMode(null)} initial={reducedMotion?false:{opacity:0}} animate={{opacity:1}} exit={reducedMotion?undefined:{opacity:0}}><motion.section className={styles.modal} onMouseDown={event=>event.stopPropagation()} initial={reducedMotion?false:{opacity:0,y:12,scale:.985}} animate={{opacity:1,y:0,scale:1}} exit={reducedMotion?undefined:{opacity:0,y:8,scale:.99}}>
+    {typeof document!=="undefined"&&createPortal(<AnimatePresence>{mode&&<motion.div className={styles.overlay} onMouseDown={()=>!busy&&setMode(null)} {...modalMotion.shade}><motion.section className={styles.modal} onMouseDown={event=>event.stopPropagation()} {...modalMotion.panel}>
       <div className={styles.head}><div><span>СООБЩИТЬ СТАРОСТЕ</span><h2>{mode==="late"?"Я опоздаю":"Меня не будет"}</h2></div><button className={styles.close} type="button" onClick={()=>setMode(null)} aria-label="Закрыть">×</button></div>
       {mode==="late"?<p className={styles.copy}>{lateLesson?"Отметим опоздание на «"+lateLesson.title+"» · "+lateLesson.start+"–"+lateLesson.end:"Сегодня больше нет пар."}</p>:<>
         <div className={styles.choices}><button type="button" className={scope==="lesson"?styles.active:""} onClick={()=>setScope("lesson")}>Одна пара</button><button type="button" className={scope==="day"?styles.active:""} onClick={()=>setScope("day")}>Весь день</button><button type="button" className={scope==="period"?styles.active:""} onClick={()=>setScope("period")}>Период</button></div>
