@@ -36,6 +36,7 @@ export function applyAppearance(
   root.dataset.rehearsalAccent = settings.rehearsalAccent;
   root.dataset.individualAccent = settings.individualAccent;
   root.dataset.seminarAccent = settings.seminarAccent;
+  root.dataset.personalAccent = settings.personalAccent;
 }
 
 export function readStoredAppearance(): AppearanceSettings {

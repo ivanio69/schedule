@@ -11,6 +11,7 @@ export type AppearanceSettings = {
   rehearsalAccent: AccentPreset;
   individualAccent: AccentPreset;
   seminarAccent: AccentPreset;
+  personalAccent: AccentPreset;
 };
 
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
@@ -20,6 +21,7 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   rehearsalAccent: "default",
   individualAccent: "default",
   seminarAccent: "default",
+  personalAccent: "default",
 };
 
 export const ACCENT_OPTIONS: ReadonlyArray<{ value: AccentPreset; label: string; color?: string }> = [
@@ -76,5 +78,6 @@ export function normalizeAppearance(value: unknown): AppearanceSettings {
     rehearsalAccent: accent(input.rehearsalAccent),
     individualAccent: accent(input.individualAccent),
     seminarAccent: accent(input.seminarAccent),
+    personalAccent: accent(input.personalAccent),
   };
 }

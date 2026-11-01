@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
+import EventDialog from "./EventDialog";
+import styles from "./PersonalEvents.module.css";
 import { normalizePersonalEvent, type PersonalEvent } from "@/lib/personal-events";
 
 export default function PersonalEventEditor({ date, event, onClose, onSaved }: {
   date: string; event?: PersonalEvent; onClose: () => void; onSaved: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
   const [title, setTitle] = useState(event?.title ?? "");
   const [eventDate, setDate] = useState(event?.date ?? date);
   const [start, setStart] = useState(event?.timeStart ?? "18:00");
@@ -17,14 +17,6 @@ export default function PersonalEventEditor({ date, event, onClose, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
-  useEffect(() => {
-    const element = dialog.current;
-    const previous = document.activeElement as HTMLElement | null;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    element?.showModal();
-    return () => { element?.close(); document.body.style.overflow = overflow; previous?.focus(); };
-  }, []);
 
   async function save(remove = false) {
     if (saving) return;
@@ -44,31 +36,32 @@ export default function PersonalEventEditor({ date, event, onClose, onSaved }: {
     finally { setSaving(false); }
   }
 
-  return createPortal(<dialog ref={dialog} className="details-modal personal-event-dialog" aria-labelledby="personal-event-title" onCancel={e => { e.preventDefault(); if (!saving) onClose(); }} onClick={e => { const rect = e.currentTarget.getBoundingClientRect(); if (e.target === e.currentTarget && !saving && (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom)) onClose(); }}>
-    <div className="details-modal__header"><div><span className="details-modal__eyebrow">Видно только вам</span><h2 id="personal-event-title">{event ? "Личное событие" : "Новое личное событие"}</h2></div><button type="button" className="details-modal__close" disabled={saving} onClick={onClose} aria-label="Закрыть">×</button></div>
-    <form onSubmit={e => { e.preventDefault(); void save(); }}>
-      <div className="details-modal__edit-grid">
-        <label>Название<input className="admin-input" autoFocus required maxLength={120} value={title} onChange={e => setTitle(e.target.value)} /></label>
-        <label>Дата<input className="admin-input" type="date" required value={eventDate} onChange={e => setDate(e.target.value)} /></label>
-        <label>Начало<input className="admin-input" type="time" required value={start} onChange={e => setStart(e.target.value)} /></label>
-        <label>Конец<input className="admin-input" type="time" required value={end} onChange={e => setEnd(e.target.value)} /></label>
-        <label className="details-modal__edit-notes">Место<input className="admin-input" maxLength={240} value={location} onChange={e => setLocation(e.target.value)} placeholder="Где проходит событие" /></label>
-        <label className="details-modal__edit-notes">Заметки<textarea className="admin-input" maxLength={2000} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Что нужно запомнить" /></label>
-      </div>
-      {error && <p className="admin-error" role="alert">{error}</p>}
-      <div className="details-modal__actions">
-        {event && <button type="button" className="admin-secondary" disabled={saving} onClick={() => setDeleting(value => !value)}>Удалить</button>}
-        <button type="button" className="admin-secondary" disabled={saving} onClick={onClose}>Отмена</button>
-        <button type="submit" className="admin-primary" disabled={saving}>{saving ? "Сохраняю…" : "Сохранить"}</button>
-      </div>
-      {deleting && <div role="alert"><p>Удалить личное событие?</p><button type="button" className="admin-secondary" disabled={saving} onClick={() => setDeleting(false)}>Оставить</button><button type="button" className="admin-primary" disabled={saving} onClick={() => void save(true)}>Удалить событие</button></div>}
-    </form>
-    <style jsx global>{`
-      dialog.personal-event-dialog { position: fixed; inset: 0; margin: auto; padding: 24px; width: min(600px, calc(100% - 24px)); max-height: calc(100dvh - 32px); overflow: auto; color: var(--text); background: var(--surface, var(--bg, #fff)); border: 1px solid var(--border); border-radius: 24px; }
-      dialog.personal-event-dialog::backdrop { background: rgb(0 0 0 / .4); backdrop-filter: blur(8px); }
-      .personal-event-dialog label { display: grid; gap: 8px; }
-      .personal-event-dialog textarea { min-height: 120px; }
-      @media(max-width: 600px) { dialog.personal-event-dialog { width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); } }
-    `}</style>
-  </dialog>, document.body);
+  const formattedDate = new Intl.DateTimeFormat("ru-RU", { day:"numeric", month:"long" }).format(new Date((event?.date ?? date) + "T12:00:00"));
+  const content = deleting ? <section className={styles.confirmation} aria-labelledby="delete-event-title">
+    <div className={styles.warningIcon} aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6m4-6v6"/></svg></div>
+    <h3 id="delete-event-title">Удалить событие?</h3>
+    <p>Событие и его заметки исчезнут из вашего расписания. Восстановить их не получится.</p>
+    <div className={styles.eventPreview}><strong>{event?.title}</strong><span>{formattedDate} · {event?.timeStart}–{event?.timeEnd}</span></div>
+    {error && <p className={styles.error} role="alert">{error}</p>}
+    <div className={styles.actions}><button type="button" autoFocus className={styles.secondary} disabled={saving} onClick={()=>{setDeleting(false);setError("")}}>Оставить</button><button type="button" className={styles.danger} disabled={saving} onClick={()=>void save(true)}>{saving?"Удаляю…":"Удалить событие"}</button></div>
+  </section> : <form className={styles.form} onSubmit={e => { e.preventDefault(); void save(); }}>
+    {!event&&<div className={styles.formHead}><div><p>ЛИЧНОЕ СОБЫТИЕ</p><h2>Новые планы</h2></div><span className={styles.privacy}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Видно только вам</span></div>}
+    <div className={styles.grid}>
+      <label className={styles.wide}>Название<input autoFocus required maxLength={120} value={title} onChange={e=>setTitle(e.target.value)} placeholder="Например, встреча или поход в театр" /></label>
+      <label>Дата<input type="date" required value={eventDate} onChange={e=>setDate(e.target.value)} /></label>
+      <label>Место<input maxLength={240} value={location} onChange={e=>setLocation(e.target.value)} placeholder="Адрес или аудитория" /></label>
+      <div className={`${styles.timeRow} ${styles.wide}`}><label>Начало<input type="time" required value={start} onChange={e=>setStart(e.target.value)} /></label><label>Конец<input type="time" required value={end} onChange={e=>setEnd(e.target.value)} /></label></div>
+      <label className={styles.wide}>Заметки<textarea maxLength={2000} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Что взять, подготовить или не забыть…" /></label>
+    </div>
+    <div className={styles.summary}><span>Время события</span><strong>{start || "—"}–{end || "—"}</strong><span>Без приглашений и общих уведомлений</span></div>
+    {error&&<p className={styles.error} role="alert">{error}</p>}
+    <div className={styles.actions}>
+      {event&&<button type="button" className={`${styles.danger} ${styles.deleteTrigger}`} disabled={saving} onClick={()=>{setDeleting(true);setError("")}}>Удалить</button>}
+      <button type="button" className={styles.secondary} disabled={saving} onClick={onClose}>Отмена</button>
+      <button type="submit" className={styles.primary} disabled={saving}>{saving?"Сохраняю…":event?"Сохранить изменения":"Создать событие"}</button>
+    </div>
+  </form>;
+
+  if (!event) return <section className="rehearsal-form personal-event-form">{content}</section>;
+  return <EventDialog compact={deleting} title={deleting?"Подтверждение удаления":"Личное событие"} eyebrow="ВИДНО ТОЛЬКО ВАМ" busy={saving} onClose={()=>{if(deleting){setDeleting(false);setError("")}else onClose()}}>{content}</EventDialog>;
 }
