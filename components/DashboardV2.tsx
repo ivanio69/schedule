@@ -18,6 +18,8 @@ import {
   type ScheduleData,
 } from "@/lib/schedule";
 import type { SeminarList } from "@/lib/seminars";
+import PersonalEventEditor from "@/components/PersonalEventEditor";
+import type { PersonalEvent } from "@/lib/personal-events";
 import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
 import DashboardDailyQuote from "@/components/DashboardDailyQuote";
@@ -48,7 +50,7 @@ const pick = (items: string[], seed: string) => {
   return items[hash % items.length];
 };
 type Event = {
-  kind: "group" | "individual" | "rehearsal";
+  kind: "group" | "individual" | "rehearsal" | "personal";
   start: string;
   end: string;
   title: string;
@@ -63,6 +65,9 @@ type Event = {
   attendanceReason?: string;
 };
 export default function DashboardV2() {
+  const [personalEvents, setPersonalEvents] = useState<PersonalEvent[]>([]);
+  const [personalEvent, setPersonalEvent] = useState<PersonalEvent | null>(null);
+  const [personalError, setPersonalError] = useState("");
   const reducedMotion = useReducedMotion();
   const [modalPortalReady, setModalPortalReady] = useState(false);
   const [dailyQuote, setDailyQuote] = useState<DashboardDailyQuoteData | null>(null);
@@ -133,16 +138,19 @@ export default function DashboardV2() {
         const current=auth.person as {id:string;name:string;role?:Person["role"]};
         if(!current?.id){window.location.replace("/login");return;}
         localStorage.setItem(PERSON_KEY,current.id);
-        const [s,seminarData,quote]=await Promise.all([
+        const [s,seminarData,quote,personalData]=await Promise.all([
           fetch(`/api/schedule?date=${today}&personId=${encodeURIComponent(current.id)}`,{cache:"no-store"}).then(r=>r.json()),
           seminarRequest,
           quoteRequest,
+          fetch("/api/personal-events", {cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();return r.json()}).catch(()=>({events:[],failed:true})),
         ]);
         if(cancelled)return;
         setPerson({id:current.id,name:current.name,active:true,role:current.role,createdAt:""});
         setSchedule(s.schedule??null);
         setRehearsals(s.rehearsals??[]);
         setSeminars(seminarData.lists??[]);
+        setPersonalEvents(personalData.events??[]);
+        if(personalData.failed)setPersonalError("Не удалось загрузить личные события");
         setDailyQuote(quote);
         void loadProfile(current.id);
         void loadAttendance();
@@ -185,6 +193,10 @@ export default function DashboardV2() {
   const events = useMemo<Event[]>(
     () =>
       [
+        ...personalEvents.filter(x=>x.date===todayKey).map(x=>({
+          kind: "personal" as const, start:x.timeStart, end:x.timeEnd,
+          title:x.title, subtitle:"Личное событие", detail:x.location || "Видно только вам", note:x.notes, key:x.id,
+        })),
         ...groups.map((x) => ({
           kind: "group" as const,
           start: x.timeStart,
@@ -237,7 +249,7 @@ export default function DashboardV2() {
             key: x.id,
           })),
       ].sort((a, b) => mins(a.start) - mins(b.start)),
-    [groups, individuals, rehearsals, todayKey, attendanceReports, person?.id, person?.name],
+    [groups, individuals, rehearsals, personalEvents, todayKey, attendanceReports, person?.id, person?.name],
   );
   const currentMin = now.getHours() * 60 + now.getMinutes(),
     activeEvents = events.filter((e) => e.status !== "cancelled"),
@@ -292,6 +304,7 @@ export default function DashboardV2() {
     tomorrowRehearsals = rehearsals.filter((x) => x.date === tomorrowKey && isRehearsalParticipant(x, person?.id, person?.name)),
     tomorrowIndividuals = individuals.filter((x) => x.date === tomorrowKey),
     tomorrowEvents = [
+      ...personalEvents.filter(x=>x.date===tomorrowKey).map(x=>({start:x.timeStart,end:x.timeEnd,title:x.title})),
       ...tomorrowLessons.map((x) => ({
         start: x.timeStart,
         end: x.timeEnd,
@@ -335,8 +348,8 @@ export default function DashboardV2() {
     showNextStat = !!current && !!next;
   const breakStart = current ? mins(current.start) + 40 : 0,
     breakEnd = current ? mins(current.start) + 45 : 0,
-    inBreak = !!current && currentMin >= breakStart && currentMin < breakEnd,
-    breakFinished = !!current && currentMin >= breakEnd;
+    inBreak = current?.kind === "group" && currentMin >= breakStart && currentMin < breakEnd,
+    breakFinished = current?.kind === "group" && currentMin >= breakEnd;
   const progress = current
     ? Math.round(
         Math.min(
@@ -398,6 +411,8 @@ export default function DashboardV2() {
   const attendanceLessons = groups.filter(item => item.occurrence?.status !== "cancelled").map(item => ({ key: item.occurrence?.key ?? item.id ?? noteKey(todayKey,item.timeStart,item.class), title: item.class, start: item.timeStart, end: item.timeEnd }));
   return (
     <main data-no-pairs={noPairs ? "true" : undefined} className="dashboard-v2">
+      {personalError&&<p className="admin-error" role="alert">{personalError}</p>}
+      {personalEvent&&<PersonalEventEditor date={personalEvent.date} event={personalEvent} onClose={()=>setPersonalEvent(null)} onSaved={()=>{void fetch("/api/personal-events",{cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();return r.json()}).then(data=>{setPersonalEvents(data.events??[]);setPersonalError("")}).catch(()=>setPersonalError("Не удалось обновить личные события"))}}/>}
       <style jsx global>{`
         .dashboard-v2 {
           width: min(calc(100% - 28px), 980px);
@@ -966,7 +981,7 @@ export default function DashboardV2() {
                   ? "Сегодня"
                   : gapText
                     ? "Окно"
-                    : "Следующая пара"}
+                    : next?.kind === "personal" ? "Следующее событие" : "Следующая пара"}
             </span>
             {current && <em>{progress}%</em>}
           </div>
@@ -1089,7 +1104,7 @@ export default function DashboardV2() {
                           ? "ИНДИВИДУАЛЬНО"
                           : e.kind === "rehearsal"
                             ? "РЕПЕТИЦИЯ"
-                            : "ПАРА"}
+                            : e.kind === "personal" ? "ЛИЧНОЕ" : "ПАРА"}
                   </span>
                   <h3>{e.title}</h3>
                   <p>
@@ -1113,6 +1128,7 @@ export default function DashboardV2() {
                     </small>
                   )}
                 </div>
+                {e.kind === "personal" && <button type="button" className="dashboard-note" aria-label="Открыть личное событие" onClick={()=>setPersonalEvent(personalEvents.find(item=>item.id===e.key)??null)}>✎</button>}
                 {e.kind === "group" && (
                   <button
                     className="dashboard-note"
