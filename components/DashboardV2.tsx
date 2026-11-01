@@ -1,4 +1,5 @@
 "use client";
+import { useEntranceComplete } from "@/lib/use-entrance-complete";
 import { getDashboardRehearsalSegments } from "@/lib/dashboard-timeline";
 import { fetchAuthSession } from "@/lib/auth-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -189,6 +190,8 @@ export default function DashboardV2() {
   const today = todayIndex(),
     week = schedule ? getCurrentWeek(schedule, now) : 1,
     todayKey = dateKey(today >= 0 ? dayDate(today) : now);
+  const entranceRoot = useRef<HTMLElement>(null);
+  const tasksRevealReady = useEntranceComplete(entranceRoot, todayKey, !loading && Boolean(person));
   const groups = useMemo(
     () =>
       schedule && today >= 0
@@ -303,7 +306,7 @@ export default function DashboardV2() {
     );
   if (!person) return <LoadingState screen label="Проверяем вход" detail="Подтверждаем Telegram-сессию."/>;
   return (
-    <main className="dashboard-v2">
+    <main ref={entranceRoot} className="dashboard-v2">
       {personalError&&<p className="admin-error" role="alert">{personalError}</p>}
       {personalEvent&&<PersonalEventEditor date={personalEvent.date} event={personalEvent} personId={person.id} onClose={()=>setPersonalEvent(null)} onSaved={()=>void refreshPersonalEvents()}/>}
       {details && <EventDialog title={details.type === "lesson" ? details.item.class : details.item.subject} eyebrow={details.type === "rehearsal" ? "РЕПЕТИЦИЯ" : "ЗАНЯТИЕ"} onClose={()=>setDetails(null)}><EventDetailsContent details={details} lessonDate={todayKey} creatorId={person.id} personName={person.name}/>{details.type === "rehearsal" && details.item.creatorId === person.id && <Link className="admin-secondary" href={`/schedule/rehearsals/new?edit=${encodeURIComponent(details.item.id)}`}>Редактировать репетицию</Link>}</EventDialog>}
@@ -631,7 +634,7 @@ export default function DashboardV2() {
           if (item) setDetails({type:"rehearsal",item});
         }
       }}/>
-      <TasksBlock key={person.id} date={todayKey}/>
+      <TasksBlock key={person.id} revealReady={tasksRevealReady} date={todayKey}/>
       </div>
       <section className="dashboard-seminars">
         <div className="dashboard-section-head">
