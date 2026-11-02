@@ -1,25 +1,29 @@
 "use client";
 import { isRehearsalParticipant } from "@/lib/rehearsals";
+import { getDashboardRehearsalSegments } from "@/lib/dashboard-timeline";
 import { fetchAuthSession } from "@/lib/auth-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import type { IndividualLesson, Person } from "@/lib/people";
+import type { IndividualSlot } from "@/lib/individual-slots";
 import {
   formatWeekRange,
   getCurrentWeek,
   getLessonsForWeek,
   getOccurrences,
-  getSubgroupSubjects,
   lessonMatchesChinaMode,
   type GroupPreference,
   type Rehearsal,
   type ScheduleData,
 } from "@/lib/schedule";
 import type { SeminarList } from "@/lib/seminars";
-import PersonalEventInvitations from "@/components/PersonalEventInvitations";
 import PersonalEventEditor from "@/components/PersonalEventEditor";
+import PersonalEventInvitations from "@/components/PersonalEventInvitations";
+import DayTimeline from "@/components/DayTimeline";
+import EventDialog from "@/components/EventDialog";
+import EventDetailsContent, { type EventDetails } from "@/components/EventDetailsContent";
 import type { PersonalEvent } from "@/lib/personal-events";
 import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
@@ -51,7 +55,7 @@ const pick = (items: string[], seed: string) => {
   return items[hash % items.length];
 };
 type Event = {
-  kind: "group" | "individual" | "rehearsal" | "personal";
+  kind: "group" | "individual" | "slot" | "rehearsal" | "personal";
   start: string;
   end: string;
   title: string;
@@ -64,13 +68,17 @@ type Event = {
   attendanceKey?: string;
   attendance?: "late" | "absence";
   attendanceReason?: string;
+  href?: string;
+  rehearsalId?: string;
 };
 export default function DashboardV2() {
   const [personalInvitations, setPersonalInvitations] = useState<PersonalEvent[]>([]);
   const personalRequest = useRef(0);
+  const [details, setDetails] = useState<EventDetails | null>(null);
   const [personalEvents, setPersonalEvents] = useState<PersonalEvent[]>([]);
   const [personalEvent, setPersonalEvent] = useState<PersonalEvent | null>(null);
   const [personalError, setPersonalError] = useState("");
+  const [bookedSlots, setBookedSlots] = useState<IndividualSlot[]>([]);
   const reducedMotion = useReducedMotion();
   const [modalPortalReady, setModalPortalReady] = useState(false);
   const [dailyQuote, setDailyQuote] = useState<DashboardDailyQuoteData | null>(null);
@@ -97,7 +105,9 @@ export default function DashboardV2() {
       if (!response.ok) throw new Error();
       const data = await response.json();
       if (signal?.aborted || revision !== personalRequest.current) return;
-      setPersonalEvents(data.events ?? []); setPersonalInvitations(data.invitations ?? []); setPersonalError("");
+      setPersonalEvents(data.events ?? []);
+      setPersonalInvitations(data.invitations ?? []);
+      setPersonalError("");
     } catch { if (!signal?.aborted && revision === personalRequest.current) setPersonalError("Не удалось обновить события и приглашения"); }
   }, []);
   useEffect(() => {
@@ -132,15 +142,9 @@ export default function DashboardV2() {
     const response = await fetch(`/api/attendance?date=${encodeURIComponent(clockDate)}&time=${encodeURIComponent(clockTime)}`, { cache: "no-store" });
     if (response.ok) setAttendanceReports((await response.json()).reports ?? []);
   };
-  const loadRehearsals = async (id: string, date: string) => {
-    const r = await fetch(
-      `/api/rehearsals?date=${encodeURIComponent(date)}&personId=${encodeURIComponent(id)}`,
-      { cache: "no-store" },
-    );
-    if (r.ok) setRehearsals((await r.json()).rehearsals ?? []);
-  };
   useEffect(() => {
-    setModalPortalReady(true);
+    const frame = requestAnimationFrame(() => setModalPortalReady(true));
+    return () => cancelAnimationFrame(frame);
   }, []);
   useEffect(() => {
     let cancelled=false;
@@ -159,11 +163,12 @@ export default function DashboardV2() {
         const current=auth.person as {id:string;name:string;role?:Person["role"]};
         if(!current?.id){window.location.replace("/login");return;}
         localStorage.setItem(PERSON_KEY,current.id);
-        const [s,seminarData,quote,personalData]=await Promise.all([
+        const [s,seminarData,quote,personalData,slotData]=await Promise.all([
           fetch(`/api/schedule?date=${today}&personId=${encodeURIComponent(current.id)}`,{cache:"no-store"}).then(r=>r.json()),
           seminarRequest,
           quoteRequest,
           fetch("/api/personal-events", {cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();return r.json()}).catch(()=>({events:[],failed:true})),
+          fetch(`/api/individual-slots?from=${today}&to=${today}`, {cache:"no-store"}).then(r=>r.ok?r.json():({slots:[]})).catch(()=>({slots:[]})),
         ]);
         if(cancelled)return;
         setPerson({id:current.id,name:current.name,active:true,role:current.role,createdAt:""});
@@ -172,7 +177,8 @@ export default function DashboardV2() {
         setSeminars(seminarData.lists??[]);
         setPersonalEvents(personalData.events??[]);
         setPersonalInvitations(personalData.invitations??[]);
-        if(personalData.failed)setPersonalError("Не удалось загрузить события");
+        setBookedSlots((slotData.slots??[]).filter((slot:IndividualSlot)=>slot.studentIds?.includes(current.id) || slot.studentId===current.id));
+        if(personalData.failed)setPersonalError("Не удалось загрузить личные события");
         setDailyQuote(quote);
         void loadProfile(current.id);
         void loadAttendance();
@@ -198,7 +204,7 @@ export default function DashboardV2() {
     };
   }, []);
   useEffect(() => {
-    if (!person) return;
+    if (!person?.id) return;
     const t = setInterval(() => { if (!document.hidden) void loadAttendance(); }, 60000);
     return () => clearInterval(t);
   }, [person?.id]);
@@ -217,7 +223,7 @@ export default function DashboardV2() {
       [
         ...personalEvents.filter(x=>x.date===todayKey).map(x=>({
           kind: "personal" as const, start:x.timeStart, end:x.timeEnd,
-          title:x.title, subtitle:"Событие", detail:x.location || "Видно только вам", note:x.notes, key:x.id,
+          title:x.title, subtitle:x.creatorId === person?.id ? "Событие" : `Приглашение · ${x.creatorName ?? "Участник"}`, detail:x.location || (x.creatorId === person?.id ? "Ваше событие" : "Вы участвуете"), note:x.notes, key:`personal-${x.id}`,
         })),
         ...groups.map((x) => ({
           kind: "group" as const,
@@ -256,30 +262,41 @@ export default function DashboardV2() {
             note: x.note,
             key: x.id,
           })),
-        ...rehearsals
-          .filter((x) => x.date === todayKey && isRehearsalParticipant(x, person?.id, person?.name))
+        ...bookedSlots
+          .filter((x) => x.date === todayKey)
           .map((x) => ({
-            kind: "rehearsal" as const,
+            kind: "slot" as const,
             start: x.timeStart,
             end: x.timeEnd,
             title: x.subject,
-            subtitle: x.blocks?.length
-              ? `Репетиция · ${x.blocks.length} блоков`
-              : "Репетиция",
-            detail: x.responsible,
-            note: x.notes,
-            key: x.id,
+            subtitle: `Индивидуальное · ${x.professor}`,
+            detail: x.auditorium || "Аудитория не указана",
+            note: x.note,
+            key: `slot-${x.id}`,
+            href: "/individual-slots",
           })),
+        ...rehearsals
+          .filter((x) => x.date === todayKey)
+          .flatMap((x) => getDashboardRehearsalSegments(x, person?.id, person?.name).map(segment => ({
+            kind: "rehearsal" as const,
+            start: segment.timeStart,
+            end: segment.timeEnd,
+            title: segment.title,
+            subtitle: segment.blockId ? x.subject : "Репетиция",
+            detail: x.responsible,
+            note: segment.notes,
+            key: `rehearsal-${x.id}-${segment.blockId ?? "whole"}`,
+            rehearsalId: x.id,
+          }))),
       ].sort((a, b) => mins(a.start) - mins(b.start)),
-    [groups, individuals, rehearsals, personalEvents, todayKey, attendanceReports, person?.id, person?.name],
+    [groups, individuals, bookedSlots, rehearsals, personalEvents, todayKey, attendanceReports, person?.id, person?.name],
   );
   const currentMin = now.getHours() * 60 + now.getMinutes(),
     activeEvents = events.filter((e) => e.status !== "cancelled"),
     current = activeEvents.find(
       (e) => mins(e.start) <= currentMin && mins(e.end) > currentMin,
     ),
-    next = activeEvents.find((e) => mins(e.start) > currentMin),
-    past = (e: Event) => mins(e.end) <= currentMin;
+    next = activeEvents.find((e) => mins(e.start) > currentMin);
   const hour = now.getHours(),
     daySeed = `${todayKey}|${person?.id ?? "guest"}`,
     nightText =
@@ -364,9 +381,7 @@ export default function DashboardV2() {
       m = d % 60;
     return h ? `${h} ч ${m} мин` : `${m} мин`;
   };
-  const todayCount = events.filter(
-      (e) => e.status !== "cancelled" && e.status !== "moved",
-    ).length,
+  const todayCount = activeEvents.length,
     showNextStat = !!current && !!next;
   const breakStart = current ? mins(current.start) + 40 : 0,
     breakEnd = current ? mins(current.start) + 45 : 0,
@@ -429,12 +444,13 @@ export default function DashboardV2() {
       />
     );
   if (!person) return <LoadingState screen label="Проверяем вход" detail="Подтверждаем Telegram-сессию."/>;
-  const noPairs = groups.length === 0;
+  const noPairs = activeEvents.length === 0;
   const attendanceLessons = groups.filter(item => item.occurrence?.status !== "cancelled").map(item => ({ key: item.occurrence?.key ?? item.id ?? noteKey(todayKey,item.timeStart,item.class), title: item.class, start: item.timeStart, end: item.timeEnd }));
   return (
     <main data-no-pairs={noPairs ? "true" : undefined} className="dashboard-v2">
       {personalError&&<p className="admin-error" role="alert">{personalError}</p>}
-      {personalEvent&&<PersonalEventEditor personId={person.id} date={personalEvent.date} event={personalEvent} onClose={()=>setPersonalEvent(null)} onSaved={()=>void refreshPersonalEvents()}/>}
+      {personalEvent&&<PersonalEventEditor date={personalEvent.date} event={personalEvent} personId={person.id} onClose={()=>setPersonalEvent(null)} onSaved={()=>void refreshPersonalEvents()}/>}
+      {details && <EventDialog title={details.type === "lesson" ? details.item.class : details.item.subject} eyebrow={details.type === "rehearsal" ? "РЕПЕТИЦИЯ" : "ЗАНЯТИЕ"} onClose={()=>setDetails(null)}><EventDetailsContent details={details} lessonDate={todayKey} creatorId={person.id} personName={person.name}/>{details.type === "rehearsal" && details.item.creatorId === person.id && <Link className="admin-secondary" href={`/schedule/rehearsals/new?edit=${encodeURIComponent(details.item.id)}`}>Редактировать репетицию</Link>}</EventDialog>}
       <style jsx global>{`
         .dashboard-v2 {
           width: min(calc(100% - 28px), 980px);
@@ -991,8 +1007,8 @@ export default function DashboardV2() {
           </p>
         </div>
       </header>
-      <PersonalEventInvitations items={personalInvitations} onResponded={id=>{setPersonalInvitations(items=>items.filter(item=>item.id!==id));void refreshPersonalEvents()}}/>
       <DashboardAnnouncements personId={person.id} />
+      <PersonalEventInvitations items={personalInvitations} onResponded={id => {setPersonalInvitations(items=>items.filter(item=>item.id!==id)); void refreshPersonalEvents();}}/>
       <DashboardDailyQuote quote={dailyQuote} />
       {(noPairs || current || next) && (
         <section className={`dashboard-focus${current ? " is-current" : ""}`}>
@@ -1067,7 +1083,7 @@ export default function DashboardV2() {
         </section>
       )}
       {!noPairs && <div className="dashboard-scholarship-slot" />}
-      {!noPairs && (
+      {events.length > 0 && (
         <section
           className={`dashboard-stats${showNextStat ? " has-next" : ""}`}
         >
@@ -1097,82 +1113,22 @@ export default function DashboardV2() {
         </section>
       )}
 
-      {!noPairs && (
-        <section className="dashboard-timeline">
-          <div className="dashboard-section-head">
-            <h2>Сегодня</h2>
-            <span>{todayCount}</span>
-          </div>
-          {events.length ? (
-            events.map((e) => (
-              <article
-                className={`dashboard-event-v2 ${e.kind} ${current === e ? "current" : ""} ${past(e) ? "past" : ""}${e.status ? ` is-${e.status}` : ""}${e.attendance ? ` attendance-${e.attendance}` : ""}`}
-                key={e.key}
-              >
-                <div className="dashboard-event-time">
-                  <strong>{e.start}</strong>
-                  <small>{e.end}</small>
-                </div>
-                <div className="dashboard-event-content">
-                  <span>
-                    {e.status === "cancelled"
-                      ? "ОТМЕНЕНА"
-                      : e.status === "moved"
-                        ? "ПЕРЕНЕСЕНА"
-                        : e.attendance === "absence"
-                          ? "МЕНЯ НЕ БУДЕТ"
-                          : e.attendance === "late"
-                            ? "ОПОЗДАЮ"
-                            : e.kind === "individual"
-                          ? "ИНДИВИДУАЛЬНО"
-                          : e.kind === "rehearsal"
-                            ? "РЕПЕТИЦИЯ"
-                            : e.kind === "personal" ? "СОБЫТИЕ" : "ПАРА"}
-                  </span>
-                  <h3>{e.title}</h3>
-                  <p>
-                    {e.subtitle} · {e.detail}
-                  </p>
-                  {e.attendance && (
-                    <small className="dashboard-change-reason">
-                      {e.attendance === "late" ? "Староста предупреждена об опоздании" : "Староста предупреждена об отсутствии"}
-                    </small>
-                  )}
-                  {e.status && (
-                    <small className="dashboard-change-reason">
-                      {e.reason?.trim()
-                        ? `Причина: ${e.reason}`
-                        : "Причина не указана"}
-                    </small>
-                  )}
-                  {(e.note || notes[e.key]) && (
-                    <small className="dashboard-note-preview">
-                      ● {e.note || notes[e.key]}
-                    </small>
-                  )}
-                </div>
-                {e.kind === "personal" && <button type="button" className="dashboard-note" aria-label="Открыть личное событие" onClick={()=>setPersonalEvent(personalEvents.find(item=>item.id===e.key)??null)}>✎</button>}
-                {e.kind === "group" && (
-                  <button
-                    className="dashboard-note"
-                    onClick={() => openNote(e)}
-                    aria-label={
-                      notes[e.key] ? "Изменить заметку" : "Добавить заметку"
-                    }
-                    title={
-                      notes[e.key] ? "Изменить заметку" : "Добавить заметку"
-                    }
-                  >
-                    ✎
-                  </button>
-                )}
-              </article>
-            ))
-          ) : (
-            <div className="dashboard-empty">На сегодня занятий нет.</div>
-          )}
-        </section>
-      )}
+      <DayTimeline events={events} currentMinute={currentMin} notes={notes} onNote={openNote} onOpen={event => {
+        if (event.kind === "personal") setPersonalEvent(personalEvents.find(item => `personal-${item.id}` === event.key) ?? null);
+        if (event.kind === "group") {
+          const item = groups.find(item => noteKey(todayKey, item.timeStart, item.class) === event.key);
+          if (item) setDetails({type:"lesson",item});
+        }
+        if (event.kind === "individual") {
+          const item = individuals.find(item => item.id === event.key);
+          if (item) setDetails({type:"individual",item:{...item,personName:person.name}});
+        }
+        if (event.kind === "rehearsal") {
+          const source = events.find(item => item.key === event.key);
+          const item = rehearsals.find(item => item.id === source?.rehearsalId);
+          if (item) setDetails({type:"rehearsal",item});
+        }
+      }}/>
       <section className="dashboard-seminars">
         <div className="dashboard-section-head">
           <h2>Мои семинары</h2>
@@ -1270,3 +1226,5 @@ export default function DashboardV2() {
     </main>
   );
 }
+
+
