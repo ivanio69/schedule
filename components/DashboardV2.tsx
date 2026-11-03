@@ -2,8 +2,6 @@
 import { getDashboardRehearsalSegments } from "@/lib/dashboard-timeline";
 import { fetchAuthSession } from "@/lib/auth-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import type { IndividualLesson, Person } from "@/lib/people";
 import type { IndividualSlot } from "@/lib/individual-slots";
@@ -74,8 +72,6 @@ export default function DashboardV2() {
   const [personalEvent, setPersonalEvent] = useState<PersonalEvent | null>(null);
   const [personalError, setPersonalError] = useState("");
   const [bookedSlots, setBookedSlots] = useState<IndividualSlot[]>([]);
-  const reducedMotion = useReducedMotion();
-  const [modalPortalReady, setModalPortalReady] = useState(false);
   const [dailyQuote, setDailyQuote] = useState<DashboardDailyQuoteData | null>(null);
   const [person, setPerson] = useState<Person | null>(null),
     [schedule, setSchedule] = useState<ScheduleData | null>(null),
@@ -88,9 +84,6 @@ export default function DashboardV2() {
     ),
     [notes, setNotes] = useState<Record<string, string>>({}),
     [now, setNow] = useState(() => new Date()),
-    [noteEvent, setNoteEvent] = useState<Event | null>(null),
-    [noteText, setNoteText] = useState(""),
-    [saving, setSaving] = useState(false),
     [chinaMode, setChinaMode] = useState(false),
     [loading, setLoading] = useState(true);
   const refreshPersonalEvents = useCallback(async (signal?: AbortSignal) => {
@@ -138,10 +131,6 @@ export default function DashboardV2() {
     if (response.ok) setAttendanceReports((await response.json()).reports ?? []);
   };
   useEffect(() => {
-    const frame = requestAnimationFrame(() => setModalPortalReady(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  useEffect(() => {
     let cancelled=false;
     const today=dateKey(new Date());
     // Public quote data does not depend on the session. Start it immediately,
@@ -158,12 +147,14 @@ export default function DashboardV2() {
         const current=auth.person as {id:string;name:string;role?:Person["role"]};
         if(!current?.id){window.location.replace("/login");return;}
         localStorage.setItem(PERSON_KEY,current.id);
+        const profileRequest = loadProfile(current.id).catch(() => undefined);
         const [s,seminarData,quote,personalData,slotData]=await Promise.all([
           fetch(`/api/schedule?date=${today}&personId=${encodeURIComponent(current.id)}`,{cache:"no-store"}).then(r=>r.json()),
           seminarRequest,
           quoteRequest,
           fetch("/api/personal-events", {cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();return r.json()}).catch(()=>({events:[],failed:true})),
           fetch(`/api/individual-slots?from=${today}&to=${today}`, {cache:"no-store"}).then(r=>r.ok?r.json():({slots:[]})).catch(()=>({slots:[]})),
+          profileRequest,
         ]);
         if(cancelled)return;
         setPerson({id:current.id,name:current.name,active:true,role:current.role,createdAt:""});
@@ -175,7 +166,6 @@ export default function DashboardV2() {
         setBookedSlots((slotData.slots??[]).filter((slot:IndividualSlot)=>slot.studentIds?.includes(current.id) || slot.studentId===current.id));
         if(personalData.failed)setPersonalError("Не удалось загрузить личные события");
         setDailyQuote(quote);
-        void loadProfile(current.id);
         void loadAttendance();
       }finally{
         if(!cancelled)setLoading(false);
@@ -310,34 +300,6 @@ export default function DashboardV2() {
         participants: topic.studentNames ?? [],
       })),
   ), [seminars, person?.id]);
-  const openNote = (e: Event) => {
-    setNoteEvent(e);
-    setNoteText(notes[e.key] ?? "");
-  };
-  const saveNote = async () => {
-    if (!person || !noteEvent) return;
-    const nextNotes = { ...notes };
-    if (noteText.trim()) nextNotes[noteEvent.key] = noteText.trim();
-    else delete nextNotes[noteEvent.key];
-    setSaving(true);
-    try {
-      const r = await fetch("/api/profile/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          personId: person.id,
-          preferences,
-          notes: nextNotes,
-        }),
-      });
-      if (r.ok) {
-        setNotes(nextNotes);
-        setNoteEvent(null);
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
   if (loading)
     return (
       <LoadingState
@@ -360,11 +322,19 @@ export default function DashboardV2() {
           color: var(--text);
         }
         .dashboard-v2-head {
+          position: sticky;
+          top: env(safe-area-inset-top, 0px);
+          z-index: 30;
           display: flex;
           align-items: flex-end;
           justify-content: space-between;
           gap: 20px;
+          padding-block: 14px;
+          border-bottom: 1px solid var(--border);
+          background: color-mix(in srgb, var(--bg) 94%, transparent);
+          backdrop-filter: blur(16px);
         }
+        body:has(.dev-environment-banner) .dashboard-v2-head { top: calc(44px + env(safe-area-inset-top, 0px)); }
         .dashboard-v2 h1 {
           margin: 0;
           font-size: clamp(30px, 6vw, 52px);
@@ -593,91 +563,6 @@ export default function DashboardV2() {
         .dashboard-people b {
           color: var(--muted);
         }
-        .dashboard-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 2450;
-          display: grid;
-          place-items: center;
-          width: 100vw;
-          height: 100dvh;
-          padding: 20px;
-          overflow: hidden;
-          background: rgba(0, 0, 0, 0.8);
-          overscroll-behavior: contain;
-        }
-        .dashboard-note-modal {
-          width: min(100%, 500px);
-          max-height: min(760px, calc(100dvh - 40px));
-          overflow: auto;
-          overscroll-behavior: contain;
-          -webkit-overflow-scrolling: touch;
-          padding: 20px;
-          border: 1px solid var(--border);
-          border-radius: 20px;
-          background: var(--surface);
-          box-shadow: 0 30px 100px #000;
-          will-change: opacity, transform;
-        }
-        .dashboard-note-modal > div {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .dashboard-note-modal > div > span {
-          color: var(--muted);
-          font-size: 9px;
-          font-weight: 800;
-          letter-spacing: 0.1em;
-        }
-        .dashboard-note-modal > div > button {
-          border: 0;
-          background: none;
-          color: var(--muted);
-          font-size: 24px;
-          cursor: pointer;
-        }
-        .dashboard-note-modal h2 {
-          margin: 14px 0 3px;
-        }
-        .dashboard-note-modal > p {
-          margin: 0;
-          color: var(--muted);
-          font-size: 11px;
-        }
-        .dashboard-note-modal textarea {
-          width: 100%;
-          min-height: 130px;
-          margin-top: 15px;
-          padding: 12px;
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          outline: 0;
-          resize: vertical;
-          color: var(--text);
-          background: var(--surface-raised);
-          font: 13px/1.5 inherit;
-        }
-        .dashboard-note-modal footer {
-          display: flex;
-          justify-content: flex-end;
-          gap: 7px;
-          margin-top: 10px;
-        }
-        .dashboard-note-modal footer button {
-          border: 1px solid var(--border);
-          border-radius: 10px;
-          padding: 9px 12px;
-          color: var(--muted);
-          background: var(--surface-hover);
-          cursor: pointer;
-          font-size: 11px;
-          font-weight: 750;
-        }
-        .dashboard-note-modal footer button:last-child {
-          color: var(--accent-text);
-          background: var(--accent);
-        }
         @media (max-width: 650px) {
           .dashboard-v2 {
             width: calc(100% - 20px);
@@ -699,39 +584,9 @@ export default function DashboardV2() {
           .dashboard-seminar-grid {
             grid-template-columns: 1fr;
           }
-          .dashboard-overlay {
-            place-items: stretch;
-            padding: 0;
-            background: var(--surface);
-          }
-          .dashboard-note-modal {
-            width: 100%;
-            height: 100dvh;
-            max-height: 100dvh;
-            padding: max(20px, env(safe-area-inset-top)) 18px
-              calc(20px + env(safe-area-inset-bottom));
-            border: 0;
-            border-radius: 0;
-            box-shadow: none;
-          }
-          .dashboard-note-modal > div:first-child {
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            margin: calc(-20px - env(safe-area-inset-top)) -18px 0;
-            padding: calc(20px + env(safe-area-inset-top)) 18px 14px;
-            border-bottom: 1px solid var(--border);
-            background: var(--surface);
-          }
-          .dashboard-note-modal textarea {
-            min-height: 220px;
-          }
-          .dashboard-note-modal footer {
-            padding-bottom: env(safe-area-inset-bottom);
-          }
         }
       `}</style>
-      <header className="dashboard-v2-head">
+      <header data-dashboard-header className="dashboard-v2-head">
         <div>
           <p className="dashboard-kicker">214Р</p>
           <h1>{nightText ?? `Привет, ${person.name.split(" ")[0]}.`}</h1>
@@ -748,7 +603,7 @@ export default function DashboardV2() {
       <PersonalEventInvitations items={personalInvitations} onResponded={id => {setPersonalInvitations(items=>items.filter(item=>item.id!==id)); void refreshPersonalEvents();}}/>
       <DashboardDailyQuote quote={dailyQuote} />
 
-      <DayTimeline events={events} week={week} currentMinute={currentMin} notes={notes} onNote={openNote} onOpen={event => {
+      <DayTimeline events={events} date={todayKey} week={week} currentMinute={currentMin} notes={notes} onOpen={event => {
         if (event.kind === "personal") setPersonalEvent(personalEvents.find(item => `personal-${item.id}` === event.key) ?? null);
         if (event.kind === "group") {
           const item = groups.find(item => noteKey(todayKey, item.timeStart, item.class) === event.key);
@@ -796,68 +651,6 @@ export default function DashboardV2() {
           </div>
         )}
       </section>
-      {modalPortalReady &&
-        createPortal(
-          <AnimatePresence>
-            {noteEvent && (
-              <motion.div
-                className="dashboard-overlay"
-                onMouseDown={() => setNoteEvent(null)}
-                initial={reducedMotion ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={reducedMotion ? undefined : { opacity: 0 }}
-                transition={{ duration: reducedMotion ? 0 : 0.14 }}
-              >
-                <motion.section
-                  className="dashboard-note-modal"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-label="Личная заметка"
-                  onMouseDown={(e) => e.stopPropagation()}
-                  initial={
-                    reducedMotion ? false : { opacity: 0, y: 14, scale: 0.985 }
-                  }
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={
-                    reducedMotion
-                      ? undefined
-                      : { opacity: 0, y: 8, scale: 0.992 }
-                  }
-                  transition={{
-                    duration: reducedMotion ? 0 : 0.18,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                >
-                  <div>
-                    <span>ЛИЧНАЯ ЗАМЕТКА</span>
-                    <button
-                      onClick={() => setNoteEvent(null)}
-                      aria-label="Закрыть"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <h2>{noteEvent.title}</h2>
-                  <p>
-                    {noteEvent.start}–{noteEvent.end} · {noteEvent.subtitle}
-                  </p>
-                  <textarea
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                    placeholder="Например: взять конспект…"
-                  />
-                  <footer>
-                    <button onClick={() => setNoteEvent(null)}>Отмена</button>
-                    <button onClick={saveNote} disabled={saving}>
-                      {saving ? "Сохранение…" : "Сохранить"}
-                    </button>
-                  </footer>
-                </motion.section>
-              </motion.div>
-            )}
-          </AnimatePresence>,
-          document.body,
-        )}
     </main>
   );
 }
