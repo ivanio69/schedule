@@ -330,9 +330,22 @@ export default function DashboardV2() {
           justify-content: space-between;
           gap: 20px;
           padding-block: 14px;
-          border-bottom: 1px solid var(--border);
-          background: color-mix(in srgb, var(--bg) 94%, transparent);
-          backdrop-filter: blur(16px);
+          border: 0;
+          background: transparent;
+          isolation: isolate;
+        }
+        .dashboard-v2-head::before {
+          content: "";
+          position: absolute;
+          z-index: -1;
+          inset-inline: -16px;
+          bottom: 0;
+          height: 64px;
+          pointer-events: none;
+          -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
+          -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+          mask-image: linear-gradient(to bottom, #000, transparent);
         }
         body:has(.dev-environment-banner) .dashboard-v2-head { top: calc(44px + env(safe-area-inset-top, 0px)); }
         .dashboard-v2 h1 {

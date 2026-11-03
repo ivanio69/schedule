@@ -47,8 +47,38 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
   const nowLabel = <span className={styles.now}><i aria-hidden="true"/>Сейчас · {clock(currentMinute)}</span>;
   const currentGap = gaps.find(gap => gap.start <= currentMinute && currentMinute < gap.end);
   const focusKey = current?.key ?? currentGap?.key ?? next?.key ?? active.at(-1)?.key;
+  const timeline = useRef<HTMLElement>(null);
   const list = useRef<HTMLOListElement>(null);
   const positionedDate = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    const section = timeline.current;
+    const header = document.querySelector<HTMLElement>("[data-dashboard-header]");
+    if (!section || !header) return;
+    let frame = 0;
+    let previousEdge = -1;
+    const measure = () => {
+      frame = 0;
+      const rect = section.getBoundingClientRect();
+      const edge = Math.round(Math.max(0, Math.min(rect.height + 64, header.getBoundingClientRect().bottom - rect.top)));
+      if (edge === previousEdge) return;
+      previousEdge = edge;
+      section.style.setProperty("--timeline-fade-edge", `${edge}px`);
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(measure); };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(header);
+    observer.observe(section);
+    window.addEventListener("scroll", schedule, {passive:true});
+    window.addEventListener("resize", schedule);
+    measure();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (!focusKey || positionedDate.current === date) return;
@@ -69,7 +99,7 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
     return () => cancelAnimationFrame(frame);
   }, [date, focusKey]);
 
-  return <section className={styles.timeline} aria-label="Единая временная шкала дня">
+  return <section ref={timeline} className={styles.timeline} aria-label="Единая временная шкала дня">
     <dl className={styles.summary}>
       <div><dt>Неделя</dt><dd>№ {week}</dd></div>
       <div><dt>Событий</dt><dd>{active.length}</dd></div>
