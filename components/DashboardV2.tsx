@@ -1,5 +1,4 @@
 "use client";
-import { isRehearsalParticipant } from "@/lib/rehearsals";
 import { getDashboardRehearsalSegments } from "@/lib/dashboard-timeline";
 import { fetchAuthSession } from "@/lib/auth-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -9,11 +8,8 @@ import Link from "next/link";
 import type { IndividualLesson, Person } from "@/lib/people";
 import type { IndividualSlot } from "@/lib/individual-slots";
 import {
-  formatWeekRange,
   getCurrentWeek,
   getLessonsForWeek,
-  getOccurrences,
-  lessonMatchesChinaMode,
   type GroupPreference,
   type Rehearsal,
   type ScheduleData,
@@ -29,7 +25,6 @@ import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
 import DashboardDailyQuote from "@/components/DashboardDailyQuote";
 import { loadDashboardDailyQuote, type DashboardDailyQuoteData } from "@/lib/dashboard-daily-quote";
-import AttendanceActions from "@/components/AttendanceActions";
 import type { AttendanceReport } from "@/lib/attendance";
 const PERSON_KEY = "schedule_person_id";
 const mins = (v: string) => {
@@ -291,12 +286,7 @@ export default function DashboardV2() {
       ].sort((a, b) => mins(a.start) - mins(b.start)),
     [groups, individuals, bookedSlots, rehearsals, personalEvents, todayKey, attendanceReports, person?.id, person?.name],
   );
-  const currentMin = now.getHours() * 60 + now.getMinutes(),
-    activeEvents = events.filter((e) => e.status !== "cancelled"),
-    current = activeEvents.find(
-      (e) => mins(e.start) <= currentMin && mins(e.end) > currentMin,
-    ),
-    next = activeEvents.find((e) => mins(e.start) > currentMin);
+  const currentMin = now.getHours() * 60 + now.getMinutes();
   const hour = now.getHours(),
     daySeed = `${todayKey}|${person?.id ?? "guest"}`,
     nightText =
@@ -308,60 +298,6 @@ export default function DashboardV2() {
               daySeed,
             )
           : null;
-  const previous = next
-      ? activeEvents.filter((e) => mins(e.end) <= mins(next.start)).at(-1)
-      : null,
-    gapMinutes = next && previous ? mins(next.start) - mins(previous.end) : 0,
-    gapText =
-      next && gapMinutes > 120
-        ? pick(
-            [
-              "масштабный перекур",
-              "тихий час",
-              "в общагу?",
-              "можно и пивка вмазать",
-            ],
-            `${daySeed}|${next.key}`,
-          )
-        : null;
-  const tomorrowDate = new Date(now);
-  tomorrowDate.setDate(now.getDate() + 1);
-  const tomorrowKey = dateKey(tomorrowDate),
-    tomorrowLessons = useMemo(() => schedule
-      ? getOccurrences(schedule, tomorrowKey).filter((x) => {
-          if (x.occurrence?.status === "cancelled") return false;
-          if (!lessonMatchesChinaMode(x, chinaMode)) return false;
-          if (chinaMode) return true;
-          const preference = preferences[x.class] ?? "both";
-          return (
-            preference === "both" ||
-            !x.group.length ||
-            x.group.includes(Number(preference))
-          );
-        })
-      : [], [schedule, tomorrowKey, chinaMode, preferences]),
-    tomorrowRehearsals = rehearsals.filter((x) => x.date === tomorrowKey && isRehearsalParticipant(x, person?.id, person?.name)),
-    tomorrowIndividuals = individuals.filter((x) => x.date === tomorrowKey),
-    tomorrowEvents = [
-      ...personalEvents.filter(x=>x.date===tomorrowKey).map(x=>({start:x.timeStart,end:x.timeEnd,title:x.title})),
-      ...tomorrowLessons.map((x) => ({
-        start: x.timeStart,
-        end: x.timeEnd,
-        title: x.class,
-      })),
-      ...tomorrowRehearsals.map((x) => ({
-        start: x.timeStart,
-        end: x.timeEnd,
-        title: x.subject,
-      })),
-      ...tomorrowIndividuals.map((x) => ({
-        start: x.timeStart,
-        end: x.timeEnd,
-        title: x.subject,
-      })),
-    ].sort((a, b) => a.start.localeCompare(b.start)),
-    todayFinished = events.length > 0 && !current && !next,
-    showTomorrow = todayFinished || (!events.length && hour >= 18);
   const mySeminars = useMemo(() => seminars.flatMap((list) =>
     list.topics
       .filter((topic) => topic.studentIds.includes(person?.id ?? ""))
@@ -374,39 +310,6 @@ export default function DashboardV2() {
         participants: topic.studentNames ?? [],
       })),
   ), [seminars, person?.id]);
-  const countdown = (v: string) => {
-    const d = mins(v) - currentMin;
-    if (d <= 0) return "сейчас";
-    const h = Math.floor(d / 60),
-      m = d % 60;
-    return h ? `${h} ч ${m} мин` : `${m} мин`;
-  };
-  const todayCount = activeEvents.length,
-    showNextStat = !!current && !!next;
-  const breakStart = current ? mins(current.start) + 40 : 0,
-    breakEnd = current ? mins(current.start) + 45 : 0,
-    inBreak = current?.kind === "group" && currentMin >= breakStart && currentMin < breakEnd,
-    breakFinished = current?.kind === "group" && currentMin >= breakEnd;
-  const progress = current
-    ? Math.round(
-        Math.min(
-          100,
-          Math.max(
-            0,
-            ((currentMin - mins(current.start)) /
-              (mins(current.end) - mins(current.start))) *
-              100,
-          ),
-        ),
-      )
-    : 0;
-  const focusCountdown = inBreak
-    ? countdown(
-        `${String(Math.floor(breakEnd / 60)).padStart(2, "0")}:${String(breakEnd % 60).padStart(2, "0")}`,
-      )
-    : current
-      ? countdown(current.end)
-      : "";
   const openNote = (e: Event) => {
     setNoteEvent(e);
     setNoteText(notes[e.key] ?? "");
@@ -444,10 +347,8 @@ export default function DashboardV2() {
       />
     );
   if (!person) return <LoadingState screen label="Проверяем вход" detail="Подтверждаем Telegram-сессию."/>;
-  const noPairs = activeEvents.length === 0;
-  const attendanceLessons = groups.filter(item => item.occurrence?.status !== "cancelled").map(item => ({ key: item.occurrence?.key ?? item.id ?? noteKey(todayKey,item.timeStart,item.class), title: item.class, start: item.timeStart, end: item.timeEnd }));
   return (
-    <main data-no-pairs={noPairs ? "true" : undefined} className="dashboard-v2">
+    <main className="dashboard-v2">
       {personalError&&<p className="admin-error" role="alert">{personalError}</p>}
       {personalEvent&&<PersonalEventEditor date={personalEvent.date} event={personalEvent} personId={person.id} onClose={()=>setPersonalEvent(null)} onSaved={()=>void refreshPersonalEvents()}/>}
       {details && <EventDialog title={details.type === "lesson" ? details.item.class : details.item.subject} eyebrow={details.type === "rehearsal" ? "РЕПЕТИЦИЯ" : "ЗАНЯТИЕ"} onClose={()=>setDetails(null)}><EventDetailsContent details={details} lessonDate={todayKey} creatorId={person.id} personName={person.name}/>{details.type === "rehearsal" && details.item.creatorId === person.id && <Link className="admin-secondary" href={`/schedule/rehearsals/new?edit=${encodeURIComponent(details.item.id)}`}>Редактировать репетицию</Link>}</EventDialog>}
@@ -480,146 +381,6 @@ export default function DashboardV2() {
           font-size: 11px;
           font-weight: 750;
           letter-spacing: 0.12em;
-        }
-        .dashboard-focus {
-          margin-top: 28px;
-          padding: 28px;
-          border: 1px solid var(--border);
-          border-radius: 24px;
-          background: linear-gradient(
-            135deg,
-            rgba(255, 255, 255, 0.09),
-            rgba(255, 255, 255, 0.025)
-          );
-          box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24);
-        }
-        .dashboard-focus-top {
-          display: flex;
-          justify-content: space-between;
-          color: var(--muted);
-          font-size: 11px;
-          font-weight: 750;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-        }
-        .dashboard-focus-top em {
-          font-style: normal;
-        }
-        .dashboard-focus h2 {
-          margin: 8px 0 7px;
-          font-size: clamp(25px, 5vw, 40px);
-          letter-spacing: -0.04em;
-        }
-        .dashboard-focus p {
-          margin: 0;
-          color: var(--muted-strong);
-        }
-        .dashboard-focus > strong {
-          display: block;
-          margin-top: 20px;
-          font-size: 17px;
-        }
-        .dashboard-progress {
-          height: 7px;
-          margin-top: 15px;
-          overflow: hidden;
-          border-radius: 999px;
-          background: var(--border);
-        }
-        .dashboard-progress i {
-          display: block;
-          height: 100%;
-          border-radius: inherit;
-          background: #f2f2f2;
-          width: 100%;
-          transform-origin: left;
-          transition: transform 0.5s;
-        }
-        .dashboard-progress-labels {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 6px;
-          color: var(--muted);
-          font-size: 10px;
-        }
-        .dashboard-tomorrow {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 18px;
-          margin-top: 9px;
-          padding: 17px;
-          border: 1px solid var(--border);
-          border-radius: 16px;
-          background: var(--surface);
-        }
-        .dashboard-tomorrow > div {
-          display: grid;
-          gap: 4px;
-        }
-        .dashboard-tomorrow span {
-          color: var(--muted);
-          font-size: 9px;
-          font-weight: 800;
-          letter-spacing: 0.1em;
-        }
-        .dashboard-tomorrow strong {
-          font-size: 16px;
-        }
-        .dashboard-tomorrow small {
-          color: var(--muted);
-          font-size: 11px;
-        }
-        .dashboard-tomorrow a {
-          color: var(--muted);
-          font-size: 11px;
-          text-decoration: none;
-          white-space: nowrap;
-        }
-        .dashboard-tomorrow a:hover {
-          color: var(--text);
-        }
-        .dashboard-stats {
-          display: flex;
-          align-items: stretch;
-          gap: 9px;
-          margin-top: 9px;
-        }
-        .dashboard-stat-next {
-          flex: 2 1 0;
-          min-width: 0;
-        }
-        .dashboard-stat-pair {
-          display: grid;
-          flex: 2 1 0;
-          min-width: 0;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 9px;
-        }
-        .dashboard-stats:not(.has-next) .dashboard-stat-pair {
-          flex-basis: 100%;
-        }
-        .dashboard-stats article {
-          display: grid;
-          gap: 6px;
-          padding: 16px;
-          border: 1px solid var(--border);
-          border-radius: 16px;
-          background: var(--surface);
-        }
-        .dashboard-stats span {
-          color: var(--muted);
-          font-size: 10px;
-          font-weight: 750;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-        .dashboard-stats strong {
-          font-size: 17px;
-        }
-        .dashboard-stats small {
-          color: var(--muted);
-          font-size: 10px;
         }
         .dashboard-timeline,
         .dashboard-seminars {
@@ -925,30 +686,6 @@ export default function DashboardV2() {
           .dashboard-v2-head {
             align-items: flex-start;
           }
-          .dashboard-focus {
-            margin-top: 18px;
-            padding: 21px;
-            border-radius: 19px;
-          }
-          .dashboard-stats,
-          .dashboard-stats.has-next {
-            display: block;
-          }
-          .dashboard-stat-next {
-            width: 100%;
-            margin-bottom: 9px;
-          }
-          .dashboard-stat-pair {
-            display: grid;
-            width: 100%;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 9px;
-          }
-          .dashboard-stat-pair > article {
-            width: 100%;
-            min-width: 0;
-            grid-column: auto !important;
-          }
           .dashboard-event-v2 {
             grid-template-columns: 58px minmax(0, 1fr) auto;
             gap: 9px;
@@ -1010,110 +747,8 @@ export default function DashboardV2() {
       <DashboardAnnouncements personId={person.id} />
       <PersonalEventInvitations items={personalInvitations} onResponded={id => {setPersonalInvitations(items=>items.filter(item=>item.id!==id)); void refreshPersonalEvents();}}/>
       <DashboardDailyQuote quote={dailyQuote} />
-      {(noPairs || current || next) && (
-        <section className={`dashboard-focus${current ? " is-current" : ""}`}>
-          <div className="dashboard-focus-top">
-            <span>
-              {current
-                ? "Сейчас идёт"
-                : noPairs
-                  ? "Сегодня"
-                  : gapText
-                    ? "Окно"
-                    : next?.kind === "personal" ? "Следующее событие" : "Следующая пара"}
-            </span>
-            {current && <em>{progress}%</em>}
-          </div>
-          <h2>
-            {current?.title ??
-              (gapText ? gapText : next?.title) ??
-              "гуляем, товарищи"}
-          </h2>
-          {current ? (
-            <>
-              <p>
-                {current.subtitle} · {current.detail}
-              </p>
-              <strong>
-                {inBreak
-                  ? `до конца перерыва · ${focusCountdown}`
-                  : `до конца · ${focusCountdown}`}
-              </strong>
-              <div
-                className={`dashboard-progress${breakFinished ? " break-finished" : ""}`}
-              >
-                <i style={{ transform: `scaleX(${progress / 100})` }} />
-              </div>
-              <div className="dashboard-progress-labels">
-                <span>{current.start}</span>
-                <span>{current.end}</span>
-              </div>
-            </>
-          ) : !noPairs && next ? (
-            <>
-              <p>
-                {gapText
-                  ? `Следующая · ${next.title}`
-                  : `${next.subtitle} · ${next.detail}`}
-              </p>
-              <strong>до начала · {countdown(next.start)}</strong>
-            </>
-          ) : (
-            <p>Пар сегодня нет.</p>
-          )}
-        </section>
-      )}
-      <AttendanceActions date={todayKey} lessons={attendanceLessons} reports={attendanceReports} onReportsChange={setAttendanceReports} />
-      {!noPairs && showTomorrow && (
-        <section className="dashboard-tomorrow">
-          <div>
-            <span>ЗАВТРА</span>
-            <strong>
-              {tomorrowEvents.length
-                ? tomorrowEvents[0].title
-                : "завтра отдыхаем."}
-            </strong>
-            <small>
-              {tomorrowEvents.length
-                ? `Первая в ${tomorrowEvents[0].start} · ${tomorrowEvents.length} ${tomorrowEvents.length === 1 ? "занятие" : "занятия"} · до ${tomorrowEvents[tomorrowEvents.length - 1].end}`
-                : "Занятий не запланировано"}
-            </small>
-          </div>
-          <Link href="/schedule">Расписание →</Link>
-        </section>
-      )}
-      {!noPairs && <div className="dashboard-scholarship-slot" />}
-      {events.length > 0 && (
-        <section
-          className={`dashboard-stats${showNextStat ? " has-next" : ""}`}
-        >
-          {showNextStat && (
-            <article className="dashboard-stat-next">
-              <span>Следующая</span>
-              <strong>{next?.title ?? "—"}</strong>
-              <small>
-                {next
-                  ? `через ${countdown(next.start)} · ${next.start}–${next.end}`
-                  : "Больше пар нет"}
-              </small>
-            </article>
-          )}
-          <div className="dashboard-stat-pair">
-            <article className="dashboard-stat-today">
-              <span>Сегодня</span>
-              <strong>{todayCount}</strong>
-              <small>занятий</small>
-            </article>
-            <article className="dashboard-stat-week">
-              <span>Неделя</span>
-              <strong>№ {week}</strong>
-              <small>{schedule ? formatWeekRange(schedule, week) : "—"}</small>
-            </article>
-          </div>
-        </section>
-      )}
 
-      <DayTimeline events={events} currentMinute={currentMin} notes={notes} onNote={openNote} onOpen={event => {
+      <DayTimeline events={events} week={week} currentMinute={currentMin} notes={notes} onNote={openNote} onOpen={event => {
         if (event.kind === "personal") setPersonalEvent(personalEvents.find(item => `personal-${item.id}` === event.key) ?? null);
         if (event.kind === "group") {
           const item = groups.find(item => noteKey(todayKey, item.timeStart, item.class) === event.key);
