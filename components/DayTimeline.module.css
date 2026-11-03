@@ -1,4 +1,4 @@
-.timeline { margin-top:34px; color:var(--text); font:inherit; -webkit-mask-image:linear-gradient(to bottom,transparent max(0px,calc(var(--timeline-fade-edge,0px) - 64px)),#000 max(0px,var(--timeline-fade-edge,0px))); mask-image:linear-gradient(to bottom,transparent max(0px,calc(var(--timeline-fade-edge,0px) - 64px)),#000 max(0px,var(--timeline-fade-edge,0px))); }
+.timeline { margin-top:34px; color:var(--text); font:inherit; -webkit-mask-image:linear-gradient(to bottom,transparent max(0px,calc(var(--timeline-fade-edge,0px) - 112px)),#000 max(0px,var(--timeline-fade-edge,0px))); mask-image:linear-gradient(to bottom,transparent max(0px,calc(var(--timeline-fade-edge,0px) - 112px)),#000 max(0px,var(--timeline-fade-edge,0px))); }
 .summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:0 0 24px; }
 .summary div { display:grid; gap:6px; padding:18px 20px; border:1px solid var(--border); border-radius:var(--radius-md,16px); background:var(--surface); }
 .summary dt { color:var(--muted); font-size:12px; font-weight:500; }

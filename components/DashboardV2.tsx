@@ -21,8 +21,6 @@ import EventDetailsContent, { type EventDetails } from "@/components/EventDetail
 import type { PersonalEvent } from "@/lib/personal-events";
 import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
-import DashboardDailyQuote from "@/components/DashboardDailyQuote";
-import { loadDashboardDailyQuote, type DashboardDailyQuoteData } from "@/lib/dashboard-daily-quote";
 import type { AttendanceReport } from "@/lib/attendance";
 const PERSON_KEY = "schedule_person_id";
 const mins = (v: string) => {
@@ -72,7 +70,6 @@ export default function DashboardV2() {
   const [personalEvent, setPersonalEvent] = useState<PersonalEvent | null>(null);
   const [personalError, setPersonalError] = useState("");
   const [bookedSlots, setBookedSlots] = useState<IndividualSlot[]>([]);
-  const [dailyQuote, setDailyQuote] = useState<DashboardDailyQuoteData | null>(null);
   const [person, setPerson] = useState<Person | null>(null),
     [schedule, setSchedule] = useState<ScheduleData | null>(null),
     [individuals, setIndividuals] = useState<IndividualLesson[]>([]),
@@ -133,9 +130,6 @@ export default function DashboardV2() {
   useEffect(() => {
     let cancelled=false;
     const today=dateKey(new Date());
-    // Public quote data does not depend on the session. Start it immediately,
-    // while keeping the quote inside the dashboard loading boundary.
-    const quoteRequest=loadDashboardDailyQuote(today);
     const seminarRequest=fetch("/api/seminars",{cache:"no-store"})
       .then(response=>response.ok?response.json():{lists:[]})
       .catch(()=>({lists:[]}));
@@ -148,10 +142,9 @@ export default function DashboardV2() {
         if(!current?.id){window.location.replace("/login");return;}
         localStorage.setItem(PERSON_KEY,current.id);
         const profileRequest = loadProfile(current.id).catch(() => undefined);
-        const [s,seminarData,quote,personalData,slotData]=await Promise.all([
+        const [s,seminarData,personalData,slotData]=await Promise.all([
           fetch(`/api/schedule?date=${today}&personId=${encodeURIComponent(current.id)}`,{cache:"no-store"}).then(r=>r.json()),
           seminarRequest,
-          quoteRequest,
           fetch("/api/personal-events", {cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error();return r.json()}).catch(()=>({events:[],failed:true})),
           fetch(`/api/individual-slots?from=${today}&to=${today}`, {cache:"no-store"}).then(r=>r.ok?r.json():({slots:[]})).catch(()=>({slots:[]})),
           profileRequest,
@@ -165,7 +158,6 @@ export default function DashboardV2() {
         setPersonalInvitations(personalData.invitations??[]);
         setBookedSlots((slotData.slots??[]).filter((slot:IndividualSlot)=>slot.studentIds?.includes(current.id) || slot.studentId===current.id));
         if(personalData.failed)setPersonalError("Не удалось загрузить личные события");
-        setDailyQuote(quote);
         void loadAttendance();
       }finally{
         if(!cancelled)setLoading(false);
@@ -338,12 +330,12 @@ export default function DashboardV2() {
           content: "";
           position: absolute;
           z-index: -1;
-          inset-inline: -16px;
-          bottom: 0;
-          height: 64px;
+          inset-inline: -24px;
+          bottom: -28px;
+          height: 112px;
           pointer-events: none;
-          -webkit-backdrop-filter: blur(8px);
-          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(16px);
+          backdrop-filter: blur(16px);
           -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
           mask-image: linear-gradient(to bottom, #000, transparent);
         }
@@ -614,7 +606,6 @@ export default function DashboardV2() {
       </header>
       <DashboardAnnouncements personId={person.id} />
       <PersonalEventInvitations items={personalInvitations} onResponded={id => {setPersonalInvitations(items=>items.filter(item=>item.id!==id)); void refreshPersonalEvents();}}/>
-      <DashboardDailyQuote quote={dailyQuote} />
 
       <DayTimeline events={events} date={todayKey} week={week} currentMinute={currentMin} notes={notes} onOpen={event => {
         if (event.kind === "personal") setPersonalEvent(personalEvents.find(item => `personal-${item.id}` === event.key) ?? null);
