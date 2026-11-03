@@ -60,7 +60,7 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
     const measure = () => {
       frame = 0;
       const rect = section.getBoundingClientRect();
-      const edge = Math.round(Math.max(0, Math.min(rect.height + 112, header.getBoundingClientRect().bottom + 28 - rect.top)));
+      const edge = Math.round(Math.max(0, Math.min(rect.height + 112, header.getBoundingClientRect().bottom + 52 - rect.top)));
       if (edge === previousEdge) return;
       previousEdge = edge;
       section.style.setProperty("--timeline-fade-edge", `${edge}px`);
@@ -93,8 +93,8 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
         // Only once per opening: clock ticks and data refreshes must not pull
         // someone away from the history they are reading.
         positionedDate.current = date;
-        // Keep the focused card below the extended fade (28px) plus a 16px gap.
-        window.scrollTo({top:Math.max(0, window.scrollY + target.getBoundingClientRect().top - headerHeight - headerTop - 44),behavior:"instant"});
+        // Keep the focused card below the extended fade (52px) plus a 16px gap.
+        window.scrollTo({top:Math.max(0, window.scrollY + target.getBoundingClientRect().top - headerHeight - headerTop - 68),behavior:"instant"});
       });
     });
     return () => cancelAnimationFrame(frame);

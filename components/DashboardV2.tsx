@@ -331,7 +331,7 @@ export default function DashboardV2() {
           position: absolute;
           z-index: -1;
           inset-inline: -24px;
-          bottom: -28px;
+          bottom: -52px;
           height: 112px;
           pointer-events: none;
           -webkit-backdrop-filter: blur(16px);
