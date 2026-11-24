@@ -6,6 +6,7 @@ export type AppAccentMode = "manual" | "time";
 
 export type AppearanceSettings = {
   theme: ThemeMode;
+  snowEnabled?: boolean;
   appAccentMode: AppAccentMode;
   appAccent: AccentPreset;
   rehearsalAccent: AccentPreset;
@@ -16,6 +17,7 @@ export type AppearanceSettings = {
 
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
   theme: "dark",
+  snowEnabled: true,
   appAccentMode: "manual",
   appAccent: "default",
   rehearsalAccent: "default",
@@ -73,6 +75,7 @@ export function normalizeAppearance(value: unknown): AppearanceSettings {
   const input = value as Record<string, unknown>;
   return {
     theme: input.theme === "light" ? "light" : "dark",
+    snowEnabled: input.snowEnabled !== false,
     appAccentMode: input.appAccentMode === "time" ? "time" : "manual",
     appAccent: accent(input.appAccent),
     rehearsalAccent: accent(input.rehearsalAccent),
