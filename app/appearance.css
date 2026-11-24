@@ -368,3 +368,9 @@ body .personal-event-form { border-color:color-mix(in srgb,var(--personal) 32%,v
 body .personal-event-card .schedule-card__body { min-width:0; }
 body .personal-event-card h2,body .personal-event-card .schedule-card__meta span { overflow-wrap:anywhere; }
 body .personal-event-card:focus-visible { outline:2px solid var(--personal); outline-offset:3px; }
+
+/* Decorative winter layer: never receives input or contributes to page layout. */
+.winter-snowfall{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:35;contain:strict}
+.winter-snowfall__flake{position:absolute;top:0;border-radius:50%;background:#eef5ff;pointer-events:none}
+html[data-theme="light"] .winter-snowfall__flake{background:#8299b5}
+@media (prefers-reduced-motion:reduce){.winter-snowfall{display:none}}
