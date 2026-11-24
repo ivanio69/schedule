@@ -6,7 +6,7 @@ import { APPEARANCE_STORAGE_KEY } from "@/lib/appearance";
 import { readStoredAppearance } from "@/lib/appearance-client";
 
 // A small, stable set of particles. Motion animates only their transforms.
-const flakes = Array.from({ length: 16 }, (_, index) => ({
+const flakes = Array.from({ length: 32 }, (_, index) => ({
   left: `${(index * 37 + 7) % 100}%`,
   size: 2 + (index % 3) * 0.8,
   opacity: 0.20 + (index % 4) * 0.055,
