@@ -7,7 +7,7 @@ export const ARCHIVE_SECTIONS = [
 export type ArchiveKind = typeof ARCHIVE_SECTIONS[number]["kind"];
 export type ArchiveFile = { id: string; name: string; size: number; extension: string };
 export type ArchiveItem = {
-  id: string; kind: ArchiveKind; title: string; discipline: string; date?: string; url: string;
+  id: string; kind: ArchiveKind; title: string; discipline: string; artisticDirector?: string; date?: string; url: string;
   file: ArchiveFile | null; extension: string; revision: number; createdAt: string; updatedAt: string;
 };
 export const MAX_ARCHIVE_FILE_BYTES = 4 * 1024 * 1024;
@@ -65,15 +65,17 @@ export function parseArchiveInput(input: Record<string, unknown>, hasFile: boole
   const kind = input.kind;
   const title = typeof input.title === "string" ? input.title.trim() : "";
   const discipline = typeof input.discipline === "string" ? input.discipline.trim() : "";
+  const artisticDirector = typeof input.artisticDirector === "string" ? input.artisticDirector.trim() : "";
   if (!ARCHIVE_SECTIONS.some(section => section.kind === kind)) throw new Error("Выбери раздел архива");
   if (!title || title.length > 160) throw new Error("Укажи название до 160 символов");
   if (discipline.length > 160 || (kind === "show" && !discipline)) throw new Error("Укажи дисциплину до 160 символов");
+  if (kind === "show" && (artisticDirector.length > 160 || (input.artisticDirector != null && typeof input.artisticDirector !== "string"))) throw new Error("Укажи художественного руководителя до 160 символов");
   if (kind === "show" && !validArchiveDate(input.date)) throw new Error("Укажи корректную дату показа");
   const url = kind === "show" ? youtubeUrl(input.url) : archiveUrl(input.url);
   if (!(kind === "file" && hasFile) && !url) throw new Error(kind === "show" ? "Укажи ссылку на YouTube (https://…)" : "Укажи полную HTTPS-ссылку");
   const extension = typeof input.extension === "string" ? input.extension : archiveExtension(url ?? "");
   if (kind === "file" && !hasFile && !ARCHIVE_EXTENSIONS.includes(extension)) throw new Error("Выбери формат файла");
-  return { kind: kind as ArchiveKind, title, discipline: kind === "show" ? discipline : "", date: kind === "show" ? input.date as string : "", url: kind === "file" && hasFile ? "" : url!, extension: kind === "file" ? extension : "" };
+  return { kind: kind as ArchiveKind, title, discipline: kind === "show" ? discipline : "", artisticDirector: kind === "show" ? artisticDirector : "", date: kind === "show" ? input.date as string : "", url: kind === "file" && hasFile ? "" : url!, extension: kind === "file" ? extension : "" };
 }
 
 export function archiveFileUrl(item: ArchiveItem) {

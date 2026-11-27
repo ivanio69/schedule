@@ -35,7 +35,7 @@ export default function ArchivePage({ admin = false }: { admin?: boolean }) {
   }, [revision]);
   const filtered = useMemo(() => {
     const search = query.trim().toLocaleLowerCase("ru");
-    return items.filter(item => (filter === "all" || item.kind === filter) && `${item.title} ${item.discipline} ${item.file?.name ?? ""}`.toLocaleLowerCase("ru").includes(search));
+    return items.filter(item => (filter === "all" || item.kind === filter) && `${item.title} ${item.discipline} ${item.artisticDirector ?? ""} ${item.file?.name ?? ""}`.toLocaleLowerCase("ru").includes(search));
   }, [items, query, filter]);
   const sections = ARCHIVE_SECTIONS.filter(section => filter === "all" || section.kind === filter);
   async function remove() {
@@ -72,7 +72,7 @@ export default function ArchivePage({ admin = false }: { admin?: boolean }) {
               {entries.map((item, itemIndex) => <motion.article className={styles.card} key={item.id} initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .25, delay: reduced ? 0 : Math.min(itemIndex, 6) * .035 }}>
                 <div className={styles.cardMeta}>{item.kind === "show" ? "YouTube" : item.kind === "file" ? `${item.extension.toUpperCase()}${item.file ? ` · ${item.file.size < 1024 * 1024 ? `${Math.ceil(item.file.size / 1024)} КБ` : `${(item.file.size / 1024 / 1024).toFixed(1)} МБ`}` : ""}` : new URL(item.url).hostname}</div>
                 <h3>{item.title}</h3>
-                {item.kind === "show" && <><p className={styles.discipline}>{item.discipline}</p>{validArchiveDate(item.date) && <time className={styles.showDate} dateTime={item.date}>{formatArchiveDate(item.date)}</time>}</>}
+                {item.kind === "show" && <><p className={styles.discipline}>{item.discipline}</p>{item.artisticDirector && <p className={styles.discipline}>Художественный руководитель: {item.artisticDirector}</p>}{validArchiveDate(item.date) && <time className={styles.showDate} dateTime={item.date}>{formatArchiveDate(item.date)}</time>}</>}
                 {item.kind === "file" && item.file && <p className={styles.filename}>{item.file.name}</p>}
                 <div className={styles.cardFooter}>
                   {item.kind === "file" ? <button type="button" className={styles.open} onClick={() => setPreview(item)}>Открыть <span aria-hidden="true">↗</span></button> : <a className={styles.open} href={item.url} target="_blank" rel="noopener noreferrer">{item.kind === "show" ? "Смотреть на YouTube" : "Открыть"}<span aria-hidden="true">↗</span></a>}

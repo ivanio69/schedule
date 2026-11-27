@@ -52,7 +52,7 @@ test('validates links, YouTube hosts, titles, disciplines and explicit remote fi
   for (const url of ['javascript:alert(1)', 'http://example.com', 'https://user:pass@example.com', 'data:text/html,hello', '//example.com']) assert.equal(helpers.archiveUrl(url), null);
   for (const url of ['https://youtube.com.evil.test/watch?v=x', 'https://evil.test/?youtube.com', 'https://youtu.be.evil.test/x']) assert.equal(helpers.youtubeUrl(url), null);
   for (const url of ['https://youtu.be/x', 'https://www.youtube.com/watch?v=x', 'https://m.youtube.com/shorts/x']) assert.ok(helpers.youtubeUrl(url));
-  for (const patch of [{ title: ' ' }, { title: 'x'.repeat(161) }, { discipline: '' }, { kind: 'unknown' }, { url: 'https://example.com' }]) assert.throws(() => helpers.parseArchiveInput({ ...show, ...patch }, false));
+  for (const patch of [{ title: ' ' }, { title: 'x'.repeat(161) }, { discipline: '' }, { artisticDirector: 'x'.repeat(161) }, { artisticDirector: { $gt: '' } }, { kind: 'unknown' }, { url: 'https://example.com' }]) assert.throws(() => helpers.parseArchiveInput({ ...show, ...patch }, false));
   assert.throws(() => helpers.parseArchiveInput({ kind: 'file', title: 'Remote', url: 'https://example.com/download', extension: 'html' }, false));
   for (const extension of ['docx', 'pptx', 'xlsx']) { assert.equal(helpers.archivePreviewKind(extension), 'office'); assert.equal(helpers.parseArchiveInput({ kind: 'file', title: 'Remote', url: 'https://example.com/download', extension }, false).extension, extension); }
 });
@@ -113,8 +113,9 @@ test('same-day shows have deterministic order and non-show materials retain newe
 
 test('admin CRUD, all-user reading, authentication and stale-write protection', async () => {
   const f = fixture();
-  const response = await f.mutate('POST', show); assert.equal(response.status, 201);
+  const response = await f.mutate('POST', { ...show, artisticDirector: '  Урбан А. М.  ' }); assert.equal(response.status, 201);
   const { item } = await response.json();
+  assert.equal(item.artisticDirector, 'Урбан А. М.');
   f.as('user');
   assert.equal((await f.mutate('POST', show)).status, 403);
   assert.equal((await f.mutate('PATCH', { ...show, id: item.id, revision: 0 })).status, 403);
@@ -124,9 +125,12 @@ test('admin CRUD, all-user reading, authentication and stale-write protection', 
   f.as('admin');
   const results = await Promise.all([f.mutate('PATCH', { ...show, id: item.id, revision: 0, title: 'First' }), f.mutate('PATCH', { ...show, id: item.id, revision: 0, title: 'Second' })]);
   assert.deepEqual(results.map(r => r.status).sort(), [200, 409]);
+  assert.equal(f.entries[0].artisticDirector, 'Урбан А. М.');
+  const edited = await f.mutate('PATCH', { ...show, id: item.id, revision: 1, artisticDirector: 'Новый руководитель' });
+  assert.equal(edited.status, 200); assert.equal((await edited.json()).item.artisticDirector, 'Новый руководитель');
   assert.equal((await f.admin.DELETE(f.req(`/api/admin/archive?id=${item.id}&revision=0`, 'DELETE'))).status, 409);
   assert.equal((await f.mutate('PATCH', { ...show, id: item.id })).status, 400);
-  assert.equal((await f.admin.DELETE(f.req(`/api/admin/archive?id=${item.id}&revision=1`, 'DELETE'))).status, 200);
+  assert.equal((await f.admin.DELETE(f.req(`/api/admin/archive?id=${item.id}&revision=2`, 'DELETE'))).status, 200);
   assert.equal(f.entries.length, 0);
 });
 
