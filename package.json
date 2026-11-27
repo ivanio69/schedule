@@ -1,6 +1,6 @@
 {
   "name": "schedule",
-  "version": "5.12.0",
+  "version": "5.13.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -25,7 +25,8 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-swipeable": "^7.0.2",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "sharp": "0.34.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

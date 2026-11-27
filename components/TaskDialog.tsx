@@ -7,8 +7,8 @@ import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import styles from "./Tasks.module.css";
 
-export default function TaskDialog({ title, caption, children, busy, closing, onClose, compact = false }: {
-  title: string; caption: string; children: ReactNode; busy: boolean; closing: boolean; onClose: () => void; compact?: boolean;
+export default function TaskDialog({ title, caption, children, busy, closing, onClose, compact = false, wide = false }: {
+  title: string; caption: string; children: ReactNode; busy: boolean; closing: boolean; onClose: () => void; compact?: boolean; wide?: boolean;
 }) {
   const element = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -39,7 +39,7 @@ export default function TaskDialog({ title, caption, children, busy, closing, on
   }, []);
   return createPortal(<dialog ref={element} className={styles.dialog} aria-labelledby={titleId} aria-busy={busy} onKeyDownCapture={e => { if (leaving) { e.preventDefault(); e.stopPropagation(); } }} onCancel={e => { e.preventDefault(); requestClose(); }} onClick={e => { if (e.target === e.currentTarget) requestClose(); }}>
     <motion.div className={styles.dialogShade} aria-hidden="true" {...modalMotion.shade} animate={leaving ? modalMotion.shade.exit : modalMotion.shade.animate}/>
-    <motion.section className={`${styles.dialogPanel}${compact ? ` ${styles.dialogPanelCompact}` : ""}`} {...modalMotion.panel} animate={leaving ? modalMotion.panel.exit : modalMotion.panel.animate} onAnimationComplete={() => {
+    <motion.section className={`${styles.dialogPanel}${compact ? ` ${styles.dialogPanelCompact}` : ""}${wide ? ` ${styles.dialogPanelWide}` : ""}`} {...modalMotion.panel} animate={leaving ? modalMotion.panel.exit : modalMotion.panel.animate} onAnimationComplete={() => {
       if (leaving) {
         onClose();
         // A confirmation may return to its editor instead of unmounting.

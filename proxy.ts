@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import versionInfo from "@/version.json";
 import { AUTH_COOKIE, verifyAuthSessionToken } from "@/lib/auth-session";
+import { validArchivePreview } from "@/lib/archive-preview-token";
 
 const ENV_COOKIE = "schedule_environment";
 const DEV_HOST_COOKIE = "schedule_dev_host";
@@ -20,6 +21,8 @@ function staticPath(pathname:string){
 }
 function publicApi(request:NextRequest){
   const pathname=request.nextUrl.pathname;
+  const archiveFile = /^\/api\/archive\/files\/([a-f0-9]{24})\/[^/]+$/.exec(pathname);
+  if (archiveFile && ["GET", "HEAD"].includes(request.method) && validArchivePreview(archiveFile[1], request.nextUrl.searchParams.get("expires"), request.nextUrl.searchParams.get("token"))) return true;
   if(pathname.startsWith("/api/auth/")||pathname==="/api/telegram/webhook"||pathname.startsWith("/api/environment")||pathname.startsWith("/api/build-version")||pathname.startsWith("/api/cron/")||pathname.startsWith("/api/widget/"))return true;
   if(pathname==="/api/calendar/apple"&&Boolean(request.nextUrl.searchParams.get("token")))return true;
   return false;

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
-type AdminTab = "schedule" | "people" | "individuals" | "seminars" | "rehearsals" | "notifications" | "announcements" | "quotes" | "analytics" | "diagnostics";
+type AdminTab = "archive" | "schedule" | "people" | "individuals" | "seminars" | "rehearsals" | "notifications" | "announcements" | "quotes" | "analytics" | "diagnostics";
 
 type NavItem = {
   value: AdminTab;
@@ -22,6 +22,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
       { value: "individuals", label: "Индивидуальные", short: "Инд.", icon: "person" },
       { value: "seminars", label: "Семинары", short: "Семинары", icon: "book" },
       { value: "rehearsals", label: "Репетиции", short: "Репетиции", icon: "music" },
+      { value: "archive", label: "Архив", short: "Архив", icon: "book" },
     ],
   },
   {
@@ -56,6 +57,7 @@ function Icon({ name }: { name: NavItem["icon"] }) {
 }
 
 function resolveActive(pathname: string, tab: string | null): AdminTab {
+  if (pathname.startsWith("/admin/archive")) return "archive";
   if (pathname.startsWith("/admin/rehearsals")) return "rehearsals";
   if (pathname.startsWith("/admin/individual")) return "individuals";
   const values = new Set<AdminTab>(["schedule","people","individuals","seminars","rehearsals","notifications","announcements","quotes","analytics","diagnostics"]);
@@ -141,7 +143,7 @@ export default function AdminSidebarNavigation() {
           <p>{group.label}</p>
           {group.items.map(item => <Link
             key={item.value}
-            href={`/admin?tab=${item.value}`}
+            href={item.value === "archive" ? "/admin/archive" : `/admin?tab=${item.value}`}
             className={active === item.value ? "is-active" : ""}
             aria-current={active === item.value ? "page" : undefined}
             title={collapsed ? item.label : undefined}
