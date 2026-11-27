@@ -82,10 +82,14 @@ export default function UsageAnalyticsTracker() {
       void sendEvent({ type: "start", personId, sessionId, device: deviceType(), mode: displayMode() });
     }
 
+    let lastPersistedInteraction = 0;
     const markActive = () => {
       const now = Date.now();
       lastInteractionRef.current = now;
-      sessionStorage.setItem(lastKey, String(now));
+      if (now - lastPersistedInteraction >= 5000) {
+        lastPersistedInteraction = now;
+        sessionStorage.setItem(lastKey, String(now));
+      }
     };
     const events: (keyof WindowEventMap)[] = ["pointerdown", "keydown", "touchstart", "scroll"];
     for (const event of events) window.addEventListener(event, markActive, { passive: true });

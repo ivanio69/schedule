@@ -1,12 +1,13 @@
 "use client";
+import dynamic from "next/dynamic";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import TaskEditor from "./TaskEditor";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+const TaskEditor = dynamic(() => import("./TaskEditor"));
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { sortTasks, taskWhen, type ResolvedTask, type TaskDay } from "@/lib/tasks";
 import styles from "./Tasks.module.css";
 
-export default function TasksBlock({ date, newTaskOpen = false, onNewTaskClose, revealReady = true }: {
+function TasksBlock({ date, newTaskOpen = false, onNewTaskClose, revealReady = true }: {
   date: string; newTaskOpen?: boolean; onNewTaskClose?: () => void; revealReady?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
@@ -66,9 +67,9 @@ export default function TasksBlock({ date, newTaskOpen = false, onNewTaskClose, 
       ease: [.22, 1, .36, 1] as const,
     } }),
   };
-  const tasks = sortTasks(data?.date === date ? data.tasks : []);
+  const tasks = useMemo(() => sortTasks(data?.date === date ? data.tasks : []), [data, date]);
   const active = tasks.filter(task => !task.completed);
-  const row = (task: ResolvedTask, index: number) => <motion.li layout={reducedMotion ? false : "position"} key={task.id} className={task.completed ? styles.done : undefined} initial={reducedMotion ? false : "hidden"} custom={index + 2} variants={reveal} animate={canReveal ? "visible" : "hidden"} exit={{opacity:0,scale:reducedMotion?1:.98}} transition={{layout:{type:"spring",stiffness:380,damping:34}}} aria-busy={busyIds.includes(task.id)}>
+  const row = (task: ResolvedTask, index: number) => <motion.li layoutDependency={tasks} layout={reducedMotion ? false : "position"} key={task.id} className={task.completed ? styles.done : undefined} initial={reducedMotion ? false : "hidden"} custom={index + 2} variants={reveal} animate={canReveal ? "visible" : "hidden"} exit={{opacity:0,scale:reducedMotion?1:.98}} transition={{layout:{type:"spring",stiffness:380,damping:34}}} aria-busy={busyIds.includes(task.id)}>
     <label className={styles.checkTarget}>
       <input type="checkbox" checked={task.completed} disabled={busyIds.includes(task.id)} aria-label={`${task.completed ? "Вернуть в задачи" : "Выполнить"}: ${task.title}`} onChange={() => void complete(task)} />
       <motion.svg viewBox="0 0 24 24" aria-hidden="true" initial={false} animate={{opacity:task.completed?1:0,scale:task.completed?1:.7}} transition={{duration:reducedMotion?0:.2}}><motion.path d="m6 12 4 4 8-8" initial={false} animate={{pathLength:task.completed?1:0}} transition={{duration:reducedMotion?0:.28,ease:"easeOut"}}/></motion.svg>
@@ -90,8 +91,10 @@ export default function TasksBlock({ date, newTaskOpen = false, onNewTaskClose, 
     <motion.header className={styles.heading} variants={reveal} animate={canReveal ? "visible" : "hidden"}><h2>Задачи {active.length > 0 && <span>{active.length}</span>}</h2><motion.button type="button" className="icon-button" whileTap={reducedMotion?undefined:{scale:.93}} onClick={() => setEditor("new")} aria-label="Добавить задачу" title="Добавить задачу"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></motion.button></motion.header>
     {error && <motion.p variants={reveal} custom={2} className={styles.error} role="alert">{error} <button type="button" onClick={() => void refresh()}>Повторить</button></motion.p>}
     {(loading || data?.date !== date) && !error ? <motion.p variants={reveal} custom={2} className={styles.empty} role="status">Загружаем задачи…</motion.p> : <>
-      {tasks.length > 0 ? <motion.ul layout={reducedMotion ? false : "size"} className={styles.list}><AnimatePresence>{tasks.map(row)}</AnimatePresence></motion.ul> : !error && <motion.p variants={reveal} custom={2} className={styles.empty}>На этот день задач пока нет</motion.p>}
+      {tasks.length > 0 ? <motion.ul layoutDependency={tasks} layout={reducedMotion ? false : "size"} className={styles.list}><AnimatePresence>{tasks.map(row)}</AnimatePresence></motion.ul> : !error && <motion.p variants={reveal} custom={2} className={styles.empty}>На этот день задач пока нет</motion.p>}
     </>}
     {(newTaskOpen || editor) && <TaskEditor date={date} task={editor && editor !== "new" && !newTaskOpen ? editor : undefined} onClose={() => { setEditor(null); onNewTaskClose?.(); }} onSaved={() => void refresh()} />}
   </motion.section>;
 }
+
+export default memo(TasksBlock);

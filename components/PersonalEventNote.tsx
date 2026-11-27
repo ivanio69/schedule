@@ -1,4 +1,5 @@
 "use client";
+import { fetchSharedRead } from "@/lib/shared-read";
 
 import { useEffect, useState } from "react";
 
@@ -16,7 +17,7 @@ async function loadNotes(personId: string) {
   }
   if (cachedNotes) return cachedNotes;
   if (!pending) {
-    pending = fetch(`/api/profile/settings?personId=${encodeURIComponent(personId)}`, { cache: "no-store" })
+    pending = fetchSharedRead(`/api/profile/settings?personId=${encodeURIComponent(personId)}`)
       .then(response => response.ok ? response.json() : null)
       .then(data => {
         cachedNotes = data?.notes && typeof data.notes === "object" ? data.notes : {};

@@ -1,12 +1,13 @@
 "use client";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { ARCHIVE_SECTIONS, archiveCoverUrl, compareArchiveItems, formatArchiveDate, validArchiveDate, type ArchiveItem, type ArchiveKind } from "@/lib/archive";
 import LoadingState from "./LoadingState";
 import ArchiveIcon from "./ArchiveIcon";
-import ArchiveEditor from "./ArchiveEditor";
-import ArchiveFilePreview from "./ArchiveFilePreview";
+const ArchiveEditor = dynamic(() => import("./ArchiveEditor"));
+const ArchiveFilePreview = dynamic(() => import("./ArchiveFilePreview"));
 import EventDialog from "./EventDialog";
 import ArchivePoster from "./ArchivePoster";
 import styles from "./Archive.module.css";

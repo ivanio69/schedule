@@ -1,7 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { motion } from "motion/react";
+import { useSyncExternalStore, type CSSProperties } from "react";
 import { APPEARANCE_STORAGE_KEY } from "@/lib/appearance";
 import { readStoredAppearance } from "@/lib/appearance-client";
 
@@ -49,18 +48,13 @@ export default function WinterSnowfall() {
   return (
     <div className="winter-snowfall" aria-hidden="true">
       {flakes.map((flake, index) => (
-        <motion.span
+        <span
           key={index}
           className="winter-snowfall__flake"
-          style={{ left: flake.left, width: flake.size, height: flake.size, opacity: flake.opacity }}
-          initial={{ x: 0, y: "-5vh" }}
-          animate={{ x: [0, flake.drift, -flake.drift / 2], y: ["-5vh", "50vh", "105vh"] }}
-          transition={{
-            duration: flake.duration,
-            delay: flake.delay,
-            ease: "linear",
-            repeat: Infinity,
-          }}
+          style={{ left: flake.left, width: flake.size, height: flake.size, opacity: flake.opacity,
+            "--snow-drift": `${flake.drift}px`, "--snow-return": `${-flake.drift / 2}px`,
+            animationDuration: `${flake.duration}s`, animationDelay: `${flake.delay}s`,
+          } as CSSProperties}
         />
       ))}
     </div>

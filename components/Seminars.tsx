@@ -33,6 +33,7 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
   const [newSeminarDate, setNewSeminarDate] = useState("");
   const [newTopicDates, setNewTopicDates] = useState<string[]>([]);
   const generation = useRef(0);
+  const lastPayload = useRef("");
   const endpoint = admin ? "/api/admin/seminars" : "/api/seminars";
   const load = useCallback(async () => {
     const version = ++generation.current;
@@ -41,6 +42,10 @@ export default function Seminars({ admin = false }: { admin?: boolean }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Не удалось загрузить темы");
       if (version !== generation.current) return;
+      const serialized = JSON.stringify(data);
+      setError("");
+      if (lastPayload.current === serialized) return;
+      lastPayload.current = serialized;
       setLists(data.lists);
       if (admin) { setPeople(data.people); setSubjects(data.subjects); }
       setError("");

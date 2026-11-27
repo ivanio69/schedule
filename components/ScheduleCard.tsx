@@ -1,13 +1,13 @@
 import type { Lesson } from "@/lib/schedule";
 
-export function ScheduleCard({ lesson, conflictWith = [], onClick }: { lesson: Lesson; conflictWith?: string[]; onClick?: () => void }) {
+export function ScheduleCard({ past = false, lesson, conflictWith = [], onClick }: { past?: boolean; lesson: Lesson; conflictWith?: string[]; onClick?: () => void }) {
   const shared = lesson.group.filter(group => typeof group === "number").length === 2;
   const status = lesson.occurrence?.status;
   const cancelled = status === "cancelled";
   const moved = status === "moved";
   return (
     <>
-      <article className={`schedule-card${cancelled ? " schedule-card--cancelled" : ""}${moved ? " schedule-card--moved" : ""}${conflictWith.length ? " schedule-card--conflict" : ""}`} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick} onKeyDown={(event) => { if (onClick && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onClick(); } }}>
+      <article className={`schedule-card${past ? " is-past" : ""}${cancelled ? " schedule-card--cancelled" : ""}${moved ? " schedule-card--moved" : ""}${conflictWith.length ? " schedule-card--conflict" : ""}`} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick} onKeyDown={(event) => { if (onClick && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onClick(); } }}>
         <div className="schedule-card__time" aria-label={`Время: ${lesson.timeStart} — ${lesson.timeEnd}`}><span>{lesson.timeStart}</span><span>{lesson.timeEnd}</span></div>
         <div className="schedule-card__body">
           <div className="schedule-card__title-row"><div className="schedule-card__title"><span className="card-kind-badge card-kind-badge--lesson">ПАРА</span>{cancelled&&<span className="card-kind-badge card-kind-badge--cancelled">ОТМЕНЕНА</span>}{moved&&<span className="card-kind-badge card-kind-badge--moved">ПЕРЕНЕСЕНА</span>}{conflictWith.length>0&&<span className="card-kind-badge card-kind-badge--conflict" title={`Пересекается с: ${conflictWith.join(", ")}`}>КОНФЛИКТ</span>}<h2>{lesson.class}</h2></div><span className={`group-badge ${shared ? "group-badge--shared" : ""}`}>{shared ? "Обе группы" : `${lesson.group[0]} подгруппа`}</span></div>

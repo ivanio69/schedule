@@ -1,6 +1,6 @@
 {
   "name": "schedule",
-  "version": "5.13.0",
+  "version": "5.14.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,7 +12,9 @@
     "migrate": "node scripts/migrate-table-to-mongodb.mjs",
     "test:seminars": "tsx tests/seminars.integration.ts",
     "test:digests": "tsx tests/digest-settings.test.ts",
-    "test:pwa": "node --test tests/pwa-cache.test.mjs tests/pwa-build.test.mjs"
+    "test:pwa": "node --test tests/pwa-cache.test.mjs tests/pwa-build.test.mjs",
+    "test:performance": "node --test tests/performance-runtime.test.mjs tests/schedule-loading.test.mjs tests/task-entrance.test.mjs",
+    "measure:startup": "node scripts/measure-startup.mjs"
   },
   "dependencies": {
     "@heroui/react": "^3.2.2",

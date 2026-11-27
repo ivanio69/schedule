@@ -60,6 +60,7 @@ export default function AppPageTransition({ children }: { children: ReactNode })
       if (navigationStarted.current || pendingHref.current) return;
 
       pendingHref.current = destination;
+      router.prefetch(destination);
 
       if (reduceMotion) {
         navigationStarted.current = true;
@@ -101,6 +102,7 @@ export default function AppPageTransition({ children }: { children: ReactNode })
   return (
     <motion.div
       className="app-page-transition"
+      style={{ willChange: leaving ? "opacity, transform" : "auto" }}
       initial={false}
       animate={leaving ? EXIT : VISIBLE}
       transition={

@@ -66,8 +66,10 @@ export default function AppRuntimeStatus(){
 
   useEffect(()=>{
     void loadErrors();
-    const timer=window.setInterval(()=>void loadErrors(),60000);
-    return()=>window.clearInterval(timer);
+    const refresh=()=>{if(!document.hidden)void loadErrors()};
+    const timer=window.setInterval(refresh,60000);
+    document.addEventListener("visibilitychange",refresh);
+    return()=>{window.clearInterval(timer);document.removeEventListener("visibilitychange",refresh)};
   },[loadErrors]);
 
   useEffect(()=>{

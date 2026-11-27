@@ -1,12 +1,12 @@
 import { getRehearsalAudienceNames, isRehearsalParticipant } from "@/lib/rehearsals";
 import type { Rehearsal } from "@/lib/schedule";
 
-export function RehearsalCard({ rehearsal, own, personId, personName, conflictWith = [], onDelete, onClick }: { rehearsal: Rehearsal; own: boolean; personId: string; personName: string; conflictWith?: string[]; onDelete?: () => void; onClick?: () => void }) {
+export function RehearsalCard({ past = false, rehearsal, own, personId, personName, conflictWith = [], onDelete, onClick }: { past?: boolean; rehearsal: Rehearsal; own: boolean; personId: string; personName: string; conflictWith?: string[]; onDelete?: () => void; onClick?: () => void }) {
   const audience = getRehearsalAudienceNames(rehearsal).length;
   const participating = isRehearsalParticipant(rehearsal, personId, personName);
   const blocks = rehearsal.blocks?.length ?? 0;
   return (
-    <article className={`rehearsal-card${!participating ? " is-non-participant" : ""}${rehearsal.isGlobal ? " is-global" : ""}${conflictWith.length ? " schedule-card--conflict" : ""}`} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick} onKeyDown={(event) => { if (onClick && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onClick(); } }}>
+    <article className={`rehearsal-card${past ? " is-past" : ""}${!participating ? " is-non-participant" : ""}${rehearsal.isGlobal ? " is-global" : ""}${conflictWith.length ? " schedule-card--conflict" : ""}`} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick} onKeyDown={(event) => { if (onClick && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onClick(); } }}>
       <div className="schedule-card__time" aria-label={`Время: ${rehearsal.timeStart} — ${rehearsal.timeEnd}`}><span>{rehearsal.timeStart}</span><span>{rehearsal.timeEnd}</span></div>
       <div className="schedule-card__body">
         <div className="schedule-card__title-row">

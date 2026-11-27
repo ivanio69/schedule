@@ -1,6 +1,6 @@
 /* Route transitions are driven by AppPageTransition. Keep the wrapper itself
    neutral so Motion can animate both the outgoing and incoming page. */
-.app-page-transition{min-height:1px;will-change:opacity,transform}
+.app-page-transition{min-height:1px;will-change:auto}
 @keyframes app-content-reveal{
   from{opacity:0;transform:translateY(7px);}
   to{opacity:1;transform:none;}

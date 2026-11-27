@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useVisibleClock } from "@/lib/visible-clock";
 import type { RehearsalBlock } from "@/lib/schedule";
 
 type Props = {
@@ -26,13 +27,8 @@ function clock(value: number) {
 function timestamp(date: string, time: string) { return new Date(`${date}T${time}:00`).getTime(); }
 
 export default function EventTiming({ date, start, end, cancelled, lesson = false, blocks = [] }: Props) {
-  const [now, setNow] = useState<number | null>(null);
-  useEffect(() => {
-    const update = () => setNow(Date.now());
-    update();
-    const interval = window.setInterval(update, 1000);
-    return () => window.clearInterval(interval);
-  }, []);
+  const now = useVisibleClock(1000);
+  const sorted = useMemo(() => [...blocks].sort((a, b) => minutes(a.timeStart) - minutes(b.timeStart)), [blocks]);
   if (now === null) return null;
   const startAt = timestamp(date, start);
   const endAt = timestamp(date, end);
@@ -44,7 +40,6 @@ export default function EventTiming({ date, start, end, cancelled, lesson = fals
   const finished = now >= endAt;
   const ongoing = started && !finished && !cancelled;
   const progress = cancelled ? 0 : Math.max(0, Math.min(100, ((now - startAt) / (endAt - startAt)) * 100));
-  const sorted = [...blocks].sort((a, b) => minutes(a.timeStart) - minutes(b.timeStart));
   const active = ongoing ? sorted.find(block => now >= timestamp(date, block.timeStart) && now < timestamp(date, block.timeEnd)) : undefined;
   const next = ongoing ? sorted.find(block => timestamp(date, block.timeStart) > now) : undefined;
   const inBreak = ongoing && sorted.length > 0 && !active && !!next;

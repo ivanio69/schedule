@@ -1,19 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useVisibleClock } from "@/lib/visible-clock";
 import type { Rehearsal } from "@/lib/schedule";
 
 const stamp = (date: string, time: string) => new Date(`${date}T${time}:00`).getTime();
 
 export default function RehearsalTimeline({ rehearsal, personName }: { rehearsal: Rehearsal; personName: string }) {
-  const [now, setNow] = useState<number | null>(null);
+  const now = useVisibleClock(30000);
   const blocks = useMemo(() => [...(rehearsal.blocks ?? [])].sort((a, b) => a.timeStart.localeCompare(b.timeStart)), [rehearsal.blocks]);
-  useEffect(() => {
-    const sync = () => setNow(Date.now());
-    sync();
-    const timer = window.setInterval(sync, 30000);
-    return () => window.clearInterval(timer);
-  }, []);
   if (!blocks.length) return null;
   const assigned = rehearsal.participantMode === "blocks" && !rehearsal.isGlobal && !!personName
     ? blocks.filter(block => block.participants.includes(personName))
