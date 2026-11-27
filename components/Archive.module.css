@@ -38,7 +38,12 @@
 .card:hover { border-color:color-mix(in srgb,var(--accent) 40%,var(--border)); background:var(--surface); box-shadow:0 8px 28px #00000009; }
 .cardCopy,.showCopy { display:flex; flex-direction:column; flex:1; min-width:0; }
 .showGrid { gap:20px; align-items:stretch; }
-.showCard { padding:0; overflow:hidden; }
+.showCard { position:relative; padding:0; overflow:hidden; }
+.cardLink { color:inherit; text-decoration:none; }
+.cardLink::after { content:""; position:absolute; inset:0; z-index:1; cursor:pointer; }
+.showCard:focus-within { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+.showCard .manage { position:relative; z-index:2; }
+.showCopy .cardFooter { justify-content:flex-end; }
 .showCopy { padding:20px; }
 .posterFrame { position:relative; isolation:isolate; display:grid; place-items:center; width:100%; aspect-ratio:297/420; flex:none; overflow:hidden; border:0; border-bottom:1px solid var(--border); padding:0; background:linear-gradient(145deg,var(--surface-raised),var(--accent-soft)); color:var(--accent); }
 .posterImage { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transition:opacity .35s ease; }

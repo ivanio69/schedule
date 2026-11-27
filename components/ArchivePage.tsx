@@ -74,13 +74,13 @@ export default function ArchivePage({ admin = false }: { admin?: boolean }) {
                 {item.kind === "show" && <ArchivePoster src={item.cover ? archiveCoverUrl(item.cover) : undefined} title={item.title}/>}
                 <div className={item.kind === "show" ? styles.showCopy : styles.cardCopy}>
                 <div className={styles.cardMeta}>{item.kind === "show" ? "YouTube" : item.kind === "file" ? `${item.extension.toUpperCase()}${item.file ? ` · ${item.file.size < 1024 * 1024 ? `${Math.ceil(item.file.size / 1024)} КБ` : `${(item.file.size / 1024 / 1024).toFixed(1)} МБ`}` : ""}` : new URL(item.url).hostname}</div>
-                <h3>{item.title}</h3>
+                <h3>{item.kind === "show" ? <a className={styles.cardLink} href={item.url} target="_blank" rel="noopener noreferrer" aria-label={`Смотреть «${item.title}» на YouTube`}>{item.title}</a> : item.title}</h3>
                 {item.kind === "show" && <><p className={styles.discipline}>{item.discipline}</p>{item.artisticDirector && <p className={styles.discipline}>Художественный руководитель: {item.artisticDirector}</p>}{validArchiveDate(item.date) && <time className={styles.showDate} dateTime={item.date}>{formatArchiveDate(item.date)}</time>}</>}
                 {item.kind === "file" && item.file && <p className={styles.filename}>{item.file.name}</p>}
-                <div className={styles.cardFooter}>
-                  {item.kind === "file" ? <button type="button" className={styles.open} onClick={() => setPreview(item)}>Открыть <span aria-hidden="true">↗</span></button> : <a className={styles.open} href={item.url} target="_blank" rel="noopener noreferrer">{item.kind === "show" ? "Смотреть на YouTube" : "Открыть"}<span aria-hidden="true">↗</span></a>}
+                {(item.kind !== "show" || admin) && <div className={styles.cardFooter}>
+                  {item.kind === "file" ? <button type="button" className={styles.open} onClick={() => setPreview(item)}>Открыть <span aria-hidden="true">↗</span></button> : item.kind === "link" ? <a className={styles.open} href={item.url} target="_blank" rel="noopener noreferrer">Открыть<span aria-hidden="true">↗</span></a> : null}
                   {admin && <div className={styles.manage}><button type="button" aria-label={`Редактировать: ${item.title}`} onClick={() => setEditor({ item, kind: item.kind })}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L20 8a2 2 0 0 0-5-5L4 14Z"/></svg></button><button type="button" aria-label={`Удалить: ${item.title}`} onClick={() => { setDeleteError(""); setDeleteClosing(false); setDeleting(item); }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/></svg></button></div>}
-                </div>
+                </div>}
                 </div>
               </motion.article>)}
             </div> : <div className={styles.empty}><p>{query ? "По запросу ничего не найдено" : admin ? "Здесь появятся добавленные материалы" : "Здесь скоро появятся материалы"}</p>{query && <button type="button" onClick={() => setQuery("")}>Сбросить поиск</button>}</div>}
