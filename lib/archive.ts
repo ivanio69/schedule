@@ -6,11 +6,13 @@ export const ARCHIVE_SECTIONS = [
 
 export type ArchiveKind = typeof ARCHIVE_SECTIONS[number]["kind"];
 export type ArchiveFile = { id: string; name: string; size: number; extension: string };
+export type ArchiveCover = ArchiveFile & { width: number; height: number };
 export type ArchiveItem = {
   id: string; kind: ArchiveKind; title: string; discipline: string; artisticDirector?: string; date?: string; url: string;
-  file: ArchiveFile | null; extension: string; revision: number; createdAt: string; updatedAt: string;
+  file: ArchiveFile | null; cover?: ArchiveCover | null; extension: string; revision: number; createdAt: string; updatedAt: string;
 };
 export const MAX_ARCHIVE_FILE_BYTES = 4 * 1024 * 1024;
+export const ARCHIVE_COVER_ACCEPT = "image/jpeg,image/png,image/webp,image/avif";
 export const ARCHIVE_EXTENSIONS = ["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "odt", "ods", "odp", "rtf", "txt", "csv", "json", "md", "jpg", "jpeg", "png", "webp", "gif", "avif", "mp3", "wav", "m4a", "ogg", "mp4", "webm", "mov", "zip", "rar", "7z"];
 export const OFFICE_EXTENSIONS = new Set(["doc", "docx", "ppt", "pptx", "xls", "xlsx", "odt", "ods", "odp", "rtf"]);
 
@@ -80,6 +82,10 @@ export function parseArchiveInput(input: Record<string, unknown>, hasFile: boole
 
 export function archiveFileUrl(item: ArchiveItem) {
   return item.file ? `/api/archive/files/${item.file.id}/${encodeURIComponent(item.file.name)}` : item.url;
+}
+
+export function archiveCoverUrl(cover: ArchiveCover) {
+  return `/api/archive/files/${cover.id}/${encodeURIComponent(cover.name)}`;
 }
 
 export function archivePreviewKind(extension: string) {

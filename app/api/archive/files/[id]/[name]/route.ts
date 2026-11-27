@@ -23,14 +23,15 @@ async function serve(request: NextRequest, context: { params: Promise<{ id: stri
   if (!signed && !verifyAuthSessionToken(request.cookies.get(AUTH_COOKIE)?.value)) return NextResponse.json({ error: "Войди в приложение" }, { status: 401 });
   try {
     const db = await getDatabase();
-    const item = await db.collection<ArchiveItem>("archive").findOne({ kind: "file", "file.id": id });
-    if (!item?.file || !await db.collection("archive_files.files").findOne({ _id: new ObjectId(id) })) return NextResponse.json({ error: "Файл не найден" }, { status: 404 });
-    const attachment = request.nextUrl.searchParams.get("download") === "1" || !mime[item.file.extension];
+    const item = await db.collection<ArchiveItem>("archive").findOne({ $or: [{ kind: "file", "file.id": id }, { kind: "show", "cover.id": id }] });
+    const file = item?.file?.id === id ? item.file : item?.cover;
+    if (!file || !await db.collection("archive_files.files").findOne({ _id: new ObjectId(id) })) return NextResponse.json({ error: "Файл не найден" }, { status: 404 });
+    const attachment = request.nextUrl.searchParams.get("download") === "1" || !mime[file.extension];
     const stream = head ? null : Readable.toWeb(new GridFSBucket(db, { bucketName: "archive_files" }).openDownloadStream(new ObjectId(id))) as ReadableStream<Uint8Array>;
     return new NextResponse(stream, { headers: {
-      "Content-Type": mime[item.file.extension] ?? "application/octet-stream",
-      "Content-Length": String(item.file.size),
-      "Content-Disposition": `${attachment ? "attachment" : "inline"}; filename="archive.${item.file.extension}"; filename*=UTF-8''${encodeURIComponent(item.file.name)}`,
+      "Content-Type": mime[file.extension] ?? "application/octet-stream",
+      "Content-Length": String(file.size),
+      "Content-Disposition": `${attachment ? "attachment" : "inline"}; filename="archive.${file.extension}"; filename*=UTF-8''${encodeURIComponent(file.name)}`,
       "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer",
       "Content-Security-Policy": "default-src 'none'",
     } });

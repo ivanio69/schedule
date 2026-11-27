@@ -9,12 +9,15 @@ const require = createRequire(import.meta.url);
 const { NextRequest, NextResponse } = require('next/server');
 const { ObjectId } = require('mongodb');
 function load(path, dependencies = {}) {
-  const code = ts.transpileModule(readFileSync(new URL('../' + path, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const code = ts.transpileModule(readFileSync(new URL('../' + path, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: name => dependencies[name] ?? require(name), URL, console, Buffer, File, FormData, process, Error });
+  // Native sharp checks option objects against this realm's Object constructor.
+  vm.runInThisContext('(function(exports, require) {\n' + code + '\n})', { filename: path })(exports, name => dependencies[name] ?? require(name));
   return exports;
 }
 const helpers = load('lib/archive.ts');
+const coverHelpers = load('lib/archive-cover.ts', { '@/lib/archive': helpers });
+const sharp = require('sharp');
 const auth = load('lib/auth-session.ts');
 process.env.AUTH_SESSION_SECRET = 'archive-test-secret-only';
 const tokens = load('lib/archive-preview-token.ts', { '@/lib/auth-session': auth });
@@ -23,7 +26,7 @@ const show = { kind: 'show', title: 'Умная собачка Соня', discip
 function fixture() {
   let role = 'admin';
   const entries = [], files = new Map();
-  const matches = (item, filter) => Object.entries(filter).every(([key, value]) => key === 'file.id' ? item.file?.id === value : key === '_id' ? String(item._id) === String(value) : item[key] === value);
+  const matches = (item, filter) => Object.entries(filter).every(([key, value]) => key === '$or' ? value.some(part => matches(item, part)) : key === 'file.id' ? item.file?.id === value : key === 'cover.id' ? item.cover?.id === value : key === '_id' ? String(item._id) === String(value) : item[key] === value);
   const collection = {
     findOne: async filter => structuredClone(entries.find(item => matches(item, filter)) ?? null),
     find: filter => ({ sort: () => ({ toArray: async () => structuredClone(entries.filter(item => matches(item, filter))) }) }),
@@ -37,14 +40,14 @@ function fixture() {
     openDownloadStream(id) { return Readable.from([files.get(String(id)).bytes]); }
   }
   const database = { getDatabase: async () => ({ collection: name => name === 'archive' ? collection : { findOne: async filter => files.has(String(filter._id)) ? { _id: filter._id } : null } }) };
-  const dependencies = { 'next/server': { NextResponse }, 'mongodb': { GridFSBucket: Bucket, ObjectId }, '@/lib/database': database, '@/lib/archive': helpers, '@/lib/role-session': { getRoleSessionPerson: async () => role === 'admin' ? { id: 'admin' } : null }, '@/lib/auth-session': auth, '@/lib/archive-preview-token': tokens };
+  const dependencies = { 'next/server': { NextResponse }, 'mongodb': { GridFSBucket: Bucket, ObjectId }, '@/lib/database': database, '@/lib/archive': helpers, '@/lib/archive-cover': coverHelpers, '@/lib/role-session': { getRoleSessionPerson: async () => role === 'admin' ? { id: 'admin' } : null }, '@/lib/auth-session': auth, '@/lib/archive-preview-token': tokens };
   const admin = load('app/api/admin/archive/route.ts', dependencies);
   const user = load('app/api/archive/route.ts', dependencies);
   const preview = load('app/api/archive/preview/route.ts', dependencies);
   const download = load('app/api/archive/files/[id]/[name]/route.ts', dependencies);
   const cookie = () => role ? 'schedule_auth=' + auth.createAuthSessionToken(role, role === 'admin' ? 'admin' : 'user') : '';
   const req = (path, method = 'GET', body, authenticated = true) => new NextRequest('https://schedule.test' + path, { method, headers: authenticated ? { Cookie: cookie() } : {}, ...(body ? { body } : {}) });
-  const mutate = (method, values = {}, file) => { const form = new FormData(); Object.entries(values).forEach(([key, value]) => form.set(key, String(value))); if (file) form.set('file', file); return admin[method](req('/api/admin/archive', method, form)); };
+  const mutate = (method, values = {}, file, cover) => { const form = new FormData(); Object.entries(values).forEach(([key, value]) => form.set(key, String(value))); if (file) form.set('file', file); if (cover) form.set('cover', cover); return admin[method](req('/api/admin/archive', method, form)); };
   return { entries, files, mutate, req, admin, user, preview, download, as: value => { role = value; } };
 }
 
@@ -178,4 +181,58 @@ test('proxy only admits valid signed GET/HEAD file URLs, never archive APIs or w
   for (const method of ['GET', 'HEAD']) assert.equal(proxy.proxy(new NextRequest(`https://schedule.test/api/archive/files/${id}/file.docx${query}`, { method })).status, 200);
   for (const path of ['/api/archive', '/api/archive/preview', '/api/admin/archive', `/api/archive/files/abcdef1234567890abcdef12/file.docx`]) assert.equal(proxy.proxy(new NextRequest('https://schedule.test' + path + query)).status, 401);
   assert.equal(proxy.proxy(new NextRequest(`https://schedule.test/api/archive/files/${id}/file.docx${query}`, { method: 'POST' })).status, 401);
+});
+
+const posterFile = async (width = 297, height = 420) => new File([await sharp({ create: { width, height, channels: 3, background: '#76aef8' } }).png().toBuffer()], 'Афиша.png', { type: 'image/png' });
+
+test('poster processing preserves the whole A3 image, shrinks large images and rejects false image content', async () => {
+  const poster = await coverHelpers.prepareArchiveCover(await posterFile());
+  assert.equal(poster.width, 297); assert.equal(poster.height, 420); // Never upscale or crop.
+  assert.equal((await sharp(poster.bytes).metadata()).format, 'webp');
+  assert.equal(poster.name, 'Афиша.webp');
+  const large = await coverHelpers.prepareArchiveCover(await posterFile(1800, 2545));
+  assert.ok(large.width <= 1600 && large.height <= 2263);
+  assert.ok(Math.abs(large.width / large.height - 1800 / 2545) < .002);
+  const landscape = await coverHelpers.prepareArchiveCover(await posterFile(420, 297));
+  assert.equal(landscape.width, 420); assert.equal(landscape.height, 297);
+  await assert.rejects(coverHelpers.prepareArchiveCover(new File(['<svg/>'], 'fake.png', { type: 'image/png' })), /изображение/);
+  await assert.rejects(coverHelpers.prepareArchiveCover(new File([new Uint8Array(4 * 1024 * 1024 + 1)], 'big.png')), error => error.status === 413);
+});
+
+test('admin can attach, read, replace, remove and delete posters while normal edits preserve them', async () => {
+  const f = fixture(); const image = await posterFile();
+  const created = await f.mutate('POST', show, undefined, image); assert.equal(created.status, 201);
+  let { item } = await created.json();
+  assert.equal(item.cover.extension, 'webp'); assert.equal(f.files.size, 1);
+  const path = helpers.archiveCoverUrl(item.cover);
+  const ctx = { params: Promise.resolve({ id: item.cover.id, name: item.cover.name }) };
+  f.as('user');
+  const read = await f.download.GET(f.req(path), ctx); assert.equal(read.status, 200); assert.equal(read.headers.get('content-type'), 'image/webp');
+  const bytes = Buffer.from(await read.arrayBuffer()); assert.equal((await sharp(bytes).metadata()).height, 420);
+  assert.equal((await f.download.GET(f.req(path, 'GET', undefined, false), ctx)).status, 401);
+  assert.equal((await f.mutate('PATCH', { ...show, id: item.id, revision: 0 }, undefined, image)).status, 403);
+  f.as('admin');
+  const edited = await f.mutate('PATCH', { ...show, id: item.id, revision: 0 }); assert.equal(edited.status, 200);
+  assert.equal((await edited.json()).item.cover.id, item.cover.id);
+  const oldId = item.cover.id;
+  const replaced = await f.mutate('PATCH', { ...show, id: item.id, revision: 1 }, undefined, image); assert.equal(replaced.status, 200);
+  item = (await replaced.json()).item; assert.notEqual(item.cover.id, oldId); assert.ok(!f.files.has(oldId)); assert.equal(f.files.size, 1);
+  const removed = await f.mutate('PATCH', { ...show, id: item.id, revision: 2, removeCover: '1' }); assert.equal(removed.status, 200);
+  assert.equal((await removed.json()).item.cover, null); assert.equal(f.files.size, 0);
+  const reattached = await f.mutate('PATCH', { ...show, id: item.id, revision: 3 }, undefined, image); assert.equal(reattached.status, 200);
+  assert.equal((await f.admin.DELETE(f.req(`/api/admin/archive?id=${item.id}&revision=4`, 'DELETE'))).status, 200);
+  assert.equal(f.files.size, 0);
+});
+
+test('invalid or competing poster uploads cannot leak files or overwrite the winning cover', async () => {
+  const f = fixture(); const image = await posterFile();
+  assert.equal((await f.mutate('POST', show, undefined, new File(['bad'], 'fake.jpg', { type: 'image/jpeg' }))).status, 400);
+  assert.equal((await f.mutate('POST', { kind: 'link', title: 'Link', url: 'https://example.com' }, undefined, image)).status, 400);
+  assert.equal(f.files.size, 0); assert.equal(f.entries.length, 0);
+  const { item } = await (await f.mutate('POST', show, undefined, image)).json();
+  const results = await Promise.all(['First', 'Second'].map(title => f.mutate('PATCH', { ...show, title, id: item.id, revision: 0 }, undefined, image)));
+  assert.deepEqual(results.map(r => r.status).sort(), [200, 409]);
+  assert.equal(f.files.size, 1); assert.ok(f.files.has(f.entries[0].cover.id));
+  assert.equal((await f.mutate('PATCH', { ...show, id: item.id, revision: 1, removeCover: '1' }, undefined, image)).status, 400);
+  assert.equal(f.files.size, 1);
 });

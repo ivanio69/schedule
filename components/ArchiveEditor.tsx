@@ -1,7 +1,8 @@
 "use client";
-import { useState, type FormEvent } from "react";
-import { ARCHIVE_EXTENSIONS, ARCHIVE_SECTIONS, MAX_ARCHIVE_FILE_BYTES, archiveExtension, parseArchiveInput, type ArchiveItem, type ArchiveKind } from "@/lib/archive";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ARCHIVE_COVER_ACCEPT, ARCHIVE_EXTENSIONS, ARCHIVE_SECTIONS, MAX_ARCHIVE_FILE_BYTES, archiveCoverUrl, archiveExtension, parseArchiveInput, type ArchiveItem, type ArchiveKind } from "@/lib/archive";
 import EventDialog from "./EventDialog";
+import ArchivePoster from "./ArchivePoster";
 import styles from "./Archive.module.css";
 
 export default function ArchiveEditor({ item, initialKind, onClose, onSaved }: { item: ArchiveItem | null; initialKind: ArchiveKind; onClose: () => void; onSaved: (item: ArchiveItem) => void }) {
@@ -14,6 +15,23 @@ export default function ArchiveEditor({ item, initialKind, onClose, onSaved }: {
   const [source, setSource] = useState(item?.kind === "file" && !item.file ? "url" : "upload");
   const [extension, setExtension] = useState(item?.extension ?? "docx");
   const [file, setFile] = useState<File | null>(null);
+  const [cover, setCover] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState("");
+  const [removeCover, setRemoveCover] = useState(false);
+  const previewResource = useRef({ url: "" });
+  useEffect(() => {
+    const resource = previewResource.current;
+    return () => { if (resource.url) URL.revokeObjectURL(resource.url); };
+  }, []);
+  function chooseCover(file: File | null) {
+    if (!file) return;
+    setError("");
+    if (file.size > MAX_ARCHIVE_FILE_BYTES) { setError("Афиша должна быть не больше 4 МБ"); return; }
+    if (!file.size || !ARCHIVE_COVER_ACCEPT.split(",").includes(file.type)) { setError("Выбери изображение JPG, PNG, WebP или AVIF"); return; }
+    if (previewResource.current.url) URL.revokeObjectURL(previewResource.current.url);
+    const url = URL.createObjectURL(file); previewResource.current.url = url;
+    setCover(file); setCoverPreview(url); setRemoveCover(false);
+  }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [closing, setClosing] = useState(false);
@@ -29,6 +47,10 @@ export default function ArchiveEditor({ item, initialKind, onClose, onSaved }: {
       const form = new FormData();
       Object.entries({ kind, title, discipline, artisticDirector, date, url, source, extension, ...(item ? { id: item.id, revision: String(item.revision) } : {}) }).forEach(([k, v]) => form.set(k, v));
       if (file && source === "upload" && kind === "file") form.set("file", file);
+      if (kind === "show") {
+        if (cover) form.set("cover", cover);
+        if (removeCover) form.set("removeCover", "1");
+      }
       const response = await fetch("/api/admin/archive", { method: item ? "PATCH" : "POST", body: form });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error ?? "Не удалось сохранить материал");
@@ -43,6 +65,12 @@ export default function ArchiveEditor({ item, initialKind, onClose, onSaved }: {
       {kind === "show" && <label>Дисциплина<input value={discipline} onChange={e => setDiscipline(e.target.value)} maxLength={160} required disabled={busy} placeholder="Например, режиссура эстрады"/></label>}
       {kind === "show" && <label>Художественный руководитель<input value={artisticDirector} onChange={e => setArtisticDirector(e.target.value)} maxLength={160} disabled={busy} placeholder="Фамилия, имя или инициалы"/></label>}
       {kind === "show" && <label>Дата показа<input type="date" value={date} onChange={e => setDate(e.target.value)} min="0001-01-01" max="9999-12-31" required disabled={busy}/></label>}
+      {kind === "show" && <section className={styles.coverEditor} aria-label="Афиша показа">
+        <div className={styles.coverEditorPreview}><ArchivePoster src={coverPreview || (!removeCover && item?.cover ? archiveCoverUrl(item.cover) : undefined)} title={title || "Предпросмотр"}/></div>
+        <div className={styles.coverEditorControls}><label>Афиша<input type="file" accept={ARCHIVE_COVER_ACCEPT} disabled={busy} onChange={e => { chooseCover(e.target.files?.[0] ?? null); e.target.value = ""; }}/></label><p className={styles.hint}>Вертикальный А3 · JPG, PNG, WebP или AVIF · до 4 МБ. Афиша отображается целиком.</p>
+          {(cover || (!removeCover && item?.cover)) && <button type="button" disabled={busy} onClick={() => { if (previewResource.current.url) URL.revokeObjectURL(previewResource.current.url); previewResource.current.url = ""; setCover(null); setCoverPreview(""); setRemoveCover(true); }}>Убрать афишу</button>}
+        </div>
+      </section>}
       {kind === "file" && <fieldset disabled={busy} className={styles.source}><legend>Файл</legend>{[["upload", "Загрузить файл"], ["url", "По ссылке"]].map(([value, label]) => <button key={value} type="button" aria-pressed={source === value} onClick={() => setSource(value)}>{label}</button>)}</fieldset>}
       {kind === "file" && source === "upload" ? <label className={styles.upload}>Выбрать {item?.file ? "новый файл" : "файл"}<input type="file" accept={ARCHIVE_EXTENSIONS.map(ext => `.${ext}`).join(",")} disabled={busy} onChange={e => { setFile(e.target.files?.[0] ?? null); setError(""); }}/><span className={styles.hint}>{file?.name ?? item?.file?.name ?? "DOCX, PPTX, XLSX, PDF, изображения и другие форматы"} · до 4 МБ</span></label>
         : <label>{kind === "show" ? "Ссылка на YouTube" : kind === "file" ? "Прямая ссылка на файл" : "Ссылка"}<input value={url} type="url" maxLength={4000} required disabled={busy} onChange={e => { setUrl(e.target.value); const ext = archiveExtension(e.target.value); if (ARCHIVE_EXTENSIONS.includes(ext)) setExtension(ext); }} placeholder="https://…"/></label>}

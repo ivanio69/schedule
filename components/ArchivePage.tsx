@@ -2,12 +2,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { ARCHIVE_SECTIONS, compareArchiveItems, formatArchiveDate, validArchiveDate, type ArchiveItem, type ArchiveKind } from "@/lib/archive";
+import { ARCHIVE_SECTIONS, archiveCoverUrl, compareArchiveItems, formatArchiveDate, validArchiveDate, type ArchiveItem, type ArchiveKind } from "@/lib/archive";
 import LoadingState from "./LoadingState";
 import ArchiveIcon from "./ArchiveIcon";
 import ArchiveEditor from "./ArchiveEditor";
 import ArchiveFilePreview from "./ArchiveFilePreview";
 import EventDialog from "./EventDialog";
+import ArchivePoster from "./ArchivePoster";
+import ArchivePosterPreview from "./ArchivePosterPreview";
 import styles from "./Archive.module.css";
 
 export default function ArchivePage({ admin = false }: { admin?: boolean }) {
@@ -20,6 +22,7 @@ export default function ArchivePage({ admin = false }: { admin?: boolean }) {
   const [filter, setFilter] = useState<ArchiveKind | "all">("all");
   const [editor, setEditor] = useState<{ item: ArchiveItem | null; kind: ArchiveKind } | null>(null);
   const [preview, setPreview] = useState<ArchiveItem | null>(null);
+  const [poster, setPoster] = useState<ArchiveItem | null>(null);
   const [deleting, setDeleting] = useState<ArchiveItem | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteClosing, setDeleteClosing] = useState(false);
@@ -68,8 +71,10 @@ export default function ArchivePage({ admin = false }: { admin?: boolean }) {
           const entries = filtered.filter(item => item.kind === section.kind).sort(compareArchiveItems);
           return <motion.section className={styles.section} key={`${section.kind}-${filter}`} aria-labelledby={`archive-${section.kind}`} initial={reduced ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35, delay: reduced ? 0 : index * .07 }}>
             <div className={styles.sectionHeading}><span className={styles.sectionIcon}><ArchiveIcon kind={section.kind}/></span><div><h2 id={`archive-${section.kind}`}>{section.title}<span>{entries.length}</span></h2></div>{admin && <button type="button" className={styles.addSection} aria-label={`Добавить: ${section.title}`} onClick={() => setEditor({ item: null, kind: section.kind })}>+</button>}</div>
-            {entries.length ? <div className={styles.grid}>
-              {entries.map((item, itemIndex) => <motion.article className={styles.card} key={item.id} initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .25, delay: reduced ? 0 : Math.min(itemIndex, 6) * .035 }}>
+            {entries.length ? <div className={`${styles.grid}${section.kind === "show" ? ` ${styles.showGrid}` : ""}`}>
+              {entries.map((item, itemIndex) => <motion.article className={`${styles.card}${item.kind === "show" ? ` ${styles.showCard}` : ""}`} key={item.id} initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .25, delay: reduced ? 0 : Math.min(itemIndex, 6) * .035 }}>
+                {item.kind === "show" && <ArchivePoster src={item.cover ? archiveCoverUrl(item.cover) : undefined} title={item.title} onOpen={item.cover ? () => setPoster(item) : undefined}/>}
+                <div className={item.kind === "show" ? styles.showCopy : styles.cardCopy}>
                 <div className={styles.cardMeta}>{item.kind === "show" ? "YouTube" : item.kind === "file" ? `${item.extension.toUpperCase()}${item.file ? ` · ${item.file.size < 1024 * 1024 ? `${Math.ceil(item.file.size / 1024)} КБ` : `${(item.file.size / 1024 / 1024).toFixed(1)} МБ`}` : ""}` : new URL(item.url).hostname}</div>
                 <h3>{item.title}</h3>
                 {item.kind === "show" && <><p className={styles.discipline}>{item.discipline}</p>{item.artisticDirector && <p className={styles.discipline}>Художественный руководитель: {item.artisticDirector}</p>}{validArchiveDate(item.date) && <time className={styles.showDate} dateTime={item.date}>{formatArchiveDate(item.date)}</time>}</>}
@@ -77,6 +82,7 @@ export default function ArchivePage({ admin = false }: { admin?: boolean }) {
                 <div className={styles.cardFooter}>
                   {item.kind === "file" ? <button type="button" className={styles.open} onClick={() => setPreview(item)}>Открыть <span aria-hidden="true">↗</span></button> : <a className={styles.open} href={item.url} target="_blank" rel="noopener noreferrer">{item.kind === "show" ? "Смотреть на YouTube" : "Открыть"}<span aria-hidden="true">↗</span></a>}
                   {admin && <div className={styles.manage}><button type="button" aria-label={`Редактировать: ${item.title}`} onClick={() => setEditor({ item, kind: item.kind })}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L20 8a2 2 0 0 0-5-5L4 14Z"/></svg></button><button type="button" aria-label={`Удалить: ${item.title}`} onClick={() => { setDeleteError(""); setDeleteClosing(false); setDeleting(item); }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/></svg></button></div>}
+                </div>
                 </div>
               </motion.article>)}
             </div> : <div className={styles.empty}><p>{query ? "По запросу ничего не найдено" : admin ? "Здесь появятся добавленные материалы" : "Здесь скоро появятся материалы"}</p>{query && <button type="button" onClick={() => setQuery("")}>Сбросить поиск</button>}</div>}
@@ -86,6 +92,7 @@ export default function ArchivePage({ admin = false }: { admin?: boolean }) {
     </>}
     {editor && <ArchiveEditor item={editor.item} initialKind={editor.kind} onClose={() => setEditor(null)} onSaved={item => { setItems(current => [item, ...current.filter(i => i.id !== item.id)].sort(compareArchiveItems)); setNotice(editor.item ? "Изменения сохранены" : "Материал добавлен"); setEditor(null); }}/>}
     {preview && <ArchiveFilePreview item={preview} onClose={() => setPreview(null)}/>}
+    {poster && <ArchivePosterPreview item={poster} onClose={() => setPoster(null)}/>}
     {deleting && <EventDialog title="Удалить материал?" eyebrow="Архив" compact busy={deleteBusy} closing={deleteClosing} onClose={() => setDeleting(null)}><p className={styles.confirm}>«{deleting.title}» исчезнет из архива у всей группы.</p>{deleteError && <p role="alert" className={styles.notice}>{deleteError}</p>}<div className={styles.formActions}><button type="button" disabled={deleteBusy} onClick={() => setDeleteClosing(true)}>Отмена</button><button type="button" className={styles.danger} disabled={deleteBusy} onClick={() => void remove()}>{deleteBusy ? "Удаляем…" : "Удалить"}</button></div></EventDialog>}
   </main>;
 }
