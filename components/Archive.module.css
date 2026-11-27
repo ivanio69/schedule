@@ -58,6 +58,9 @@ button.posterFrame:is(:hover,:focus-visible) .posterExpand { opacity:1; transfor
 .coverEditor { display:grid; grid-template-columns:120px minmax(0,1fr); gap:20px; align-items:center; min-width:0; padding:15px; border:1px solid var(--border); border-radius:17px; background:var(--surface-raised); }
 .coverEditorPreview { overflow:hidden; border:1px solid var(--border); border-radius:9px; box-shadow:0 6px 16px #00000012; }
 .coverEditorPreview .posterFrame { border:0; }
+.coverEditorPreview .posterPlaceholder { display:grid; place-items:center; padding:15px; }
+.coverEditorPreview .posterPlaceholder svg { margin:0; }
+.coverEditorPreview .posterPlaceholder strong,.coverEditorPreview .posterPlaceholder i { display:none; }
 .coverEditorControls { display:grid; gap:12px; min-width:0; }
 .coverEditorControls input { padding:8px 0; border:0; background:transparent; font-size:11px; }
 .coverEditorControls input::file-selector-button { min-height:38px; margin-right:8px; padding:8px 11px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); font:inherit; cursor:pointer; }
