@@ -24,7 +24,7 @@ async function save(request: NextRequest, editing: boolean) {
     if (editing && !/^\d+$/.test(String(form.get("revision") ?? ""))) throw new ArchiveError("Некорректная версия материала");
     const revision = Number(form.get("revision"));
     if (current && (!Number.isInteger(revision) || current.revision !== revision)) throw new ArchiveError("Материал изменился. Обнови архив и открой редактирование заново", 409);
-    const input = Object.fromEntries(["kind", "title", "discipline", "url", "extension"].map(key => [key, form.get(key)]));
+    const input = Object.fromEntries(["kind", "title", "discipline", "date", "url", "extension"].map(key => [key, form.get(key)]));
     if (current && input.kind !== current.kind) throw new ArchiveError("Раздел существующего материала менять нельзя");
     const source = form.get("source");
     if (input.kind === "file" && source !== "upload" && source !== "url") throw new ArchiveError("Выбери способ добавления файла");

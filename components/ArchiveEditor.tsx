@@ -8,6 +8,7 @@ export default function ArchiveEditor({ item, initialKind, onClose, onSaved }: {
   const [kind, setKind] = useState<ArchiveKind>(item?.kind ?? initialKind);
   const [title, setTitle] = useState(item?.title ?? "");
   const [discipline, setDiscipline] = useState(item?.discipline ?? "");
+  const [date, setDate] = useState(item?.date ?? "");
   const [url, setUrl] = useState(item?.url ?? "");
   const [source, setSource] = useState(item?.kind === "file" && !item.file ? "url" : "upload");
   const [extension, setExtension] = useState(item?.extension ?? "docx");
@@ -20,12 +21,12 @@ export default function ArchiveEditor({ item, initialKind, onClose, onSaved }: {
     event.preventDefault();
     setError("");
     try {
-      parseArchiveInput({ kind, title, discipline, url, extension }, kind === "file" && source === "upload" && Boolean(file || item?.file));
+      parseArchiveInput({ kind, title, discipline, date, url, extension }, kind === "file" && source === "upload" && Boolean(file || item?.file));
       if (kind === "file" && source === "upload" && !file && !item?.file) throw new Error("Выбери файл для загрузки");
       if (file && file.size > MAX_ARCHIVE_FILE_BYTES) throw new Error("Файл должен быть не больше 4 МБ. Для большого файла укажи прямую ссылку");
       setBusy(true);
       const form = new FormData();
-      Object.entries({ kind, title, discipline, url, source, extension, ...(item ? { id: item.id, revision: String(item.revision) } : {}) }).forEach(([k, v]) => form.set(k, v));
+      Object.entries({ kind, title, discipline, date, url, source, extension, ...(item ? { id: item.id, revision: String(item.revision) } : {}) }).forEach(([k, v]) => form.set(k, v));
       if (file && source === "upload" && kind === "file") form.set("file", file);
       const response = await fetch("/api/admin/archive", { method: item ? "PATCH" : "POST", body: form });
       const data = await response.json().catch(() => null);
@@ -39,6 +40,7 @@ export default function ArchiveEditor({ item, initialKind, onClose, onSaved }: {
       {!item && <label>Раздел<select value={kind} onChange={e => setKind(e.target.value as ArchiveKind)} disabled={busy}>{ARCHIVE_SECTIONS.map(section => <option key={section.kind} value={section.kind}>{section.title}</option>)}</select></label>}
       <label>Название<input value={title} onChange={e => setTitle(e.target.value)} maxLength={160} required disabled={busy} placeholder={kind === "show" ? "Например, «Умная собачка Соня»" : "Как назвать материал"}/></label>
       {kind === "show" && <label>Дисциплина<input value={discipline} onChange={e => setDiscipline(e.target.value)} maxLength={160} required disabled={busy} placeholder="Например, режиссура эстрады"/></label>}
+      {kind === "show" && <label>Дата показа<input type="date" value={date} onChange={e => setDate(e.target.value)} min="0001-01-01" max="9999-12-31" required disabled={busy}/></label>}
       {kind === "file" && <fieldset disabled={busy} className={styles.source}><legend>Файл</legend>{[["upload", "Загрузить файл"], ["url", "По ссылке"]].map(([value, label]) => <button key={value} type="button" aria-pressed={source === value} onClick={() => setSource(value)}>{label}</button>)}</fieldset>}
       {kind === "file" && source === "upload" ? <label className={styles.upload}>Выбрать {item?.file ? "новый файл" : "файл"}<input type="file" accept={ARCHIVE_EXTENSIONS.map(ext => `.${ext}`).join(",")} disabled={busy} onChange={e => { setFile(e.target.files?.[0] ?? null); setError(""); }}/><span className={styles.hint}>{file?.name ?? item?.file?.name ?? "DOCX, PPTX, XLSX, PDF, изображения и другие форматы"} · до 4 МБ</span></label>
         : <label>{kind === "show" ? "Ссылка на YouTube" : kind === "file" ? "Прямая ссылка на файл" : "Ссылка"}<input value={url} type="url" maxLength={4000} required disabled={busy} onChange={e => { setUrl(e.target.value); const ext = archiveExtension(e.target.value); if (ARCHIVE_EXTENSIONS.includes(ext)) setExtension(ext); }} placeholder="https://…"/></label>}

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { ARCHIVE_SECTIONS, type ArchiveItem, type ArchiveKind } from "@/lib/archive";
+import { ARCHIVE_SECTIONS, compareArchiveItems, formatArchiveDate, validArchiveDate, type ArchiveItem, type ArchiveKind } from "@/lib/archive";
 import LoadingState from "./LoadingState";
 import ArchiveIcon from "./ArchiveIcon";
 import ArchiveEditor from "./ArchiveEditor";
@@ -65,14 +65,14 @@ export default function ArchivePage({ admin = false }: { admin?: boolean }) {
       </div>
       <div className={styles.sections}>
         {sections.map((section, index) => {
-          const entries = filtered.filter(item => item.kind === section.kind);
+          const entries = filtered.filter(item => item.kind === section.kind).sort(compareArchiveItems);
           return <motion.section className={styles.section} key={`${section.kind}-${filter}`} aria-labelledby={`archive-${section.kind}`} initial={reduced ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35, delay: reduced ? 0 : index * .07 }}>
             <div className={styles.sectionHeading}><span className={styles.sectionIcon}><ArchiveIcon kind={section.kind}/></span><div><h2 id={`archive-${section.kind}`}>{section.title}<span>{entries.length}</span></h2></div>{admin && <button type="button" className={styles.addSection} aria-label={`Добавить: ${section.title}`} onClick={() => setEditor({ item: null, kind: section.kind })}>+</button>}</div>
             {entries.length ? <div className={styles.grid}>
               {entries.map((item, itemIndex) => <motion.article className={styles.card} key={item.id} initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .25, delay: reduced ? 0 : Math.min(itemIndex, 6) * .035 }}>
                 <div className={styles.cardMeta}>{item.kind === "show" ? "YouTube" : item.kind === "file" ? `${item.extension.toUpperCase()}${item.file ? ` · ${item.file.size < 1024 * 1024 ? `${Math.ceil(item.file.size / 1024)} КБ` : `${(item.file.size / 1024 / 1024).toFixed(1)} МБ`}` : ""}` : new URL(item.url).hostname}</div>
                 <h3>{item.title}</h3>
-                {item.kind === "show" && <p className={styles.discipline}>{item.discipline}</p>}
+                {item.kind === "show" && <><p className={styles.discipline}>{item.discipline}</p>{validArchiveDate(item.date) && <time className={styles.showDate} dateTime={item.date}>{formatArchiveDate(item.date)}</time>}</>}
                 {item.kind === "file" && item.file && <p className={styles.filename}>{item.file.name}</p>}
                 <div className={styles.cardFooter}>
                   {item.kind === "file" ? <button type="button" className={styles.open} onClick={() => setPreview(item)}>Открыть <span aria-hidden="true">↗</span></button> : <a className={styles.open} href={item.url} target="_blank" rel="noopener noreferrer">{item.kind === "show" ? "Смотреть на YouTube" : "Открыть"}<span aria-hidden="true">↗</span></a>}
@@ -84,7 +84,7 @@ export default function ArchivePage({ admin = false }: { admin?: boolean }) {
         })}
       </div>
     </>}
-    {editor && <ArchiveEditor item={editor.item} initialKind={editor.kind} onClose={() => setEditor(null)} onSaved={item => { setItems(current => [item, ...current.filter(i => i.id !== item.id)].sort((a, b) => b.createdAt.localeCompare(a.createdAt))); setNotice(editor.item ? "Изменения сохранены" : "Материал добавлен"); setEditor(null); }}/>}
+    {editor && <ArchiveEditor item={editor.item} initialKind={editor.kind} onClose={() => setEditor(null)} onSaved={item => { setItems(current => [item, ...current.filter(i => i.id !== item.id)].sort(compareArchiveItems)); setNotice(editor.item ? "Изменения сохранены" : "Материал добавлен"); setEditor(null); }}/>}
     {preview && <ArchiveFilePreview item={preview} onClose={() => setPreview(null)}/>}
     {deleting && <EventDialog title="Удалить материал?" eyebrow="Архив" compact busy={deleteBusy} closing={deleteClosing} onClose={() => setDeleting(null)}><p className={styles.confirm}>«{deleting.title}» исчезнет из архива у всей группы.</p>{deleteError && <p role="alert" className={styles.notice}>{deleteError}</p>}<div className={styles.formActions}><button type="button" disabled={deleteBusy} onClick={() => setDeleteClosing(true)}>Отмена</button><button type="button" className={styles.danger} disabled={deleteBusy} onClick={() => void remove()}>{deleteBusy ? "Удаляем…" : "Удалить"}</button></div></EventDialog>}
   </main>;

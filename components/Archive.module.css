@@ -39,6 +39,7 @@
 .cardMeta { margin-bottom:14px; color:var(--muted); font-size:11px; font-weight:600; letter-spacing:.02em; overflow-wrap:anywhere; }
 .card h3 { margin:0; font-size:17px; font-weight:650; letter-spacing:-.025em; line-height:1.45; overflow-wrap:anywhere; }
 .discipline,.filename { margin:8px 0 0; color:var(--muted); font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+.showDate { display:block; margin-top:8px; color:var(--text); font-size:12px; line-height:1.6; font-variant-numeric:tabular-nums; }
 .cardFooter { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:auto; padding-top:22px; }
 .open { display:inline-flex; align-items:center; justify-content:space-between; gap:10px; min-height:44px; padding:0; border:0; text-align:left; color:var(--accent); background:transparent; font-size:12px; font-weight:650; line-height:1.5; }
 .open span { display:inline-block; transition:transform .2s; }

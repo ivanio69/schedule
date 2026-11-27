@@ -11,14 +11,14 @@ const { ObjectId } = require('mongodb');
 function load(path, dependencies = {}) {
   const code = ts.transpileModule(readFileSync(new URL('../' + path, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: name => dependencies[name] ?? require(name), URL, console, Buffer, File, FormData, process });
+  vm.runInNewContext(code, { exports, require: name => dependencies[name] ?? require(name), URL, console, Buffer, File, FormData, process, Error });
   return exports;
 }
 const helpers = load('lib/archive.ts');
 const auth = load('lib/auth-session.ts');
 process.env.AUTH_SESSION_SECRET = 'archive-test-secret-only';
 const tokens = load('lib/archive-preview-token.ts', { '@/lib/auth-session': auth });
-const show = { kind: 'show', title: 'Умная собачка Соня', discipline: 'Режиссура эстрады', url: 'https://youtu.be/test-video' };
+const show = { kind: 'show', title: 'Умная собачка Соня', discipline: 'Режиссура эстрады', date: '2026-11-27', url: 'https://youtu.be/test-video' };
 
 function fixture() {
   let role = 'admin';
@@ -65,6 +65,50 @@ test('preview signatures reject expiry, tampering, invalid IDs and use outside t
   assert.equal(tokens.validArchivePreview(id, signed.expires, '0'.repeat(64), 1800000001), false);
   assert.equal(tokens.validArchivePreview(id, signed.expires, signed.token, Number(signed.expires)), false);
   assert.equal(tokens.validArchivePreview(id, signed.expires, signed.token, 1799990000), false);
+});
+
+test('show dates are required calendar dates; display keeps the chosen day in every timezone', () => {
+  for (const date of [undefined, '', '2026-02-29', '2026-04-31', '2026-13-01', '2026-00-10', '2026-11-00', '2026-1-01', '0000-01-01', '2026-11-27T00:00:00Z', 20261127, { $gt: '' }]) {
+    assert.equal(helpers.validArchiveDate(date), false);
+    assert.throws(() => helpers.parseArchiveInput({ ...show, date }, false));
+  }
+  assert.equal(helpers.parseArchiveInput({ ...show, date: '2024-02-29' }, false).date, '2024-02-29');
+  const timezone = process.env.TZ;
+  try {
+    for (const zone of ['America/Los_Angeles', 'Pacific/Kiritimati', 'Europe/Minsk']) {
+      process.env.TZ = zone;
+      assert.match(helpers.formatArchiveDate('2026-11-27'), /^27 ноября 2026/);
+    }
+  } finally { if (timezone === undefined) delete process.env.TZ; else process.env.TZ = timezone; }
+  assert.equal(helpers.formatArchiveDate(undefined), '');
+  assert.equal(helpers.parseArchiveInput({ kind: 'link', title: 'Link', url: 'https://example.com', date: 'invalid' }, false).date, '');
+});
+
+test('archive reads use show date rather than upload date and move legacy undated shows to the end', async () => {
+  const f = fixture();
+  for (const date of ['2024-01-01', '2026-11-27', '2025-12-31']) assert.equal((await f.mutate('POST', { ...show, date })).status, 201);
+  f.entries[0].createdAt = '2099-01-01T00:00:00.000Z'; // An older show uploaded most recently.
+  f.entries.push({ ...f.entries[0], id: 'legacy', title: 'Без даты', date: undefined });
+  const read = async () => (await (await f.user.GET(f.req('/api/archive'))).json()).items;
+  assert.deepEqual((await read()).map(item => item.date ?? ''), ['2026-11-27', '2025-12-31', '2024-01-01', '']);
+  const older = f.entries[0];
+  const edited = await f.mutate('PATCH', { ...show, id: older.id, revision: 0, date: '2027-01-02' });
+  assert.equal(edited.status, 200);
+  assert.equal((await edited.json()).item.date, '2027-01-02');
+  assert.equal((await read())[0].id, older.id);
+  assert.equal((await f.mutate('POST', { ...show, date: '2026-02-30' })).status, 400);
+});
+
+test('same-day shows have deterministic order and non-show materials retain newest-upload-first sorting', () => {
+  const base = { ...show, revision: 0, file: null, extension: '', updatedAt: '' };
+  const items = [
+    { ...base, id: 'b', createdAt: '2026-11-01' },
+    { ...base, id: 'c', createdAt: '2026-11-03' },
+    { ...base, id: 'a', createdAt: '2026-11-01' },
+  ];
+  assert.deepEqual(items.sort(helpers.compareArchiveItems).map(item => item.id), ['c', 'a', 'b']);
+  const files = items.map((item, index) => ({ ...item, kind: 'file', date: `200${index}-01-01` }));
+  assert.deepEqual(files.sort(helpers.compareArchiveItems).map(item => item.id), ['c', 'a', 'b']);
 });
 
 test('admin CRUD, all-user reading, authentication and stale-write protection', async () => {
