@@ -1,0 +1,28 @@
+name: Archive
+on:
+  pull_request:
+    paths:
+      - 'lib/archive*.ts'
+      - 'components/Archive*'
+      - 'components/DashboardArchiveButton.tsx'
+      - 'app/archive/**'
+      - 'app/admin/archive/**'
+      - 'app/api/archive/**'
+      - 'app/api/admin/archive/**'
+      - 'proxy.ts'
+      - 'tests/archive.test.mjs'
+      - '.github/workflows/archive.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node --test tests/archive.test.mjs tests/pwa-cache.test.mjs tests/task-entrance.test.mjs
+      - run: npx eslint components/Archive*.tsx components/DashboardArchiveButton.tsx lib/archive*.ts app/api/archive app/api/admin/archive

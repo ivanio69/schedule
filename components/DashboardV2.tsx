@@ -23,6 +23,7 @@ import EventDetailsContent, { type EventDetails } from "@/components/EventDetail
 import type { PersonalEvent } from "@/lib/personal-events";
 import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
+import DashboardArchiveButton from "@/components/DashboardArchiveButton";
 import type { AttendanceReport } from "@/lib/attendance";
 const PERSON_KEY = "schedule_person_id";
 const mins = (v: string) => {
@@ -668,6 +669,7 @@ export default function DashboardV2() {
           </div>
         )}
       </section>
+      <DashboardArchiveButton/>
     </main>
   );
 }
