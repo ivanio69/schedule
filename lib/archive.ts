@@ -1,7 +1,7 @@
 export const ARCHIVE_SECTIONS = [
-  { kind: "show", title: "Архив показов", description: "Работы, к которым хочется вернуться" },
-  { kind: "file", title: "Архив полезных файлов", description: "Материалы для учёбы и творчества" },
-  { kind: "link", title: "Архив полезных ссылок", description: "Всё нужное под рукой" },
+  { kind: "show", title: "Архив показов" },
+  { kind: "file", title: "Архив полезных файлов" },
+  { kind: "link", title: "Архив полезных ссылок" },
 ] as const;
 
 export type ArchiveKind = typeof ARCHIVE_SECTIONS[number]["kind"];

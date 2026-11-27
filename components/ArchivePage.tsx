@@ -52,7 +52,7 @@ export default function ArchivePage({ admin = false }: { admin?: boolean }) {
   return <main className={`${styles.page}${admin ? ` admin-shell admin-unified ${styles.adminPage}` : ""}`}>
     {!admin && <Link className={styles.back} href="/">← На главную</Link>}
     <header className={styles.heading}>
-      <div><h1>Архив</h1><p>{admin ? "Сохраняй показы и материалы для всей группы" : "Наши показы и всё, что пригодится в учёбе"}</p></div>
+      <div><h1>Архив</h1></div>
       {admin && <button type="button" className={styles.primary} onClick={() => setEditor({ item: null, kind: filter === "all" ? "show" : filter })}>+ Добавить</button>}
     </header>
     <p className={styles.srOnly} role="status">{notice}</p>
@@ -67,7 +67,7 @@ export default function ArchivePage({ admin = false }: { admin?: boolean }) {
         {sections.map((section, index) => {
           const entries = filtered.filter(item => item.kind === section.kind);
           return <motion.section className={styles.section} key={`${section.kind}-${filter}`} aria-labelledby={`archive-${section.kind}`} initial={reduced ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35, delay: reduced ? 0 : index * .07 }}>
-            <div className={styles.sectionHeading}><span className={styles.sectionIcon}><ArchiveIcon kind={section.kind}/></span><div><h2 id={`archive-${section.kind}`}>{section.title}<span>{entries.length}</span></h2><p>{section.description}</p></div>{admin && <button type="button" className={styles.addSection} aria-label={`Добавить: ${section.title}`} onClick={() => setEditor({ item: null, kind: section.kind })}>+</button>}</div>
+            <div className={styles.sectionHeading}><span className={styles.sectionIcon}><ArchiveIcon kind={section.kind}/></span><div><h2 id={`archive-${section.kind}`}>{section.title}<span>{entries.length}</span></h2></div>{admin && <button type="button" className={styles.addSection} aria-label={`Добавить: ${section.title}`} onClick={() => setEditor({ item: null, kind: section.kind })}>+</button>}</div>
             {entries.length ? <div className={styles.grid}>
               {entries.map((item, itemIndex) => <motion.article className={styles.card} key={item.id} initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .25, delay: reduced ? 0 : Math.min(itemIndex, 6) * .035 }}>
                 <div className={styles.cardMeta}>{item.kind === "show" ? "YouTube" : item.kind === "file" ? `${item.extension.toUpperCase()}${item.file ? ` · ${item.file.size < 1024 * 1024 ? `${Math.ceil(item.file.size / 1024)} КБ` : `${(item.file.size / 1024 / 1024).toFixed(1)} МБ`}` : ""}` : new URL(item.url).hostname}</div>
