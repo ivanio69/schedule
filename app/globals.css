@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@heroui/styles";
 
 :root { color-scheme:dark; --bg:#09090b; --surface:#111114; --surface-hover:#18181c; --border:#27272c; --text:#f5f5f5; --muted:#94949d; --accent:#f2f2f2; --accent-text:#111114; --rehearsal:#f0a45d; --rehearsal-bg:color-mix(in srgb,var(--rehearsal) 8%,transparent); }
 * { box-sizing:border-box; }

@@ -9,17 +9,19 @@ import ts from 'typescript';
 const source = readFileSync(new URL('../components/ScheduleApp.tsx', import.meta.url), 'utf8');
 const request = source.indexOf('fetch(`/api/schedule?date=');
 const start = source.lastIndexOf('  useEffect(() => {', request);
-const end = source.indexOf('}, [selectedDate, creatorId]);', request);
+const end = source.indexOf('}, [selectedDate, creatorId, profileReady]);', request);
 assert(start >= 0 && end > start, 'Schedule request effect must exist');
-const effect = ts.transpile(source.slice(start, end + '}, [selectedDate, creatorId]);'.length), { target: ts.ScriptTarget.ES2022 });
+const effect = ts.transpile(source.slice(start, end + '}, [selectedDate, creatorId, profileReady]);'.length), { target: ts.ScriptTarget.ES2022 });
 
 function harness() {
   const pending = [];
   const state = { schedule: null, rehearsals: [], loading: true };
   const context = {
     AbortController,
-    selectedDate: '', creatorId: '',
+    selectedDate: '', creatorId: '', profileReady: true, today: '2026-11-27',
+    URLSearchParams, window: { location: { search: '' } }, loadedRequest: { current: '' },
     didInitializeSelection: { current: true },
+    setIndividualLessons: value => { state.individualLessons = value; },
     setSchedule: value => { state.schedule = value; },
     setRehearsals: value => { state.rehearsals = value; },
     setLoading: value => { state.loading = value; },
@@ -38,7 +40,7 @@ function harness() {
     pending[index].resolve({ ok: true, json: async () => ({ schedule: title, rehearsals: [title] }) });
     await flush();
   };
-  return { state, pending, run, reply, flush };
+  return { state, pending, run, reply, flush, context };
 }
 
 test('late success from a previous day cannot remove the current rehearsal', async () => {
@@ -77,4 +79,36 @@ test('profile change and unmount ignore already received response bodies', async
   await h.flush();
   assert.equal(h.state.schedule, null);
   assert.equal(h.state.loading, true);
+});
+
+test('startup uses today and does not reload it after selection is initialized', async () => {
+  const h = harness();
+  h.run('');
+  await h.reply(0, 'Today');
+  h.run('2026-11-27');
+  assert.equal(h.pending.length, 1);
+});
+
+test('a rejected or aborted date remains retryable', async () => {
+  const h = harness();
+  const cleanup = h.run('2026-11-27');
+  cleanup();
+  h.pending[0].reject(new Error('Aborted'));
+  await h.flush();
+  h.run('2026-11-27');
+  assert.equal(h.pending.length, 2);
+  await h.reply(1, 'Fresh');
+  assert.equal(h.state.schedule, 'Fresh');
+});
+
+test('individuals from a stale day cannot replace the selected day', async () => {
+  const h = harness();
+  const cleanup = h.run('2026-11-26');
+  cleanup();
+  h.run('2026-11-27');
+  h.pending[1].resolve({ok:true,json:async()=>({schedule:'new',individualLessons:['new']})});
+  await h.flush();
+  h.pending[0].resolve({ok:true,json:async()=>({schedule:'old',individualLessons:['old']})});
+  await h.flush();
+  assert.deepEqual(h.state.individualLessons, ['new']);
 });

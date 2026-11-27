@@ -1,4 +1,5 @@
 "use client";
+import { fetchSharedRead } from "@/lib/shared-read";
 
 import { useEffect } from "react";
 import {
@@ -43,7 +44,7 @@ export default function AppearanceProvider() {
       const personId = localStorage.getItem(PERSON_KEY);
       if (!personId) return;
       try {
-        const response = await fetch(`/api/profile/settings?personId=${encodeURIComponent(personId)}`, { cache: "no-store" });
+        const response = await fetchSharedRead(`/api/profile/settings?personId=${encodeURIComponent(personId)}`);
         if (!response.ok || stopped) return;
         const data = await response.json();
         persistAppearance(normalizeAppearance(data.appearance ?? DEFAULT_APPEARANCE), { animate: true });

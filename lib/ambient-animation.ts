@@ -58,13 +58,16 @@ export function startAmbientAnimation(root: HTMLElement, subscribe: Subscribe) {
     }
   };
   const render = (next: boolean, tween: boolean) => {
+    // Capture all five matrices before any style writes. Interleaving reads
+    // with cancellations forces repeated style flushes during the loader morph.
+    const fromTransforms = tween ? nodes.map(node => {
+      const style = getComputedStyle(node);
+      const jumpY = parseFloat(style.translate?.split(" ")[1] ?? "0") || 0;
+      return `translateY(${jumpY}px) ${style.transform}`;
+    }) : [];
     root.dataset.loading = String(next);
     nodes.forEach((node, index) => {
-      // Read only the five compositor matrices at a loading boundary. Capture
-      // before cancelling so an interrupted morph continues from its current frame.
-      const style = tween ? getComputedStyle(node) : null;
-      const jumpY = style ? parseFloat(style.translate?.split(" ")[1] ?? "0") || 0 : 0;
-      const from = style ? `translateY(${jumpY}px) ${style.transform}` : "";
+      const from = fromTransforms[index] ?? "";
       animations.get(node)?.cancel();
       animations.delete(node);
       dotAnimations.get(node)?.cancel();

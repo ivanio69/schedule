@@ -1,4 +1,7 @@
 "use client";
+import { fetchSharedRead } from "@/lib/shared-read";
+import dynamic from "next/dynamic";
+import { useVisibleClock } from "@/lib/visible-clock";
 import { useEntranceComplete } from "@/lib/use-entrance-complete";
 import { getDashboardRehearsalSegments } from "@/lib/dashboard-timeline";
 import { fetchAuthSession } from "@/lib/auth-client";
@@ -14,12 +17,13 @@ import {
   type ScheduleData,
 } from "@/lib/schedule";
 import type { SeminarList } from "@/lib/seminars";
-import PersonalEventEditor from "@/components/PersonalEventEditor";
+const PersonalEventEditor = dynamic(() => import("@/components/PersonalEventEditor"));
 import PersonalEventInvitations from "@/components/PersonalEventInvitations";
 import TasksBlock from "@/components/TasksBlock";
 import DayTimeline from "@/components/DayTimeline";
 import EventDialog from "@/components/EventDialog";
-import EventDetailsContent, { type EventDetails } from "@/components/EventDetailsContent";
+import type { EventDetails } from "@/components/EventDetailsContent";
+const EventDetailsContent = dynamic(() => import("@/components/EventDetailsContent"));
 import type { PersonalEvent } from "@/lib/personal-events";
 import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
@@ -83,9 +87,11 @@ export default function DashboardV2() {
       {},
     ),
     [notes, setNotes] = useState<Record<string, string>>({}),
-    [now, setNow] = useState(() => new Date()),
     [chinaMode, setChinaMode] = useState(false),
     [loading, setLoading] = useState(true);
+  const clock = useVisibleClock();
+  const [initialNow] = useState(() => new Date());
+  const now = useMemo(() => clock === null ? initialNow : new Date(clock), [clock, initialNow]);
   const refreshPersonalEvents = useCallback(async (signal?: AbortSignal) => {
     const revision = ++personalRequest.current;
     try {
@@ -93,8 +99,8 @@ export default function DashboardV2() {
       if (!response.ok) throw new Error();
       const data = await response.json();
       if (signal?.aborted || revision !== personalRequest.current) return;
-      setPersonalEvents(data.events ?? []);
-      setPersonalInvitations(data.invitations ?? []);
+      setPersonalEvents(current => JSON.stringify(current) === JSON.stringify(data.events ?? []) ? current : data.events ?? []);
+      setPersonalInvitations(current => JSON.stringify(current) === JSON.stringify(data.invitations ?? []) ? current : data.invitations ?? []);
       setPersonalError("");
     } catch { if (!signal?.aborted && revision === personalRequest.current) setPersonalError("Не удалось обновить события и приглашения"); }
   }, []);
@@ -107,28 +113,22 @@ export default function DashboardV2() {
     return () => { controller.abort(); clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
   }, [refreshPersonalEvents]);
   const loadProfile = async (id: string) => {
-    const [sr, ir] = await Promise.all([
-      fetch(`/api/profile/settings?personId=${encodeURIComponent(id)}`, {
-        cache: "no-store",
-      }),
-      fetch(`/api/individuals?personId=${encodeURIComponent(id)}`, {
-        cache: "no-store",
-      }),
-    ]);
-    if (sr.ok) {
-      const d = await sr.json();
-      setPreferences(d.preferences ?? {});
-      setNotes(d.notes ?? {});
-      setChinaMode(d.chinaMode === true);
-    }
-    if (ir.ok) setIndividuals((await ir.json()).lessons ?? []);
+    const response = await fetchSharedRead(`/api/profile/settings?personId=${encodeURIComponent(id)}`);
+    if (!response.ok) return;
+    const data = await response.json();
+    setPreferences(data.preferences ?? {});
+    setNotes(data.notes ?? {});
+    setChinaMode(data.chinaMode === true);
   };
   const loadAttendance = async () => {
     const clock = new Date();
     const clockDate = dateKey(clock);
     const clockTime = `${String(clock.getHours()).padStart(2,"0")}:${String(clock.getMinutes()).padStart(2,"0")}`;
     const response = await fetch(`/api/attendance?date=${encodeURIComponent(clockDate)}&time=${encodeURIComponent(clockTime)}`, { cache: "no-store" });
-    if (response.ok) setAttendanceReports((await response.json()).reports ?? []);
+    if (response.ok) {
+      const reports = (await response.json()).reports ?? [];
+      setAttendanceReports(current => JSON.stringify(current) === JSON.stringify(reports) ? current : reports);
+    }
   };
   useEffect(() => {
     let cancelled=false;
@@ -155,6 +155,7 @@ export default function DashboardV2() {
         if(cancelled)return;
         setPerson({id:current.id,name:current.name,active:true,role:current.role,createdAt:""});
         setSchedule(s.schedule??null);
+        setIndividuals((s.individualLessons ?? []).filter((lesson: IndividualLesson) => lesson.personId === current.id));
         setRehearsals(s.rehearsals??[]);
         setSeminars(seminarData.lists??[]);
         setPersonalEvents(personalData.events??[]);
@@ -167,21 +168,6 @@ export default function DashboardV2() {
       }
     })();
     return()=>{cancelled=true};
-  }, []);
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const syncClock = () => {
-      if (timer) clearTimeout(timer);
-      if (document.hidden) return;
-      setNow(new Date());
-      timer = setTimeout(syncClock, 60000 - Date.now() % 60000);
-    };
-    syncClock();
-    document.addEventListener("visibilitychange", syncClock);
-    return () => {
-      if (timer) clearTimeout(timer);
-      document.removeEventListener("visibilitychange", syncClock);
-    };
   }, []);
   useEffect(() => {
     if (!person?.id) return;
