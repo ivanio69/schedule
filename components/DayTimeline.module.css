@@ -51,7 +51,7 @@
 .now i { width:7px; height:7px; border-radius:50%; background:currentColor; }
 .gap>.now { grid-column:2; }
 .beforeNow { grid-column:1 / -1; padding-left:72px; margin-bottom:4px; }
-.afterNow { position:relative; padding:12px 0 0 72px; background:var(--bg); }
+.afterNow { position:relative; padding:12px 0 0 72px; background:transparent; }
 @media(max-width:650px) {
   .dayOverview { gap:12px; margin-bottom:22px; padding-bottom:16px; }
   .dayOverviewMeta { flex:1 1 auto; }
