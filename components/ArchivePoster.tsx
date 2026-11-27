@@ -13,7 +13,7 @@ function PosterImage({ src, title }: { src: string; title: string }) {
 }
 
 export default function ArchivePoster({ src, title, onOpen }: { src?: string; title: string; onOpen?: () => void }) {
-  const content = src ? <PosterImage key={src} src={src} title={title}/> : <span className={styles.posterFallback} aria-hidden="true"><ArchiveIcon kind="show"/></span>;
+  const content = src ? <PosterImage key={src} src={src} title={title}/> : <span className={styles.posterPlaceholder} aria-hidden="true"><ArchiveIcon kind="show"/><strong>{title}</strong><i/></span>;
   return onOpen && src ? <button type="button" className={styles.posterFrame} aria-label={`Открыть афишу: ${title}`} onClick={onOpen}>{content}<span className={styles.posterExpand} aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></span></button>
     : <div className={styles.posterFrame}>{content}</div>;
 }
