@@ -50,7 +50,7 @@ async function main() {
     assert.equal(created.headers.get("cache-control"), "private, no-store");
     let { assessment } = await created.json();
     assert.notEqual(assessment.id, "spoofed");
-    assert.deepEqual(assessment.comments, []);
+    assert.equal("comments" in assessment, false);
     const id = assessment.id;
     const list = await (await request("GET", "user")).json();
     assert.equal(list.canManage, false);
@@ -58,34 +58,30 @@ async function main() {
     assert.equal((await (await request("GET", "headman")).json()).canManage, true);
     assert.equal((await (await request("GET", "admin")).json()).manageHref, "/admin/assessments");
     assert.equal((await request("DELETE", "user", undefined, `?id=${id}&revision=1`)).status, 403);
-    const posted = await request("POST", "user", { action: "comment", id, text: "  Что подготовить?  ", personId: "admin", author: "Админ" });
-    assert.equal(posted.status, 201);
-    const { comment } = await posted.json();
-    assert.equal(comment.author, "Студент");
-    assert.equal(comment.personId, "user");
-    assert.equal(comment.text, "Что подготовить?");
-    assert.equal((await request("POST", "user", { action: "comment", id, text: " " })).status, 400);
-    assert.equal((await request("POST", "user", { action: "comment", id, text: "x".repeat(2001) })).status, 400);
-    assert.equal((await request("DELETE", "other", undefined, `?id=${id}&commentId=${comment.id}`)).status, 404);
+    // Legacy discussion data is never exposed, including in the main schedule payload.
+    await db.collection("assessments").updateOne({ id }, { $set: { comments: [{ id: "legacy", text: "Hidden" }] } });
+    assert.equal((await request("POST", "user", { action: "comment", id, text: "Public" })).status, 410);
+    assert.equal((await request("POST", "admin", { action: "comment", id, text: "Public" })).status, 410);
+    assert.equal((await request("DELETE", "admin", undefined, `?id=${id}&commentId=legacy`)).status, 410);
+    assert.equal("comments" in (await (await request("GET", "user")).json()).assessments[0], false);
     const edit = { ...input, id, revision: 1, notes: "Обновлённое примечание" };
     const concurrent = await Promise.all([request("PUT", "headman", edit), request("PUT", "admin", edit)]);
     assert.deepEqual(concurrent.map(response => response.status).sort(), [200, 409]);
     assessment = (await (await request("GET", "user", undefined, `?id=${id}`)).json()).assessment;
     assert.equal(assessment.revision, 2);
-    assert.equal(assessment.comments.length, 1); // Editing a date/notes never overwrites comments.
-    assert.equal((await request("DELETE", "user", undefined, `?id=${id}&commentId=${comment.id}`)).status, 200);
-    const moderation = await (await request("POST", "other", { action: "comment", id, text: "Комментарий" })).json();
-    assert.equal((await request("DELETE", "headman", undefined, `?id=${id}&commentId=${moderation.comment.id}`)).status, 200);
+    assert.equal("comments" in assessment, false);
+    assert.equal(assessment.notes, "Обновлённое примечание");
     const schedule = await (await scheduleRoute.GET(new Request("http://localhost/api/schedule?date=2027-01-10&personId=user"))).json();
     assert.equal(schedule.assessments[0].id, id);
+    assert.equal("comments" in schedule.assessments[0], false);
     assert.equal((await request("DELETE", "headman", undefined, `?id=${id}&revision=1`)).status, 409);
     assert.equal((await request("DELETE", "admin", undefined, `?id=${id}&revision=2`)).status, 200);
     assert.equal((await request("GET", "user", undefined, `?id=${id}`)).status, 404);
-    assert.equal((await request("POST", "user", { action: "comment", id, text: "После удаления" })).status, 409);
+    assert.equal((await request("POST", "user", { action: "comment", id, text: "После удаления" })).status, 410);
     // A role change in the database takes effect even with a previously elevated session token.
     await db.collection("people").updateOne({ id: "admin" }, { $set: { role: "user" } });
     assert.equal((await request("POST", "admin", input)).status, 403);
-    console.log("Assessment validation, roles, concurrency, comments and schedule integration passed");
+    console.log("Assessment validation, roles, concurrency, disabled comments and schedule integration passed");
   } finally {
     await (await connection).close();
     await mongo.stop();

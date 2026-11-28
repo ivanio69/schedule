@@ -2,13 +2,12 @@ import { datePosition, getTotalWeeks, type ScheduleData } from "./schedule";
 
 export type AssessmentKind = "exam" | "credit";
 export const ASSESSMENT_LABELS: Record<AssessmentKind, string> = { exam: "Экзамен", credit: "Зачёт" };
-export type AssessmentComment = { id: string; personId: string; author: string; text: string; createdAt: string };
 export type AssessmentInput = {
   kind: AssessmentKind; subject: string; date: string; timeStart: string; timeEnd: string;
   professor: string; auditorium: string; notes: string;
 };
 export type Assessment = AssessmentInput & {
-  id: string; revision: number; createdAt: string; updatedAt: string; comments: AssessmentComment[];
+  id: string; revision: number; createdAt: string; updatedAt: string;
 };
 
 export function validAssessmentDate(value: unknown): value is string {

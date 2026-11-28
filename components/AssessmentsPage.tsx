@@ -67,21 +67,21 @@ export default function AssessmentsPage({ manage = false, embedded = false }: { 
   const management = manage && canManage;
   return <section className={`${styles.page}${embedded ? ` ${styles.embedded}` : ""}${manage && !embedded ? " admin-shell admin-unified" : ""}`}>
     {!manage && <Link className={styles.back} href="/">На главную</Link>}
-    <header className={styles.header}><div><h1>Зачёты и экзамены</h1><p>{management ? "Добавляйте и меняйте расписание сессии для всей группы." : "Расписание сессии, примечания и комментарии группы."}</p></div>
+    <header className={styles.header}><div><h1>Зачёты и экзамены</h1><p>{management ? "Добавляйте и меняйте расписание сессии для всей группы." : "Даты, время и описание от автора."}</p></div>
       {management ? <button type="button" className="admin-primary" onClick={() => setEditor({ item: null })}>＋ Добавить</button> : canManage && <Link className="admin-secondary" href={manageHref}>Управлять</Link>}
     </header>
     {error && <p className={styles.error} role="alert">{error} <button type="button" className="admin-secondary" onClick={() => void load()}>Повторить</button></p>}
     <div className={styles.toolbar}><label className={styles.search}><input className="admin-input" type="search" value={query} placeholder="Поиск по предмету, преподавателю, месту" aria-label="Поиск по расписанию сессии" onChange={e => setQuery(e.target.value)}/></label>
       <div className={styles.filters} role="group" aria-label="Тип события">{(["all", "credit", "exam"] as const).map(kind => <button type="button" key={kind} aria-pressed={filter === kind} onClick={() => setFilter(kind)}>{kind === "all" ? "Все" : kind === "credit" ? "Зачёты" : "Экзамены"}</button>)}</div>
     </div>
-    <p className={styles.help} role="status">{notice}</p>
-    <div className={styles.groups}>{groups.map(([date, assessments]) => <section className={styles.day} key={date}><h2>{formatAssessmentDate(date)}</h2><div className={styles.list}>{assessments.map(item => <div className={styles.item} key={item.id}>
+    {notice && <p className={styles.notice} role="status">{notice}</p>}
+    <div className={styles.groups}>{groups.map(([date, assessments]) => <section className={styles.day} key={date}><h2>{formatAssessmentDate(date)}</h2><div className={styles.list}>{assessments.map(item => <div className={`${styles.item}${management ? ` ${styles.managedItem}` : ""}`} key={item.id}>
       <AssessmentCard assessment={item} past={new Date(`${item.date}T${item.timeEnd}:00`).getTime() <= now} onClick={() => setDetails(item)}/>
       {management && <div className={styles.actions}><button type="button" className="admin-secondary" onClick={() => setEditor({ item })}>Изменить</button><button type="button" className="admin-danger" onClick={() => { setDeleting(item); setDeleteClosing(false); setDeleteError(""); }}>Удалить</button></div>}
     </div>)}</div></section>)}</div>
     {!groups.length && !error && <div className={styles.empty}><h2>{items.length ? "Ничего не найдено" : "Расписание пока не добавлено"}</h2><p>{items.length ? "Попробуйте другой поиск или фильтр." : management ? "Добавьте первый зачёт или экзамен." : "Когда появятся даты, они будут здесь и в общем расписании."}</p></div>}
     {editor && <AssessmentEditor assessment={editor.item} onClose={() => setEditor(null)} onSaved={saved}/>}
     {details && <AssessmentDetails key={details.id} assessment={details} onClose={() => setDetails(null)} onChange={saved}/>}
-    {deleting && <EventDialog title={`Удалить ${ASSESSMENT_LABELS[deleting.kind].toLocaleLowerCase("ru")}?`} eyebrow={deleting.subject} busy={deleteBusy} closing={deleteClosing} compact onClose={() => setDeleting(null)}><div className={styles.form}><p className={styles.help}>Запись исчезнет из общего расписания и расписания сессии. Комментарии также будут удалены.</p>{deleteError && <p className={styles.error} role="alert">{deleteError}</p>}<div className={styles.actions}><button type="button" className="admin-secondary" disabled={deleteBusy || deleteClosing} onClick={() => setDeleteClosing(true)}>Отмена</button><button type="button" className="admin-danger" disabled={deleteBusy || deleteClosing} onClick={() => void remove()}>{deleteBusy ? "Удаляем…" : "Удалить"}</button></div></div></EventDialog>}
+    {deleting && <EventDialog title={`Удалить ${ASSESSMENT_LABELS[deleting.kind].toLocaleLowerCase("ru")}?`} eyebrow={deleting.subject} busy={deleteBusy} closing={deleteClosing} compact onClose={() => setDeleting(null)}><div className={styles.form}><p className={styles.help}>Запись исчезнет из общего расписания и расписания сессии.</p>{deleteError && <p className={styles.error} role="alert">{deleteError}</p>}<div className={styles.actions}><button type="button" className="admin-secondary" disabled={deleteBusy || deleteClosing} onClick={() => setDeleteClosing(true)}>Отмена</button><button type="button" className="admin-danger" disabled={deleteBusy || deleteClosing} onClick={() => void remove()}>{deleteBusy ? "Удаляем…" : "Удалить"}</button></div></div></EventDialog>}
   </section>;
 }
