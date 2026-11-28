@@ -5,7 +5,7 @@ import { useVisibleClock } from "@/lib/visible-clock";
 import { useEntranceComplete } from "@/lib/use-entrance-complete";
 import { getDashboardRehearsalSegments } from "@/lib/dashboard-timeline";
 import { fetchAuthSession } from "@/lib/auth-client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { IndividualLesson, Person } from "@/lib/people";
 import type { IndividualSlot } from "@/lib/individual-slots";
@@ -28,6 +28,8 @@ import type { PersonalEvent } from "@/lib/personal-events";
 import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
 import BirthdayGreeting from "@/components/BirthdayGreeting";
+import { BirthdayPersonContext } from "@/components/BirthdayCelebration";
+import { isBirthdayToday } from "@/lib/birthdays";
 import DashboardAssessmentsButton from "@/components/DashboardAssessmentsButton";
 import type { Assessment } from "@/lib/assessments";
 const AssessmentDetails = dynamic(() => import("@/components/AssessmentDetails"));
@@ -74,6 +76,7 @@ type Event = {
   rehearsalId?: string;
 };
 export default function DashboardV2() {
+  const birthdayProfile = useContext(BirthdayPersonContext);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [personalInvitations, setPersonalInvitations] = useState<PersonalEvent[]>([]);
@@ -98,6 +101,7 @@ export default function DashboardV2() {
   const clock = useVisibleClock();
   const [initialNow] = useState(() => new Date());
   const now = useMemo(() => clock === null ? initialNow : new Date(clock), [clock, initialNow]);
+  const openingScroll = birthdayProfile === undefined ? "pending" : birthdayProfile?.id === person?.id && isBirthdayToday(birthdayProfile?.birthday, now) ? "top" : "focus";
   const refreshPersonalEvents = useCallback(async (signal?: AbortSignal) => {
     const revision = ++personalRequest.current;
     try {
@@ -615,7 +619,7 @@ export default function DashboardV2() {
       <DashboardAnnouncements personId={person.id} />
       <PersonalEventInvitations items={personalInvitations} onResponded={id => {setPersonalInvitations(items=>items.filter(item=>item.id!==id)); void refreshPersonalEvents();}}/>
 
-      <DayTimeline events={events} date={todayKey} week={week} currentMinute={currentMin} notes={notes} onOpen={event => {
+      <DayTimeline events={events} date={todayKey} week={week} currentMinute={currentMin} notes={notes} openingScroll={openingScroll} onOpen={event => {
         if (event.kind === "exam" || event.kind === "credit") setAssessment(assessments.find(item => `assessment-${item.id}` === event.key) ?? null);
         if (event.kind === "personal") setPersonalEvent(personalEvents.find(item => `personal-${item.id}` === event.key) ?? null);
         if (event.kind === "group") {

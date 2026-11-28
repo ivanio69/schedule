@@ -7,10 +7,10 @@ import { subscribeScreenLoading } from "@/lib/screen-loading";
 import { useVisibleClock } from "@/lib/visible-clock";
 
 type BirthdayPerson = { id: string; name: string; birthday: string | null };
-export const BirthdayPersonContext = createContext<BirthdayPerson | null>(null);
+export const BirthdayPersonContext = createContext<BirthdayPerson | null | undefined>(undefined);
 
 export default function BirthdayCelebration({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<BirthdayPerson | null>(null);
+  const [profile, setProfile] = useState<BirthdayPerson | null | undefined>(undefined);
   const clock = useVisibleClock();
   const [initialNow] = useState(() => new Date());
   const day = birthdayDayKey(clock === null ? initialNow : new Date(clock));
