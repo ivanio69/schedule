@@ -610,7 +610,6 @@ export default function DashboardV2() {
           </p>
         </div>
       </header>
-      <DashboardAssessmentsButton/>
       <DashboardAnnouncements personId={person.id} />
       <PersonalEventInvitations items={personalInvitations} onResponded={id => {setPersonalInvitations(items=>items.filter(item=>item.id!==id)); void refreshPersonalEvents();}}/>
 
@@ -665,6 +664,7 @@ export default function DashboardV2() {
           </div>
         )}
       </section>
+      <DashboardAssessmentsButton/>
       <DashboardArchiveButton/>
     </main>
   );
