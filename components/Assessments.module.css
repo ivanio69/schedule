@@ -18,7 +18,7 @@
 .card { box-sizing:border-box; width:100%; min-width:0; text-align:left; color:var(--text); font:inherit; cursor:pointer; border-color:color-mix(in srgb,var(--danger) 30%,var(--border)); background:linear-gradient(135deg,color-mix(in srgb,var(--danger) 6%,var(--surface)),var(--surface)); }
 .card:hover { border-color:color-mix(in srgb,var(--danger) 55%,var(--border)); background:color-mix(in srgb,var(--danger) 8%,var(--surface)); }
 .card .badge { display:inline-flex; align-items:center; height:20px; padding:0 7px; border:1px solid color-mix(in srgb,var(--danger) 35%,var(--border)); border-radius:6px; color:var(--danger); background:color-mix(in srgb,var(--danger) 9%,transparent); font-size:10px; font-weight:700; letter-spacing:.07em; line-height:1; }
-.card .title { margin:8px 0 0; color:var(--text); font-size:16px; font-weight:650; line-height:1.4; overflow-wrap:anywhere; }
+.card .title { margin:0; color:var(--text); font-size:16px; font-weight:650; line-height:1.4; overflow-wrap:anywhere; }
 .card .meta { display:flex; margin-top:9px; color:var(--muted); font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
 .card :global(.schedule-card__time) { background:color-mix(in srgb,var(--danger) 5%,transparent); border-right-color:color-mix(in srgb,var(--danger) 20%,var(--border)); }
 .past { opacity:.6; }
@@ -76,3 +76,5 @@
   .managedItem > .actions { padding:10px 12px; }
   .managedItem > .actions > button { flex:1; min-height:40px; }
 }
+
+.card :global(.schedule-card__title) { display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-width:0; }
