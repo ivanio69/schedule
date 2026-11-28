@@ -9,6 +9,8 @@ import styles from "./HeadmanPanel.module.css";
 import type { Person } from "@/lib/people";
 import { attendanceReasonText, type AttendanceReport } from "@/lib/attendance";
 import HeadmanAnnouncements from "@/components/HeadmanAnnouncements";
+import dynamic from "next/dynamic";
+const AssessmentsPage = dynamic(() => import("@/components/AssessmentsPage"));
 import HeadmanSidebarNavigation from "@/components/HeadmanSidebarNavigation";
 
 type Overview={
@@ -19,7 +21,7 @@ type Overview={
   lessons:{key:string;title:string;start:string;end:string;auditorium:string;status:string|null}[];
 };
 type ReportFilter="today"|"upcoming"|"all";
-export type HeadmanTab="today"|"reports"|"announcements"|"analytics"|"anger";
+export type HeadmanTab="assessments"|"today"|"reports"|"announcements"|"analytics"|"anger";
 
 const localDateKeyFrom=(date:Date)=>date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
 const localDateKey=()=>localDateKeyFrom(new Date());
@@ -56,7 +58,7 @@ export default function HeadmanPanel(){
     }
   };
 
-  useEffect(()=>{void load()},[]);
+  useEffect(()=>{if(new URLSearchParams(window.location.search).get("tab")==="assessments")setTab("assessments");void load()},[]);
   useEffect(()=>{
     const timer=setInterval(()=>void load(),60000);
     return()=>clearInterval(timer);
@@ -183,7 +185,7 @@ export default function HeadmanPanel(){
   if(loading&&!overview)return <main className={styles.page}><div className={styles.loading}>Загружаем…</div></main>;
   if(!overview)return <main className={styles.page}><div className={styles.loading}>{status||"Нет данных"}</div></main>;
 
-  const tabTitle:Record<HeadmanTab,string>={today:"Сегодня",reports:"Отметки",announcements:"Объявления",analytics:"Аналитика",anger:"Гневная кнопка"};
+  const tabTitle:Record<HeadmanTab,string>={assessments:"Зачёты и экзамены",today:"Сегодня",reports:"Отметки",announcements:"Объявления",analytics:"Аналитика",anger:"Гневная кнопка"};
   return <div className={styles.workspace}>
     <HeadmanSidebarNavigation active={tab} onChange={setTab} affectedLessons={affectedLessons} reports={reports.length} actorName={overview.actor.name}/>
     <main className={styles.page}>
@@ -240,6 +242,7 @@ export default function HeadmanPanel(){
       </div>):<div className={styles.empty}>Нет отметок</div>}</div>
     </section>}
 
+    {tab==="assessments"&&<AssessmentsPage manage embedded/>}
     {tab==="announcements"&&<HeadmanAnnouncements people={people}/>}
 
     {tab==="analytics"&&<section className={styles.analyticsView}>

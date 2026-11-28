@@ -22,6 +22,7 @@ function harness() {
     URLSearchParams, window: { location: { search: '' } }, loadedRequest: { current: '' },
     didInitializeSelection: { current: true },
     setIndividualLessons: value => { state.individualLessons = value; },
+    setAssessments: value => { state.assessments = value; },
     setSchedule: value => { state.schedule = value; },
     setRehearsals: value => { state.rehearsals = value; },
     setLoading: value => { state.loading = value; },
@@ -111,4 +112,16 @@ test('individuals from a stale day cannot replace the selected day', async () =>
   h.pending[0].resolve({ok:true,json:async()=>({schedule:'old',individualLessons:['old']})});
   await h.flush();
   assert.deepEqual(h.state.individualLessons, ['new']);
+});
+
+test('session events from a stale response cannot replace the current calendar', async () => {
+  const h = harness();
+  const cleanup = h.run('2026-11-26');
+  cleanup();
+  h.run('2026-11-27');
+  h.pending[1].resolve({ok:true,json:async()=>({schedule:'new',assessments:['exam']})});
+  await h.flush();
+  h.pending[0].resolve({ok:true,json:async()=>({schedule:'old',assessments:['old-credit']})});
+  await h.flush();
+  assert.deepEqual(h.state.assessments, ['exam']);
 });

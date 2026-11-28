@@ -8,7 +8,7 @@ import styles from "./DayTimeline.module.css";
 
 export type DayTimelineEvent = {
   key: string;
-  kind: "group" | "individual" | "slot" | "rehearsal" | "personal";
+  kind: "group" | "individual" | "slot" | "rehearsal" | "personal" | "exam" | "credit";
   start: string;
   end: string;
   title: string;
@@ -145,7 +145,7 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
         const current = event.status !== "cancelled" && start <= currentMinute && currentMinute < end;
         const upcoming = event.key === next?.key;
         const progress = Math.max(0, Math.min(100, (currentMinute - start) / (end - start) * 100));
-        const label = event.status === "cancelled" ? "Отменено" : event.status === "moved" ? "Перенесено" : event.attendance === "absence" ? "Меня не будет" : event.attendance === "late" ? "Опоздаю" : event.kind === "group" ? "" : event.kind === "rehearsal" ? "Репетиция" : event.kind === "personal" ? "Событие" : "Индивидуальное";
+        const label = event.status === "cancelled" ? "Отменено" : event.status === "moved" ? "Перенесено" : event.attendance === "absence" ? "Меня не будет" : event.attendance === "late" ? "Опоздаю" : event.kind === "exam" ? "Экзамен" : event.kind === "credit" ? "Зачёт" : event.kind === "group" ? "" : event.kind === "rehearsal" ? "Репетиция" : event.kind === "personal" ? "Событие" : "Индивидуальное";
         const content = <><span className={styles.main}><span className={styles.titleRow}>{label && <span className={styles.kind}>{label}</span>}{current && <span className={styles.currentLabel}>Сейчас идёт</span>}{upcoming && <span className={styles.nextLabel}>Следующее · через {formatDuration(start - currentMinute)}</span>}</span><strong className={styles.title}>{event.title}</strong><span className={styles.metadata}>{[event.subtitle, event.detail].filter(Boolean).join(" · ")}</span>{event.status && <span className={styles.metadata}>{event.reason || (event.status === "cancelled" ? "Не учитывается в занятости" : "Занятие в новое время")}</span>}{(event.note || notes[event.key]) && <span className={styles.metadata}>● {event.note || notes[event.key]}</span>}</span><span className={styles.duration}>{event.end}<span>{formatDuration(end - start)}</span></span></>;
         return <li key={row.key} data-timeline-focus={row.key === focusKey ? "" : undefined} className={`${styles.row} ${styles[event.kind]}`}>
           {index === nowBefore && !occupancy.gaps.some(gap => currentMinute >= gap.start && currentMinute < gap.end) && <div className={styles.beforeNow}>{nowLabel}</div>}
