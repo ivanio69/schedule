@@ -15,7 +15,7 @@ const selection = `schedule_environment=dev; schedule_dev_host=schedule-git-test
 const cookie = `${selection}; ${AUTH_COOKIE}=${token}`;
 const req = (path: string, cookies = cookie) => new NextRequest(`https://schedule-ivanio.vercel.app${path}`, { headers: { cookie: cookies } });
 
-for (const path of ["/settings", "/_next/static/chunks/preview.js", "/_next/static/css/preview.css", "/_next/image?url=%2Ficons%2Ficon.svg&w=64&q=75", "/icons/icon.svg", "/api/schedule"]) {
+for (const path of ["/settings", "/_next/static/chunks/preview.js", "/_next/static/css/preview.css", "/_next/image?url=%2Ficons%2Ficon.svg&w=64&q=75", "/icons/icon.svg", "/api/schedule", "/api/profile/birthday"]) {
   const response = proxy(req(path));
   const target = new URL(response.headers.get("x-middleware-rewrite")!);
   assert.equal(target.host, "schedule-git-test-ivanio.vercel.app", path);
@@ -23,6 +23,7 @@ for (const path of ["/settings", "/_next/static/chunks/preview.js", "/_next/stat
   assert.equal(response.headers.get("x-schedule-environment"), "dev");
   assert.match(response.headers.get("cache-control")!, /no-store/);
 }
+assert.equal(proxy(req("/api/auth/session")).headers.get("x-middleware-rewrite"), null, "auth stays on stable while birthday follows DEV");
 assert.equal(proxy(req("/sw.js")).headers.get("x-middleware-rewrite"), null);
 assert.equal(proxy(req("/api/environment")).headers.get("x-middleware-rewrite"), null);
 assert.equal(proxy(req("/_next/static/anonymous.js", "")).status, 200);

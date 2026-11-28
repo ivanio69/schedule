@@ -147,7 +147,7 @@ export default function DashboardV2() {
         const authResponse=await fetchAuthSession();
         if(!authResponse.ok){window.location.replace("/login");return;}
         const auth=await authResponse.json();
-        const current=auth.person as {id:string;name:string;role?:Person["role"];birthday?:string};
+        const current=auth.person as {id:string;name:string;role?:Person["role"]};
         if(!current?.id){window.location.replace("/login");return;}
         localStorage.setItem(PERSON_KEY,current.id);
         const profileRequest = loadProfile(current.id).catch(() => undefined);
@@ -159,7 +159,7 @@ export default function DashboardV2() {
           profileRequest,
         ]);
         if(cancelled)return;
-        setPerson({id:current.id,name:current.name,active:true,role:current.role,birthday:current.birthday,createdAt:""});
+        setPerson({id:current.id,name:current.name,active:true,role:current.role,createdAt:""});
         setSchedule(s.schedule??null);
         setAssessments(s.assessments??[]);
         setIndividuals((s.individualLessons ?? []).filter((lesson: IndividualLesson) => lesson.personId === current.id));

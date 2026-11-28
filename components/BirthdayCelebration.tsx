@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { fetchAuthSession } from "@/lib/auth-client";
+import { createContext, useEffect, useState, type ReactNode } from "react";
+import { fetchSharedRead } from "@/lib/shared-read";
 import { birthdayDayKey, isBirthdayToday } from "@/lib/birthdays";
 import { subscribeScreenLoading } from "@/lib/screen-loading";
 import { useVisibleClock } from "@/lib/visible-clock";
 
-export default function BirthdayCelebration() {
+type BirthdayPerson = { id: string; name: string; birthday: string | null };
+export const BirthdayPersonContext = createContext<BirthdayPerson | null>(null);
+
+export default function BirthdayCelebration({ children }: { children: ReactNode }) {
+  const [profile, setProfile] = useState<BirthdayPerson | null>(null);
   const clock = useVisibleClock();
   const [initialNow] = useState(() => new Date());
   const day = birthdayDayKey(clock === null ? initialNow : new Date(clock));
@@ -35,13 +39,14 @@ export default function BirthdayCelebration() {
       clear();
       personId = ""; birthday = undefined;
       try {
-        const response = await fetchAuthSession();
+        const response = await fetchSharedRead("/api/profile/birthday");
         const data = response.ok ? await response.json() : null;
         if (disposed || current !== revision) return;
         personId = data?.person?.id ?? "";
         birthday = data?.person?.birthday;
+        setProfile(data?.person ?? null);
         launch();
-      } catch { /* A failed check should never interrupt opening the app. */ }
+      } catch { if (!disposed && current === revision) setProfile(null); }
     };
     const unsubscribe = subscribeScreenLoading(value => { loading = value; if (loading) clear(); else launch(); });
     const visible = () => {
@@ -61,5 +66,5 @@ export default function BirthdayCelebration() {
       window.removeEventListener("schedule-auth-change", authChanged);
     };
   }, [day]);
-  return null;
+  return <BirthdayPersonContext.Provider value={profile}>{children}</BirthdayPersonContext.Provider>;
 }

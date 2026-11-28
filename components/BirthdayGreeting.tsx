@@ -1,11 +1,14 @@
 "use client";
 
 import { isBirthdayToday } from "@/lib/birthdays";
+import { useContext } from "react";
+import { BirthdayPersonContext } from "./BirthdayCelebration";
 import type { Person } from "@/lib/people";
 import styles from "./Birthday.module.css";
 
 export default function BirthdayGreeting({ person, now }: { person: Person; now: Date }) {
-  if (!isBirthdayToday(person.birthday, now)) return null;
+  const profile = useContext(BirthdayPersonContext);
+  if (profile?.id !== person.id || !isBirthdayToday(profile.birthday, now)) return null;
   const celebrate = async () => {
     const { fireBirthdayConfetti } = await import("@/lib/birthday-confetti");
     fireBirthdayConfetti();
