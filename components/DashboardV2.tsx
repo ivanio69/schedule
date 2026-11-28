@@ -10,7 +10,7 @@ import Link from "next/link";
 import type { IndividualLesson, Person } from "@/lib/people";
 import type { IndividualSlot } from "@/lib/individual-slots";
 import {
-  getCurrentWeek,
+  datePosition,
   getLessonsForWeek,
   type GroupPreference,
   type Rehearsal,
@@ -27,6 +27,9 @@ const EventDetailsContent = dynamic(() => import("@/components/EventDetailsConte
 import type { PersonalEvent } from "@/lib/personal-events";
 import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
+import DashboardAssessmentsButton from "@/components/DashboardAssessmentsButton";
+import type { Assessment } from "@/lib/assessments";
+const AssessmentDetails = dynamic(() => import("@/components/AssessmentDetails"));
 import DashboardArchiveButton from "@/components/DashboardArchiveButton";
 import type { AttendanceReport } from "@/lib/attendance";
 const PERSON_KEY = "schedule_person_id";
@@ -53,7 +56,7 @@ const pick = (items: string[], seed: string) => {
   return items[hash % items.length];
 };
 type Event = {
-  kind: "group" | "individual" | "slot" | "rehearsal" | "personal";
+  kind: "group" | "individual" | "slot" | "rehearsal" | "personal" | "exam" | "credit";
   start: string;
   end: string;
   title: string;
@@ -70,6 +73,8 @@ type Event = {
   rehearsalId?: string;
 };
 export default function DashboardV2() {
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [personalInvitations, setPersonalInvitations] = useState<PersonalEvent[]>([]);
   const personalRequest = useRef(0);
   const [details, setDetails] = useState<EventDetails | null>(null);
@@ -155,6 +160,7 @@ export default function DashboardV2() {
         if(cancelled)return;
         setPerson({id:current.id,name:current.name,active:true,role:current.role,createdAt:""});
         setSchedule(s.schedule??null);
+        setAssessments(s.assessments??[]);
         setIndividuals((s.individualLessons ?? []).filter((lesson: IndividualLesson) => lesson.personId === current.id));
         setRehearsals(s.rehearsals??[]);
         setSeminars(seminarData.lists??[]);
@@ -175,7 +181,7 @@ export default function DashboardV2() {
     return () => clearInterval(t);
   }, [person?.id]);
   const today = todayIndex(),
-    week = schedule ? getCurrentWeek(schedule, now) : 1,
+    week = schedule ? Math.max(1, datePosition(schedule, dateKey(now)).week) : 1,
     todayKey = dateKey(today >= 0 ? dayDate(today) : now);
   const entranceRoot = useRef<HTMLElement>(null);
   const tasksRevealReady = useEntranceComplete(entranceRoot, todayKey, !loading && Boolean(person));
@@ -189,6 +195,7 @@ export default function DashboardV2() {
   const events = useMemo<Event[]>(
     () =>
       [
+        ...assessments.filter(x=>x.date===todayKey).map(x=>({ kind:x.kind, start:x.timeStart, end:x.timeEnd, title:x.subject, subtitle:x.professor, detail:x.auditorium || "Место уточняется", note:x.notes, key:`assessment-${x.id}` })),
         ...personalEvents.filter(x=>x.date===todayKey).map(x=>({
           kind: "personal" as const, start:x.timeStart, end:x.timeEnd,
           title:x.title, subtitle:x.creatorId === person?.id ? "Событие" : `Приглашение · ${x.creatorName ?? "Участник"}`, detail:x.location || (x.creatorId === person?.id ? "Ваше событие" : "Вы участвуете"), note:x.notes, key:`personal-${x.id}`,
@@ -257,7 +264,7 @@ export default function DashboardV2() {
             rehearsalId: x.id,
           }))),
       ].sort((a, b) => mins(a.start) - mins(b.start)),
-    [groups, individuals, bookedSlots, rehearsals, personalEvents, todayKey, attendanceReports, person?.id, person?.name],
+    [groups, individuals, bookedSlots, rehearsals, personalEvents, assessments, todayKey, attendanceReports, person?.id, person?.name],
   );
   const currentMin = now.getHours() * 60 + now.getMinutes();
   const hour = now.getHours(),
@@ -294,6 +301,7 @@ export default function DashboardV2() {
   if (!person) return <LoadingState screen label="Проверяем вход" detail="Подтверждаем Telegram-сессию."/>;
   return (
     <main ref={entranceRoot} className="dashboard-v2">
+      {assessment&&<AssessmentDetails key={assessment.id} assessment={assessment} onClose={()=>setAssessment(null)} onChange={item=>setAssessments(current=>current.map(value=>value.id===item.id?item:value))}/>}
       {personalError&&<p className="admin-error" role="alert">{personalError}</p>}
       {personalEvent&&<PersonalEventEditor date={personalEvent.date} event={personalEvent} personId={person.id} onClose={()=>setPersonalEvent(null)} onSaved={()=>void refreshPersonalEvents()}/>}
       {details && <EventDialog title={details.type === "lesson" ? details.item.class : details.item.subject} eyebrow={details.type === "rehearsal" ? "РЕПЕТИЦИЯ" : "ЗАНЯТИЕ"} onClose={()=>setDetails(null)}><EventDetailsContent details={details} lessonDate={todayKey} creatorId={person.id} personName={person.name}/>{details.type === "rehearsal" && details.item.creatorId === person.id && <Link className="admin-secondary" href={`/schedule/rehearsals/new?edit=${encodeURIComponent(details.item.id)}`}>Редактировать репетицию</Link>}</EventDialog>}
@@ -602,10 +610,12 @@ export default function DashboardV2() {
           </p>
         </div>
       </header>
+      <DashboardAssessmentsButton/>
       <DashboardAnnouncements personId={person.id} />
       <PersonalEventInvitations items={personalInvitations} onResponded={id => {setPersonalInvitations(items=>items.filter(item=>item.id!==id)); void refreshPersonalEvents();}}/>
 
       <DayTimeline events={events} date={todayKey} week={week} currentMinute={currentMin} notes={notes} onOpen={event => {
+        if (event.kind === "exam" || event.kind === "credit") setAssessment(assessments.find(item => `assessment-${item.id}` === event.key) ?? null);
         if (event.kind === "personal") setPersonalEvent(personalEvents.find(item => `personal-${item.id}` === event.key) ?? null);
         if (event.kind === "group") {
           const item = groups.find(item => noteKey(todayKey, item.timeStart, item.class) === event.key);

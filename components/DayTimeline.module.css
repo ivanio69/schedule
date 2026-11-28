@@ -12,6 +12,7 @@
 .rows { position:relative; isolation:isolate; display:grid; gap:12px; list-style:none; margin:0; padding:0; }
 .rows::before { content:""; position:absolute; z-index:-1; top:24px; bottom:24px; left:76px; width:1px; background:var(--border); pointer-events:none; }
 .row { position:relative; display:grid; grid-template-columns:60px minmax(0,1fr); gap:32px; min-width:0; --event-color:var(--accent); }
+.exam,.credit { --event-color:var(--danger); }
 .individual,.slot { --event-color:var(--individual); }
 .rehearsal { --event-color:var(--rehearsal); }
 .personal { --event-color:var(--personal); }

@@ -16,6 +16,7 @@ type Props={
 
 const ITEMS:{id:HeadmanTab;label:string;icon:string}[]=[
   {id:"today",label:"Сегодня",icon:"●"},
+  {id:"assessments",label:"Зачёты и экзамены",icon:"▦"},
   {id:"reports",label:"Отметки",icon:"≡"},
   {id:"announcements",label:"Объявления",icon:"✦"},
   {id:"analytics",label:"Аналитика",icon:"⌁"},
