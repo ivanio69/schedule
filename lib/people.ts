@@ -9,6 +9,7 @@ export type Person = {
   id: string;
   name: string;
   active: boolean;
+  birthday?: string; // MM-DD, without a birth year.
   role?: PersonRole;
   adminLink?: boolean;
   telegramUsername?: string;

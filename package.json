@@ -1,6 +1,6 @@
 {
   "name": "schedule",
-  "version": "5.15.1",
+  "version": "5.16.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,7 +15,8 @@
     "test:pwa": "node --test tests/pwa-cache.test.mjs tests/pwa-build.test.mjs",
     "test:performance": "node --test tests/performance-runtime.test.mjs tests/schedule-loading.test.mjs tests/task-entrance.test.mjs",
     "measure:startup": "node scripts/measure-startup.mjs",
-    "test:assessments": "node --import tsx tests/assessments.integration.ts"
+    "test:assessments": "node --import tsx tests/assessments.integration.ts",
+    "test:birthdays": "node --test tests/birthdays.test.mjs"
   },
   "dependencies": {
     "@heroui/react": "^3.2.2",

@@ -27,6 +27,7 @@ const EventDetailsContent = dynamic(() => import("@/components/EventDetailsConte
 import type { PersonalEvent } from "@/lib/personal-events";
 import LoadingState from "@/components/LoadingState";
 import DashboardAnnouncements from "@/components/DashboardAnnouncements";
+import BirthdayGreeting from "@/components/BirthdayGreeting";
 import DashboardAssessmentsButton from "@/components/DashboardAssessmentsButton";
 import type { Assessment } from "@/lib/assessments";
 const AssessmentDetails = dynamic(() => import("@/components/AssessmentDetails"));
@@ -146,7 +147,7 @@ export default function DashboardV2() {
         const authResponse=await fetchAuthSession();
         if(!authResponse.ok){window.location.replace("/login");return;}
         const auth=await authResponse.json();
-        const current=auth.person as {id:string;name:string;role?:Person["role"]};
+        const current=auth.person as {id:string;name:string;role?:Person["role"];birthday?:string};
         if(!current?.id){window.location.replace("/login");return;}
         localStorage.setItem(PERSON_KEY,current.id);
         const profileRequest = loadProfile(current.id).catch(() => undefined);
@@ -158,7 +159,7 @@ export default function DashboardV2() {
           profileRequest,
         ]);
         if(cancelled)return;
-        setPerson({id:current.id,name:current.name,active:true,role:current.role,createdAt:""});
+        setPerson({id:current.id,name:current.name,active:true,role:current.role,birthday:current.birthday,createdAt:""});
         setSchedule(s.schedule??null);
         setAssessments(s.assessments??[]);
         setIndividuals((s.individualLessons ?? []).filter((lesson: IndividualLesson) => lesson.personId === current.id));
@@ -610,6 +611,7 @@ export default function DashboardV2() {
           </p>
         </div>
       </header>
+      <BirthdayGreeting person={person} now={now}/>
       <DashboardAnnouncements personId={person.id} />
       <PersonalEventInvitations items={personalInvitations} onResponded={id => {setPersonalInvitations(items=>items.filter(item=>item.id!==id)); void refreshPersonalEvents();}}/>
 
