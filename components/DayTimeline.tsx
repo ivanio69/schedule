@@ -23,13 +23,14 @@ export type DayTimelineEvent = {
 
 const clock = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 
-export default function DayTimeline({ events, date, week, currentMinute, notes, onOpen }: {
+export default function DayTimeline({ events, date, week, currentMinute, notes, onOpen, openingScroll = "focus" }: {
   events: DayTimelineEvent[];
   date: string;
   week: number;
   currentMinute: number;
   notes: Record<string, string>;
   onOpen: (event: DayTimelineEvent) => void;
+  openingScroll?: "pending" | "top" | "focus";
 }) {
   const reducedMotion = useReducedMotion();
   const occupancy = getDayOccupancy(events);
@@ -94,12 +95,14 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
   }, []);
 
   useLayoutEffect(() => {
-    if (!focusKey || positionedDate.current === date) return;
+    if (openingScroll === "pending") return;
+    const positionKey = `${date}:${openingScroll}`;
+    if ((!focusKey && openingScroll !== "top") || positionedDate.current === positionKey) return;
     // Let the browser/route finish restoring its scroll position first.
     let frame = requestAnimationFrame(() => {
       frame = requestAnimationFrame(() => {
-        if (openFromTop) {
-          positionedDate.current = date;
+        if (openingScroll === "top" || openFromTop) {
+          positionedDate.current = positionKey;
           window.scrollTo({top:0,behavior:"instant"});
           return;
         }
@@ -110,13 +113,13 @@ export default function DayTimeline({ events, date, week, currentMinute, notes, 
         const headerTop = header ? Number.parseFloat(getComputedStyle(header).top) || 0 : 0;
         // Only once per opening: clock ticks and data refreshes must not pull
         // someone away from the history they are reading.
-        positionedDate.current = date;
+        positionedDate.current = positionKey;
         // Keep the focused card below the extended fade (52px) plus a 16px gap.
         window.scrollTo({top:Math.max(0, window.scrollY + target.getBoundingClientRect().top - headerHeight - headerTop - 68),behavior:"instant"});
       });
     });
     return () => cancelAnimationFrame(frame);
-  }, [date, focusKey, openFromTop]);
+  }, [date, focusKey, openFromTop, openingScroll]);
 
   return <section ref={timeline} className={styles.timeline} aria-label="Единая временная шкала дня">
     <div className={styles.dayOverview} aria-label="Сводка дня">

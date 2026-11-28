@@ -34,6 +34,7 @@ import AppPageTransition from "@/components/AppPageTransition";
 import VersionUpdateNotice from "@/components/VersionUpdateNotice";
 import UsageAnalyticsTracker from "@/components/UsageAnalyticsTracker";
 import ProfileSessionSync from "@/components/ProfileSessionSync";
+import BirthdayCelebration from "@/components/BirthdayCelebration";
 import AppRuntimeStatus from "@/components/AppRuntimeStatus";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin", "cyrillic"] });
@@ -63,5 +64,5 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#09090b" };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent-mode="manual" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: environmentTransferBootScript }} /><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><ProfileSessionSync /><AppRuntimeStatus /><AmbientBackground /><AppearanceProvider /><WinterSnowfall /><OfflineBanner /><DevEnvironmentBanner /><VersionUpdateNotice /><SelectedUserGuard><UsageAnalyticsTracker /><PushPrompt /><AppNavigation /><AppPageTransition>{children}</AppPageTransition></SelectedUserGuard><Analytics /><SpeedInsights /></body></html>;
+  return <html lang="ru" className={geist.variable} data-theme="dark" data-accent-mode="manual" data-accent="default" data-rehearsal-accent="default" data-individual-accent="default" data-seminar-accent="default" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: environmentTransferBootScript }} /><script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} /></head><body><BirthdayCelebration><ProfileSessionSync /><AppRuntimeStatus /><AmbientBackground /><AppearanceProvider /><WinterSnowfall /><OfflineBanner /><DevEnvironmentBanner /><VersionUpdateNotice /><SelectedUserGuard><UsageAnalyticsTracker /><PushPrompt /><AppNavigation /><AppPageTransition>{children}</AppPageTransition></SelectedUserGuard><Analytics /><SpeedInsights /></BirthdayCelebration></body></html>;
 }
